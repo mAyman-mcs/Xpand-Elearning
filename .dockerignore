@@ -1,0 +1,10 @@
+node_modules
+**/node_modules
+**/dist
+.git
+.env
+imports
+test
+frontend.html
+frontend.js
+portal.json

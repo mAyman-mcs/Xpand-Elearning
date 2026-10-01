@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.env
+*.log
+server/src/generated/
+# user imports / generated credentials must never be committed
+imports/

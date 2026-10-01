@@ -1,0 +1,411 @@
+// Xpand CS Academy portal — data model (M0).
+// See docs/ARCHITECTURE.md for the rules each table supports.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────────── Identity ─────────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  INSTRUCTOR
+  STUDENT
+}
+
+model User {
+  id                 String    @id @default(uuid()) @db.Uuid
+  username           String    @unique
+  passwordHash       String
+  fullName           String
+  email              String?
+  mobile             String?
+  role               Role      @default(STUDENT)
+  isActive           Boolean   @default(true)
+  mustChangePassword Boolean   @default(true)
+  // Anchor for join-date-relative schedules on assignments that target this user directly.
+  joinDate           DateTime? @db.Date
+  failedLogins       Int       @default(0)
+  lockedUntil        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  sessions    Session[]
+  memberships GroupMember[]
+  grants      InstructorGrant[] @relation("grantee")
+  attempts    Attempt[]
+  overrides   AccessOverride[]
+  warnings    Warning[]         @relation("warned")
+  attendance  Attendance[]
+  auditLogs   AuditLog[]
+  assignments Assignment[]
+}
+
+model Session {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @db.Uuid
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // SHA-256 of the opaque cookie token; the raw token is never stored.
+  tokenHash  String    @unique
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  ip         String?
+  userAgent  String?
+
+  @@index([userId])
+}
+
+// A cohort / intake. Replaces the single global "intake_start_date" script property.
+model Group {
+  id              String   @id @default(uuid()) @db.Uuid
+  name            String   @unique
+  intakeStartDate DateTime @db.Date
+  createdAt       DateTime @default(now())
+
+  members     GroupMember[]
+  assignments Assignment[]
+  overrides   AccessOverride[]
+  grantScopes GrantGroup[]
+}
+
+model GroupMember {
+  userId   String    @db.Uuid
+  groupId  String    @db.Uuid
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group    Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  // Late joiners: overrides the group's intakeStartDate as the anchor for relative schedules.
+  joinDate DateTime? @db.Date
+  addedAt  DateTime  @default(now())
+
+  @@id([userId, groupId])
+  @@index([groupId])
+}
+
+// ───────────────────────── Access control ─────────────────────────
+
+enum Permission {
+  EXAM_EDIT // create/edit exam settings, questions, materials
+  EXAM_ASSIGN // assign exams to users/groups
+  EXAM_SCHEDULE // schedule, open, close
+  RESULTS_VIEW // see attempts and scores
+  RESULTS_RELEASE // publish results to students
+  PROCTOR // live board, force submit, extend time, allow resume
+  ATTEMPT_VOID // void / reopen a submitted attempt
+  AUDIT_VIEW // read audit log entries within scope
+}
+
+// One scoped grant to an instructor: permissions × exams × groups.
+// Super admins implicitly hold every permission on everything and need no grant.
+model InstructorGrant {
+  id          String       @id @default(uuid()) @db.Uuid
+  userId      String       @db.Uuid
+  user        User         @relation("grantee", fields: [userId], references: [id], onDelete: Cascade)
+  permissions Permission[]
+  allExams    Boolean      @default(false)
+  allGroups   Boolean      @default(false)
+  expiresAt   DateTime?
+  createdById String?      @db.Uuid
+  createdAt   DateTime     @default(now())
+
+  exams  GrantExam[]
+  groups GrantGroup[]
+
+  @@index([userId])
+}
+
+model GrantExam {
+  grantId String          @db.Uuid
+  examId  String          @db.Uuid
+  grant   InstructorGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
+  exam    Exam            @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  @@id([grantId, examId])
+}
+
+model GrantGroup {
+  grantId String          @db.Uuid
+  groupId String          @db.Uuid
+  grant   InstructorGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
+  group   Group           @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([grantId, groupId])
+}
+
+// ─────────────────────────── Exam content ───────────────────────────
+
+enum ExamStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Exam {
+  id                  String     @id @default(uuid()) @db.Uuid
+  code                String     @unique // e.g. "NET-FUND"
+  title               String
+  status              ExamStatus @default(DRAFT)
+  durationMinutes     Int
+  passMark            Decimal    @default(80) @db.Decimal(5, 2) // percent
+  weight              Decimal    @default(15) @db.Decimal(5, 2) // share of the overall total
+  maxAttempts         Int        @default(1)
+  // Taken outside the platform (e.g. CTF): scores are entered manually, no online session.
+  isExternal          Boolean    @default(false)
+  allowBackNavigation Boolean    @default(true)
+  shuffleQuestions    Boolean    @default(true)
+  shuffleOptions      Boolean    @default(true)
+  questionsPerAttempt Int? // null = all questions
+  strikeLimit         Int        @default(3) // violations before auto-submit
+  requireFullscreen   Boolean    @default(true)
+  requireSafeBrowser  Boolean    @default(false) // M2: Safe Exam Browser
+  sebConfigKeyHash    String?
+  accessCodeHash      String? // optional proctor PIN to start
+  resultsReleased     Boolean    @default(false)
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  questions   Question[]
+  materials   Material[]
+  assignments Assignment[]
+  overrides   AccessOverride[]
+  attempts    Attempt[]
+  grantScopes GrantExam[]
+}
+
+enum QuestionType {
+  SINGLE_CHOICE
+  MULTI_CHOICE
+  TRUE_FALSE
+}
+
+model Question {
+  id       String       @id @default(uuid()) @db.Uuid
+  examId   String       @db.Uuid
+  exam     Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
+  type     QuestionType
+  text     String
+  imageUrl String?
+  points   Decimal      @default(1) @db.Decimal(6, 2)
+  position Int
+
+  options Option[]
+  answers AttemptAnswer[]
+
+  @@index([examId])
+}
+
+model Option {
+  id         String   @id @default(uuid()) @db.Uuid
+  questionId String   @db.Uuid
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  text       String
+  // Never serialized to students; grading happens server-side.
+  isCorrect  Boolean  @default(false)
+  position   Int
+
+  @@index([questionId])
+}
+
+model Material {
+  id       String @id @default(uuid()) @db.Uuid
+  examId   String @db.Uuid
+  exam     Exam   @relation(fields: [examId], references: [id], onDelete: Cascade)
+  title    String
+  url      String
+  position Int    @default(0)
+}
+
+// ─────────────────────── Assignment & schedule ───────────────────────
+
+enum ScheduleMode {
+  FIXED // opensAt .. closesAt
+  RELATIVE // anchor date + offsetDays at openTime, open for windowMinutes
+  MANUAL // visible, but only opens through an AccessOverride
+}
+
+// Makes an exam visible to a user or a group, and says when it opens.
+// Exactly one of userId / groupId is set (enforced by a CHECK constraint in the migration).
+model Assignment {
+  id            String       @id @default(uuid()) @db.Uuid
+  examId        String       @db.Uuid
+  exam          Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
+  userId        String?      @db.Uuid
+  user          User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groupId       String?      @db.Uuid
+  group         Group?       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  mode          ScheduleMode @default(MANUAL)
+  opensAt       DateTime?
+  closesAt      DateTime?
+  offsetDays    Int?
+  openTime      String? // "HH:mm", interpreted in the app time zone (Africa/Cairo)
+  windowMinutes Int?
+  createdById   String?      @db.Uuid
+  createdAt     DateTime     @default(now())
+
+  @@index([examId])
+  @@index([userId])
+  @@index([groupId])
+}
+
+enum OverrideAction {
+  OPEN
+  CLOSE
+}
+
+// Manual open/close on top of the schedule. Precedence (resolved in code):
+// user override > group override > assignment schedule > closed.
+model AccessOverride {
+  id          String         @id @default(uuid()) @db.Uuid
+  examId      String         @db.Uuid
+  exam        Exam           @relation(fields: [examId], references: [id], onDelete: Cascade)
+  userId      String?        @db.Uuid
+  user        User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groupId     String?        @db.Uuid
+  group       Group?         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  action      OverrideAction
+  validFrom   DateTime       @default(now())
+  validUntil  DateTime?
+  reason      String?
+  createdById String?        @db.Uuid
+  createdAt   DateTime       @default(now())
+
+  @@index([examId])
+}
+
+// ───────────────────────────── Attempts ─────────────────────────────
+
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  AUTO_SUBMITTED // deadline reached or strike limit hit
+  FORCE_SUBMITTED // by a proctor
+  VOIDED
+}
+
+enum AttemptSource {
+  ONLINE
+  MANUAL // externally graded (CTF) or entered by staff
+}
+
+model Attempt {
+  id                String        @id @default(uuid()) @db.Uuid
+  examId            String        @db.Uuid
+  exam              Exam          @relation(fields: [examId], references: [id])
+  userId            String        @db.Uuid
+  user              User          @relation(fields: [userId], references: [id])
+  attemptNo         Int           @default(1)
+  source            AttemptSource @default(ONLINE)
+  status            AttemptStatus @default(IN_PROGRESS)
+  startedAt         DateTime      @default(now())
+  // Server-authoritative; the client timer is display only.
+  deadlineAt        DateTime?
+  extraMinutes      Int           @default(0)
+  submittedAt       DateTime?
+  submitReason      String?
+  score             Decimal?      @db.Decimal(8, 2)
+  maxScore          Decimal?      @db.Decimal(8, 2)
+  // Per-attempt randomization: question ids in delivery order, and option order per question.
+  questionOrder     Json?
+  optionOrder       Json?
+  // Binds the attempt to one browser session; a second device invalidates it.
+  sessionTokenHash  String?
+  deviceFingerprint String?
+  lastHeartbeatAt   DateTime?
+  strikes           Int           @default(0)
+  voidedById        String?       @db.Uuid
+  voidReason        String?
+  createdAt         DateTime      @default(now())
+
+  answers    AttemptAnswer[]
+  violations Violation[]
+
+  @@unique([examId, userId, attemptNo])
+  @@index([userId])
+}
+
+model AttemptAnswer {
+  attemptId         String   @db.Uuid
+  questionId        String   @db.Uuid
+  attempt           Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question          Question @relation(fields: [questionId], references: [id])
+  selectedOptionIds String[] @db.Uuid
+  answeredAt        DateTime @default(now())
+
+  @@id([attemptId, questionId])
+}
+
+enum ViolationType {
+  FULLSCREEN_EXIT
+  TAB_HIDDEN
+  WINDOW_BLUR
+  RESIZE
+  CLIPBOARD
+  CONTEXT_MENU
+  BLOCKED_SHORTCUT
+  DEVTOOLS
+  HEARTBEAT_MISSED
+  DEVICE_CHANGE
+  SEB_MISSING
+}
+
+model Violation {
+  id             String        @id @default(uuid()) @db.Uuid
+  attemptId      String        @db.Uuid
+  attempt        Attempt       @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  type           ViolationType
+  countsAsStrike Boolean       @default(true)
+  detail         Json?
+  occurredAt     DateTime      @default(now())
+
+  @@index([attemptId])
+}
+
+// ─────────────────────── Program operations ───────────────────────
+
+model Warning {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  user       User     @relation("warned", fields: [userId], references: [id], onDelete: Cascade)
+  reason     String
+  issuedById String?  @db.Uuid
+  issuedAt   DateTime @default(now())
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  EXCUSED
+}
+
+model Attendance {
+  userId       String           @db.Uuid
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date         DateTime         @db.Date
+  status       AttendanceStatus
+  recordedById String?          @db.Uuid
+  recordedAt   DateTime         @default(now())
+
+  @@id([userId, date])
+}
+
+// Append-only record of staff actions and exam session events.
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  actorId    String?  @db.Uuid
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action     String // e.g. "auth.login", "exam.schedule", "attempt.void"
+  entityType String?
+  entityId   String?
+  detail     Json?
+  ip         String?
+  at         DateTime @default(now())
+
+  @@index([actorId, at])
+  @@index([entityType, entityId])
+}

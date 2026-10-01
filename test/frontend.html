@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Network Fundamentals Assessment - Xpand CS Academy</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans min-h-screen flex flex-col">
+
+  <!-- Header with Student Metadata -->
+  <header class="bg-blue-900 text-white shadow-md p-4">
+    <div class="max-w-4xl mx-auto flex flex-col sm:flex-row justify-between items-center">
+      <h1 class="text-xl font-bold">Network Fundamentals Assessment</h1>
+      <div class="mt-2 sm:mt-0 text-sm bg-blue-800 px-3 py-1 rounded-lg flex flex-wrap gap-4">
+        <span><strong>ID:</strong> <?= studentID ?></span>
+        <span><strong>Email:</strong> <?= email || 'N/A' ?></span>
+        <span><strong>Mobile:</strong> <?= mobile || 'N/A' ?></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Area -->
+  <main class="flex-grow max-w-4xl w-full mx-auto p-4 sm:p-6">
+    
+    <!-- Locked Message Container (Triggered if already submitted and no override) -->
+    <div id="lock-message" class="hidden bg-red-50 border border-red-200 text-red-700 p-6 rounded-lg text-center shadow-sm mt-10">
+      <h3 class="text-xl font-bold mb-2">Assessment Already Completed</h3>
+      <p>You have already submitted this assessment. Per the one-time submission rule, you cannot retake it unless opened by an administrator.</p>
+    </div>
+
+    <!-- Exam Container -->
+    <div id="exam-container" class="bg-white rounded-xl shadow-md p-6 sm:p-8 mt-6">
+      <div class="mb-6 border-b pb-4">
+        <h2 class="text-2xl font-semibold text-gray-900">Xpand CS Academy Exam Portal</h2>
+        <p class="text-sm text-gray-500 mt-1">Please answer all questions carefully. Once submitted, your answers will be locked and saved.</p>
+      </div>
+
+      <!-- Exam Form -->
+      <form id="assessment-form" onsubmit="handleFormSubmit(event)" class="space-y-6">
+        
+        <!-- Question 1 -->
+        <div class="space-y-2">
+          <label class="block font-medium text-gray-700">1. Which layer of the OSI model is responsible for routing packets across different networks?</label>
+          <div class="space-y-1">
+            <label class="flex items-center gap-2"><input type="radio" name="q1" value="Data Link Layer" required> Data Link Layer</label>
+            <label class="flex items-center gap-2"><input type="radio" name="q1" value="Network Layer"> Network Layer</label>
+            <label class="flex items-center gap-2"><input type="radio" name="q1" value="Transport Layer"> Transport Layer</label>
+            <label class="flex items-center gap-2"><input type="radio" name="q1" value="Physical Layer"> Physical Layer</label>
+          </div>
+        </div>
+
+        <!-- Question 2 -->
+        <div class="space-y-2">
+          <label class="block font-medium text-gray-700">2. What protocol is primarily used to resolve IP addresses to MAC addresses?</label>
+          <div class="space-y-1">
+            <label class="flex items-center gap-2"><input type="radio" name="q2" value="DNS" required> DNS</label>
+            <label class="flex items-center gap-2"><input type="radio" name="q2" value="ARP"> ARP</label>
+            <label class="flex items-center gap-2"><input type="radio" name="q2" value="DHCP"> DHCP</label>
+            <label class="flex items-center gap-2"><input type="radio" name="q2" value="ICMP"> ICMP</label>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="pt-4 border-t">
+          <button type="submit" id="submit-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition duration-200 shadow">
+            Submit Assessment
+          </button>
+        </div>
+      </form>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-gray-100 text-center py-4 text-xs text-gray-500 border-t mt-auto">
+    &copy; 2026 Xpand CS Academy. All rights reserved.
+  </footer>
+
+  <!-- Frontend Script Logic -->
+  <script>
+    var hasSubmittedBefore = <?== alreadySubmitted ? 'true' : 'false' ?>;
+    var studentId = "<?= studentID ?>";
+    var strikesCount = 0;
+
+    window.addEventListener('load', function() {
+      if (hasSubmittedBefore) {
+        document.getElementById('exam-container').style.display = 'none';
+        document.getElementById('lock-message').classList.remove('hidden');
+      }
+    });
+
+    function handleFormSubmit(event) {
+      event.preventDefault();
+      
+      if (hasSubmittedBefore) {
+        alert("Action prohibited: Assessment already submitted.");
+        return;
+      }
+
+      var submitBtn = document.getElementById('submit-btn');
+      submitBtn.disabled = true;
+      submitBtn.innerText = "Submitting and locking...";
+
+      var answers = {
+        q1: document.querySelector('input[name="q1"]:checked') ? document.querySelector('input[name="q1"]:checked').value : '',
+        q2: document.querySelector('input[name="q2"]:checked') ? document.querySelector('input[name="q2"]:checked').value : ''
+      };
+
+      var submissionData = {
+        studentId: studentId,
+        reason: "Completed Exam",
+        strikes: strikesCount,
+        answers: answers
+      };
+
+      google.script.run
+        .withSuccessHandler(function(response) {
+          alert(response.message || "Submitted successfully!");
+          document.getElementById('exam-container').style.display = 'none';
+          var lockMsg = document.getElementById('lock-message');
+          lockMsg.innerHTML = '<h3 class="text-xl font-bold mb-2 text-green-700">Submission Successful</h3><p>Your answers have been recorded, backed up to Drive, and locked.</p>';
+          lockMsg.classList.remove('hidden');
+        })
+        .withFailureHandler(function(error) {
+          alert("Error: " + error.message);
+          submitBtn.disabled = false;
+          submitBtn.innerText = "Submit Assessment";
+        })
+        .processExamSubmission(submissionData);
+    }
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,16 @@
+# Local development: only Postgres, exposed on localhost:5433.
+#   docker compose -f docker-compose.dev.yml up -d
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: xpand
+      POSTGRES_PASSWORD: xpand-dev
+      POSTGRES_DB: xpand
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - pgdata-dev:/var/lib/postgresql/data
+
+volumes:
+  pgdata-dev:
