@@ -4,7 +4,7 @@
 #   migrate             one-shot: applies database migrations, then exits (needs the Prisma CLI)
 
 # ── Build: install everything, generate the Prisma client, compile server + web ──
-FROM node:24-bookworm-slim AS build
+FROM node:26-bookworm-slim AS build
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json .npmrc ./
@@ -32,7 +32,7 @@ RUN --mount=type=cache,target=/root/.npm rm -rf node_modules server/node_modules
  && mkdir -p server/node_modules
 
 # ── Runtime ──
-FROM node:24-bookworm-slim AS runtime
+FROM node:26-bookworm-slim AS runtime
 ENV NODE_ENV=production \
     PORT=8080 \
     WEB_DIST=/app/server/public
