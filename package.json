@@ -9,8 +9,12 @@
     "dev:server": "npm run dev -w server",
     "dev:web": "npm run dev -w web",
     "build": "npm run build -w server && npm run build -w web",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "npm run typecheck -w server && npm run typecheck -w web",
     "test": "npm test -w server",
-    "typecheck": "npm run typecheck -w server && npm run typecheck -w web"
+    "test:int": "npm run test:int -w server"
   },
   "engines": {
     "node": ">=24"
@@ -19,5 +23,12 @@
     "@prisma/engines@7.10.0": true,
     "prisma@7.10.0": true,
     "esbuild@0.28.2": true
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.11.0",
+    "globals": "17.13.0",
+    "prettier": "3.9.9",
+    "typescript-eslint": "8.71.0"
   }
 }

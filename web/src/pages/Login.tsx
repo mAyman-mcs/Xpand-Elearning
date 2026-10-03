@@ -37,7 +37,10 @@ export function Login() {
           <p className="font-mono text-sm text-slate-500">Secure Assessment Portal</p>
         </div>
         {error && (
-          <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-center text-sm font-medium text-red-700">
+          <div
+            role="alert"
+            className="rounded-lg border border-red-200 bg-red-50 p-3 text-center text-sm font-medium text-red-700"
+          >
             {error}
           </div>
         )}

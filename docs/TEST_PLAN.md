@@ -98,7 +98,7 @@ Mark each case **Pass / Fail / Blocked** and note the build or commit tested.
 | L-08 | After L-07, end the lock (`UPDATE "User" SET "lockedUntil"=now()-interval '1 minute' WHERE username='qa.stu1';`) and use the correct password | Login works |
 | L-09 | 3 wrong passwords, 1 correct (log out), then 4 wrong, then the correct one | Not locked: a successful login resets the failure count |
 | L-10 | 21 login requests within 15 minutes from the same machine (any mix of right and wrong) | From the 21st: "Too many login attempts…" (HTTP 429). The counter is in server memory: restart the server to reset it, and expect it to interfere with L-07 to L-09 if you run them back to back. |
-| L-11 | Submit the form with an empty field | The browser blocks it. Via curl with `{}`: 400 `INVALID_REQUEST`. |
+| L-11 | Submit the form with an empty field | The browser blocks it. Via curl with `{}`: 400 `VALIDATION_FAILED`, with `details` naming each field. |
 | L-12 | Username `' OR 1=1 --`, password `x` | The normal "Invalid username or password.", nothing else |
 | L-13 | Login page at 400 px wide, and using only the keyboard (Tab, Enter) | Fully usable |
 
@@ -149,7 +149,7 @@ Mark each case **Pass / Fail / Blocked** and note the build or commit tested.
 
 | ID | Steps | Expected |
 |---|---|---|
-| X-01 | `curl -i …/api/health` | 200 `{"ok":true}` |
+| X-01 | `curl -i …/api/health/live` and `…/api/health/ready` | 200 `{"ok":true}`; `ready` fails if the database is down |
 | X-02 | `curl -i …/api/does-not-exist` | 404 `{"error":"NOT_FOUND"}` (JSON, not HTML) |
 | X-03 | Send the login as a form: `curl -d "username=qa.stu1&password=x" …/api/auth/login` | 415 `UNSUPPORTED_MEDIA_TYPE` (blocks forged cross-site forms) |
 | X-04 | Body `{not json` with `Content-Type: application/json` | 400 `INVALID_REQUEST` |

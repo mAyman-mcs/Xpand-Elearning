@@ -98,6 +98,7 @@ enum Permission {
   RESULTS_RELEASE // publish results to students
   PROCTOR // live board, force submit, extend time, allow resume
   ATTEMPT_VOID // void / reopen a submitted attempt
+  ATTEMPT_REVIEW // move submitted attempts through under-review / reviewed
   AUDIT_VIEW // read audit log entries within scope
 }
 
@@ -114,8 +115,9 @@ model InstructorGrant {
   createdById String?      @db.Uuid
   createdAt   DateTime     @default(now())
 
-  exams  GrantExam[]
-  groups GrantGroup[]
+  exams      GrantExam[]
+  groups     GrantGroup[]
+  categories GrantCategory[]
 
   @@index([userId])
 }
@@ -138,7 +140,51 @@ model GrantGroup {
   @@id([grantId, groupId])
 }
 
-// ─────────────────────────── Exam content ───────────────────────────
+// Exams in this category are in the grant scope — including exams created later (decision D5).
+model GrantCategory {
+  grantId    String          @db.Uuid
+  categoryId String          @db.Uuid
+  grant      InstructorGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
+  category   Category        @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([grantId, categoryId])
+}
+
+// ─────────────────────────── Exam catalog ───────────────────────────
+
+// Flat list; every exam has exactly one (decision D1). Archived categories stay for history.
+// Names are unique case-insensitively (index in the migration).
+model Category {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String   @unique
+  position  Int      @default(0)
+  archived  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  exams       Exam[]
+  grantScopes GrantCategory[]
+}
+
+// Cross-cutting labels; the list is managed by super admins (decision D4).
+model Tag {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+
+  exams ExamTag[]
+}
+
+model ExamTag {
+  examId String @db.Uuid
+  tagId  String @db.Uuid
+  exam   Exam   @relation(fields: [examId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([examId, tagId])
+  @@index([tagId])
+}
 
 enum ExamStatus {
   DRAFT
@@ -150,6 +196,8 @@ model Exam {
   id                  String     @id @default(uuid()) @db.Uuid
   code                String     @unique // e.g. "NET-FUND"
   title               String
+  categoryId          String     @db.Uuid
+  category            Category   @relation(fields: [categoryId], references: [id])
   status              ExamStatus @default(DRAFT)
   durationMinutes     Int
   passMark            Decimal    @default(80) @db.Decimal(5, 2) // percent
@@ -176,6 +224,9 @@ model Exam {
   overrides   AccessOverride[]
   attempts    Attempt[]
   grantScopes GrantExam[]
+  tags        ExamTag[]
+
+  @@index([categoryId])
 }
 
 enum QuestionType {
@@ -248,7 +299,9 @@ model Assignment {
   createdById   String?      @db.Uuid
   createdAt     DateTime     @default(now())
 
-  @@index([examId])
+  // An exam is assigned to a target at most once (duplicates are a 409, never stacked).
+  @@unique([examId, userId])
+  @@unique([examId, groupId])
   @@index([userId])
   @@index([groupId])
 }
@@ -288,6 +341,14 @@ enum AttemptStatus {
   VOIDED
 }
 
+// Staff review after submission. With the attempt status this gives the student-facing progress:
+// NOT_STARTED → IN_PROGRESS → ANSWERED (submitted, PENDING) → UNDER_REVIEW → REVIEWED.
+enum ReviewStatus {
+  PENDING
+  UNDER_REVIEW
+  REVIEWED
+}
+
 enum AttemptSource {
   ONLINE
   MANUAL // externally graded (CTF) or entered by staff
@@ -318,6 +379,9 @@ model Attempt {
   deviceFingerprint String?
   lastHeartbeatAt   DateTime?
   strikes           Int           @default(0)
+  reviewStatus      ReviewStatus  @default(PENDING)
+  reviewedById      String?       @db.Uuid
+  reviewedAt        DateTime?
   voidedById        String?       @db.Uuid
   voidReason        String?
   createdAt         DateTime      @default(now())

@@ -39,17 +39,18 @@ Stack: React 19, TypeScript (strict), Vite, Tailwind 4. `react-router-dom` is in
 | POST | `/api/auth/logout` | `{}` | 204 |
 | GET | `/api/auth/me` | | `{ user }` |
 | POST | `/api/auth/change-password` | `{ currentPassword, newPassword }` | `{ user }` |
-| GET | `/api/health` | | `{ ok: true }` |
+| GET | `/api/health/live`, `/api/health/ready` | | `{ ok: true }` |
 
 `user` = `{ id, username, fullName, email, mobile, role: "SUPER_ADMIN" | "INSTRUCTOR" | "STUDENT", mustChangePassword }`
 
 ### Error codes
 
-Every error body is `{ error: CODE, message? }`.
+Every error body is `{ error: CODE, message?, details? }`. The full list lives in `server/src/core/errors.ts`.
 
 | HTTP | Code | What the UI should do |
 |---|---|---|
-| 400 | `INVALID_REQUEST` | A bug in our request; show a generic error |
+| 400 | `INVALID_REQUEST` | Malformed request (a bug); show a generic error |
+| 400 | `VALIDATION_FAILED` | Input rejected; `details` is `[{ path, message }]`, so show messages next to the fields |
 | 400 | `WRONG_CURRENT_PASSWORD` / `WEAK_PASSWORD` | Show inline; `WEAK_PASSWORD` comes with a readable `message` |
 | 401 | `UNAUTHENTICATED` | **Global:** the session expired or was revoked → `setUser(null)`, which shows Login. Add a one-line notice: "Your session ended, please sign in again." |
 | 401 | `INVALID_CREDENTIALS` | Login form: "Invalid username or password." |
@@ -57,11 +58,18 @@ Every error body is `{ error: CODE, message? }`.
 | 403 | `FORBIDDEN` | "You don't have access to this." Never retry. |
 | 404 | `NOT_FOUND` | Not-found state |
 | 415 | `UNSUPPORTED_MEDIA_TYPE` | A bug: a write was sent without a JSON body |
-| 423 | `ACCOUNT_LOCKED` | Login form; the body includes `retryAfter` |
+| 404 | `NOT_FOUND` (staff routes) | Also returned for resources outside your scope, so their existence is not revealed |
+| 409 | `CONFLICT` | Duplicate or conflicting change (e.g. assigning an exam twice); show `message` |
+| 413 | `PAYLOAD_TOO_LARGE` | Request body over 100 KB |
+| 423 | `ACCOUNT_LOCKED` | Login form; `details.retryAfter` says when the lock ends |
 | 429 | `TOO_MANY_ATTEMPTS` | Login form: "Too many attempts, try later." |
 | 500 | `INTERNAL_ERROR` | Generic error with a retry button |
 
 **First M1 task:** handle the two **global** cases once, centrally in `api.ts` and `auth.tsx` (for example an `onUnauthenticated` callback), instead of in each screen.
+
+### All other endpoints
+
+The complete, current API (staff, catalog, assignment and student endpoints, by role, with request and response shapes) is in **[API.md](API.md)**. Where §4 below shows a **DRAFT** shape for a feature that API.md documents, API.md wins.
 
 ## 3. Rules every screen must follow
 
@@ -96,7 +104,7 @@ Feature IDs (for example `ASN-3`) refer to the project feature list; the milesto
   - Students: Dashboard, Program Rules.
   - Instructors and the super admin get staff sections (§4.4).
 - The header shows the name, role and group's intake date, plus Logout.
-- Instructors see only the menu entries their grants allow. The data for that comes from **DRAFT** `GET /api/me/permissions` → `{ role, grants: [{ permissions, allExams, examIds, allGroups, groupIds, expiresAt }] }`.
+- Instructors see only the menu entries their grants allow. The data for that comes from `GET /api/me/permissions` → `{ role, grants: [{ permissions, allExams, examIds, categoryIds, allGroups, groupIds, expiresAt }] }` (active grants only).
 
 *Done when:* deep links work after a reload; a student who types a staff URL gets the "no access" page (and the API also returns 403); a session that expires while the app is open returns to Login with a notice.
 

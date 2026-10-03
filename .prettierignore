@@ -1,0 +1,11 @@
+**/dist
+**/node_modules
+server/src/generated
+server/prisma/migrations
+package-lock.json
+*.md
+frontend.html
+frontend.js
+test/
+portal.json
+**/coverage

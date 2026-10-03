@@ -1,5 +1,6 @@
-# Production stack for the EC2 host: app + Postgres on a private network.
-# Put nginx/Caddy (or an ALB) in front for TLS; the app listens on 8080.
+# Production stack for the EC2 host: Caddy (HTTPS) → app → Postgres, on a private network;
+# a one-shot migrate container runs before the app on every `up`.
+# Only Caddy publishes ports. See docs/DEPLOY.md.
 services:
   db:
     image: postgres:17
@@ -16,16 +17,48 @@ services:
       timeout: 3s
       retries: 20
 
-  app:
-    build: .
-    image: xpand-portal:latest
-    restart: unless-stopped
-    env_file: .env
+  # Applies pending migrations, then exits; the app starts only if it succeeded.
+  migrate:
+    build:
+      context: .
+      target: migrate
+    image: xpand-portal-migrate:latest
+    env_file: ${ENV_FILE:-.env}
+    restart: "no"
     depends_on:
       db:
         condition: service_healthy
+
+  app:
+    build:
+      context: .
+      target: runtime
+    image: xpand-portal:latest
+    restart: unless-stopped
+    env_file: ${ENV_FILE:-.env}
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN}
     ports:
-      - "127.0.0.1:8080:8080"
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./ops/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
 
 volumes:
   pgdata:
+  caddy-data:
+  caddy-config:

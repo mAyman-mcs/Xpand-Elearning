@@ -1,5 +1,6 @@
 # Local development: only Postgres, exposed on localhost:5433.
 #   docker compose -f docker-compose.dev.yml up -d
+# Databases: xpand (dev) and xpand_test (integration tests; created on first start).
 services:
   db:
     image: postgres:17
@@ -11,6 +12,7 @@ services:
       - "127.0.0.1:5433:5432"
     volumes:
       - pgdata-dev:/var/lib/postgresql/data
+      - ./docker/dev-db-init:/docker-entrypoint-initdb.d:ro
 
 volumes:
   pgdata-dev:

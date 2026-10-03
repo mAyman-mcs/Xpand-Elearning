@@ -3,8 +3,11 @@
 Student portal and secure assessment platform for Xpand CS Academy.
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): design, data model, access-control rules
+- [docs/API.md](docs/API.md): every API endpoint, by role, with exam endpoints in their own section
+- [docs/BACKEND_PLAN.md](docs/BACKEND_PLAN.md): backend phases B0–B4 (structure, RBAC, catalog, assignment, infrastructure)
 - [docs/FRONTEND_GUIDE.md](docs/FRONTEND_GUIDE.md): frontend rules and screens for the next phases
 - [docs/TEST_PLAN.md](docs/TEST_PLAN.md): test cases (M0 now, checklists for M1/M2)
+- [docs/DEPLOY.md](docs/DEPLOY.md): EC2 deployment, HTTPS, logs, backups and restore tests, upgrades
 
 The legacy Google Apps Script version (`frontend.html`, `frontend.js`, `portal.json`, `test/`) is kept as a reference until the new app reaches feature parity.
 
@@ -25,21 +28,17 @@ npm run dev:web             # React on :5173 (proxies /api)
 Tests:
 
 ```sh
-npm test                    # unit tests
-npm run test:int -w server  # integration tests (needs the dev database; they wipe users and sessions)
+npm test                         # unit tests
+npm run test:int                 # integration tests (database xpand_test, created by docker-compose.dev.yml)
+npm run test:coverage -w server  # both, with coverage gates (as in CI)
+npm run lint && npm run format:check
 ```
+
+Schema changes: edit `server/prisma/schema.prisma`, then run `npm run db:migrate -w server -- --name <change>` **in an interactive terminal**. It may ask for confirmation, and while waiting it holds a database lock; never run it from scripts or CI. Review the generated SQL before committing; hand-written constraints go at the end of the migration file.
 
 ## Deploying on EC2
 
-```sh
-cp .env.example .env        # set strong POSTGRES_PASSWORD and a matching DATABASE_URL (host "db")
-docker compose up -d --build
-docker compose exec app node dist/scripts/create-super-admin.js --username admin --name "Your Name"
-```
-
-- The app listens on `127.0.0.1:8080`. Put nginx or Caddy (or an AWS load balancer) in front for HTTPS, and set `TRUST_PROXY=1`.
-- Migrations run automatically on container start.
-- Postgres data lives in the `pgdata` volume; back it up (for example with a nightly `pg_dump` to S3).
+See [docs/DEPLOY.md](docs/DEPLOY.md): Caddy terminates HTTPS in front of the app, a one-shot `migrate` container applies migrations before the app starts, and there are nightly backups to S3 with a restore test each release.
 
 ## Importing students
 

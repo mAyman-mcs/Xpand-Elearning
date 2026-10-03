@@ -22,7 +22,8 @@ export function ChangePassword() {
       const res = await api.changePassword(current, next);
       setUser(res.user);
     } catch (err) {
-      if (err instanceof ApiError && err.code === "WRONG_CURRENT_PASSWORD") setError("Your current password is incorrect.");
+      if (err instanceof ApiError && err.code === "WRONG_CURRENT_PASSWORD")
+        setError("Your current password is incorrect.");
       else if (err instanceof ApiError && err.code === "WEAK_PASSWORD") setError(err.message);
       else setError("Could not change the password.");
     } finally {
@@ -45,10 +46,37 @@ export function ChangePassword() {
             {error}
           </div>
         )}
-        <input type="password" placeholder="Current (temporary) password" autoComplete="current-password" className={field} value={current} onChange={(e) => setCurrent(e.target.value)} required />
-        <input type="password" placeholder="New password" autoComplete="new-password" className={field} value={next} onChange={(e) => setNext(e.target.value)} required />
-        <input type="password" placeholder="Confirm new password" autoComplete="new-password" className={field} value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
-        <button disabled={busy} className="w-full rounded-lg bg-teal-600 px-4 py-3 font-bold text-white hover:bg-teal-700 disabled:bg-slate-400">
+        <input
+          type="password"
+          placeholder="Current (temporary) password"
+          autoComplete="current-password"
+          className={field}
+          value={current}
+          onChange={(e) => setCurrent(e.target.value)}
+          required
+        />
+        <input
+          type="password"
+          placeholder="New password"
+          autoComplete="new-password"
+          className={field}
+          value={next}
+          onChange={(e) => setNext(e.target.value)}
+          required
+        />
+        <input
+          type="password"
+          placeholder="Confirm new password"
+          autoComplete="new-password"
+          className={field}
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
+          required
+        />
+        <button
+          disabled={busy}
+          className="w-full rounded-lg bg-teal-600 px-4 py-3 font-bold text-white hover:bg-teal-700 disabled:bg-slate-400"
+        >
           {busy ? "Saving…" : "Save password"}
         </button>
         <button type="button" onClick={logout} className="w-full text-sm text-slate-500 hover:text-slate-700">

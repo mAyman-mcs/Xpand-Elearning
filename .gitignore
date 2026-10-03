@@ -5,3 +5,5 @@ dist/
 server/src/generated/
 # user imports / generated credentials must never be committed
 imports/
+coverage/
+backups/

@@ -8,3 +8,6 @@ test
 frontend.html
 frontend.js
 portal.json
+**/coverage
+.github
+docs

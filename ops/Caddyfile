@@ -1,0 +1,12 @@
+# HTTPS in front of the app. Caddy obtains and renews the certificate for $DOMAIN automatically
+# (DNS must point at this host, and ports 80/443 must be open).
+{$DOMAIN} {
+	encode gzip zstd
+	reverse_proxy app:8080 {
+		health_uri /api/health/ready
+	}
+	log {
+		output stdout
+		format json
+	}
+}

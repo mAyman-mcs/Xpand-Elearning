@@ -11,10 +11,12 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { z } from "zod";
-import { hashPassword } from "../src/auth/password.js";
-import { prisma } from "../src/db.js";
-import { parseCsv, toCsv } from "../src/lib/csv.js";
-import { tempPassword } from "../src/lib/tokens.js";
+import { audit } from "../src/core/audit.js";
+import { loadConfig } from "../src/core/config.js";
+import { createPrisma } from "../src/core/db.js";
+import { parseCsv, toCsv } from "../src/core/lib/csv.js";
+import { tempPassword } from "../src/core/lib/tokens.js";
+import { hashPassword } from "../src/modules/auth/password.js";
 
 const { values } = parseArgs({
   options: { file: { type: "string" }, out: { type: "string", default: "../imports" } },
@@ -24,26 +26,41 @@ if (!values.file) {
   process.exit(1);
 }
 
+const config = loadConfig();
+const prisma = createPrisma(config.DATABASE_URL);
+
 const date = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
   .transform((s) => new Date(`${s}T00:00:00Z`));
 
 const rowSchema = z.object({
-  username: z.string().trim().toLowerCase().regex(/^[a-z0-9._-]{3,50}$/, "3-50 chars: a-z 0-9 . _ -"),
+  username: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(/^[a-z0-9._-]{3,50}$/, "3-50 chars: a-z 0-9 . _ -"),
   fullName: z.string().trim().min(1),
   email: z.union([z.literal(""), z.email()]).transform((v) => v || null),
-  mobile: z.string().trim().transform((v) => v || null),
+  mobile: z
+    .string()
+    .trim()
+    .transform((v) => v || null),
   group: z.string().trim().min(1),
   groupIntakeDate: date,
   joinDate: z.union([z.literal(""), date]).transform((v) => (v === "" ? null : v)),
 });
 
 const rows = parseCsv(readFileSync(values.file, "utf8"));
-const parsed = rows.map((r, i) => ({ line: i + 2, result: rowSchema.safeParse(r) }));
-const invalid = parsed.filter((p) => !p.result.success);
-if (invalid.length > 0) {
-  for (const p of invalid) console.error(`line ${p.line}: ${p.result.error!.issues.map((x) => `${x.path.join(".")}: ${x.message}`).join("; ")}`);
+const validRows: z.infer<typeof rowSchema>[] = [];
+const errors: string[] = [];
+rows.forEach((row, i) => {
+  const result = rowSchema.safeParse(row);
+  if (result.success) validRows.push(result.data);
+  else errors.push(`line ${i + 2}: ${result.error.issues.map((x) => `${x.path.join(".")}: ${x.message}`).join("; ")}`);
+});
+if (errors.length > 0) {
+  for (const e of errors) console.error(e);
   console.error("No users imported; fix the rows above and retry.");
   process.exit(1);
 }
@@ -51,8 +68,7 @@ if (invalid.length > 0) {
 const credentials: Record<string, string>[] = [];
 let skipped = 0;
 
-for (const { result } of parsed) {
-  const r = result.data!;
+for (const r of validRows) {
   const group = await prisma.group.upsert({
     where: { name: r.group },
     create: { name: r.group, intakeStartDate: r.groupIntakeDate },
@@ -73,20 +89,25 @@ for (const { result } of parsed) {
       email: r.email,
       mobile: r.mobile,
       role: "STUDENT",
-      passwordHash: await hashPassword(password),
+      passwordHash: await hashPassword(password, config.BCRYPT_COST),
       joinDate: r.joinDate,
       memberships: { create: { groupId: group.id, joinDate: r.joinDate } },
     },
   });
-  await prisma.auditLog.create({
-    data: { action: "admin.user_imported", entityType: "User", entityId: user.id, detail: { username: r.username, group: r.group } },
+  await audit(prisma, {
+    action: "admin.user_imported",
+    actorId: null,
+    entityType: "User",
+    entityId: user.id,
+    detail: { username: r.username, group: r.group },
   });
   credentials.push({ username: r.username, fullName: r.fullName, email: r.email ?? "", temporaryPassword: password });
 }
 
+const outDir = values.out;
 if (credentials.length > 0) {
-  mkdirSync(values.out!, { recursive: true });
-  const outFile = path.join(values.out!, `credentials-${new Date().toISOString().replace(/[:.]/g, "-")}.csv`);
+  mkdirSync(outDir, { recursive: true });
+  const outFile = path.join(outDir, `credentials-${new Date().toISOString().replace(/[:.]/g, "-")}.csv`);
   writeFileSync(outFile, toCsv(credentials), { mode: 0o600 });
   console.log(`Imported ${credentials.length} user(s), skipped ${skipped}. Credentials: ${outFile}`);
 } else {

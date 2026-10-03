@@ -1,0 +1,19 @@
+# Optional on EC2: ship container logs to CloudWatch Logs.
+#   docker compose -f docker-compose.yml -f docker-compose.aws.yml up -d
+# The instance role needs logs:CreateLogStream and logs:PutLogEvents on the log group.
+x-cloudwatch: &cloudwatch
+  driver: awslogs
+  options:
+    awslogs-region: ${AWS_REGION}
+    awslogs-group: ${CLOUDWATCH_LOG_GROUP:-xpand-portal}
+    awslogs-create-group: "true"
+
+services:
+  db:
+    logging: *cloudwatch
+  migrate:
+    logging: *cloudwatch
+  app:
+    logging: *cloudwatch
+  caddy:
+    logging: *cloudwatch
