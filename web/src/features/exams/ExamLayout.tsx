@@ -24,7 +24,15 @@ interface Tab {
 }
 
 // Tabs appear as their phase lands (docs/ADMIN_DASHBOARD_PLAN.md A5, A6).
-export const EXAM_TABS: Tab[] = [{ to: "", label: "Settings", show: () => true }];
+const on = (p: MyPermissions | undefined, e: Exam, ...perms: Permission[]) =>
+  perms.some((x) => can(p, x, { id: e.id, categoryId: e.category.id }));
+
+export const EXAM_TABS: Tab[] = [
+  { to: "", label: "Settings", show: () => true },
+  { to: "assignments", label: "Assignments", show: (p, e) => on(p, e, "EXAM_ASSIGN", "EXAM_SCHEDULE") },
+  { to: "overrides", label: "Open / close", show: (p, e) => on(p, e, "EXAM_ASSIGN", "EXAM_SCHEDULE") },
+  { to: "availability", label: "Availability", show: () => true },
+];
 
 /** /exams/:id: the exam's header and tabs; each tab is a child route. */
 export function ExamLayout() {

@@ -11,7 +11,9 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 2 : undefined,
+  // Each worker drives a browser against one server and database: more workers than this only adds
+  // contention (and timeouts) on a developer machine.
+  workers: process.env.CI ? 2 : 4,
   reporter: process.env.CI ? [["list"], ["html", { outputFolder: "e2e/report", open: "never" }]] : [["list"]],
   timeout: 30_000,
   expect: { timeout: 7_000 },

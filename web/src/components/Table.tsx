@@ -10,7 +10,8 @@ export interface Column<T> {
 interface TableProps<T> {
   columns: Column<T>[];
   rows: T[] | undefined;
-  rowKey: (row: T) => string;
+  /** Unique per row; the index helps when rows can repeat (a student in two chosen groups). */
+  rowKey: (row: T, index: number) => string;
   loading?: boolean;
   error?: unknown;
   onRetry?: () => void;
@@ -40,8 +41,8 @@ export function Table<T>({ columns, rows, rowKey, loading, error, onRetry, empty
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {rows.map((row) => (
-              <tr key={rowKey(row)} className="hover:bg-slate-50">
+            {rows.map((row, index) => (
+              <tr key={rowKey(row, index)} className="hover:bg-slate-50">
                 {columns.map((c) => (
                   <td key={c.header} className={cx("px-4 py-3 align-top", c.className)}>
                     {c.cell(row)}

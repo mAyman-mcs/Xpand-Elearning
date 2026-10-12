@@ -1,4 +1,4 @@
-import { asUser, authFile, examId, expect, freshStaff, test, uid, WORLD } from "./fixtures";
+import { asUser, authFile, confirmDialog, examId, expect, freshStaff, test, uid, WORLD } from "./fixtures";
 
 test.describe("categories and tags (super admin)", () => {
   test.use({ storageState: authFile("admin") });
@@ -44,7 +44,7 @@ test.describe("categories and tags (super admin)", () => {
 
     // An unused category can be deleted.
     await table.getByRole("button", { name: `Delete ${name} Renamed` }).click();
-    await page.getByRole("dialog").getByRole("button", { name: "Delete" }).click();
+    await confirmDialog(page, /^Delete /, "Delete");
     await expect(table.getByRole("row", { name: new RegExp(name) })).toHaveCount(0);
   });
 
@@ -74,7 +74,7 @@ test.describe("categories and tags (super admin)", () => {
     await page.getByRole("dialog").getByRole("button", { name: "Rename" }).click();
     await expect(tags).toContainText(`${name}-x`);
     await tags.getByRole("button", { name: `Delete ${name}-x` }).click();
-    await page.getByRole("dialog").getByRole("button", { name: "Delete tag" }).click();
+    await confirmDialog(page, /^Delete the tag/, "Delete tag");
     // With no tags left the table gives way to the empty state, so look for the name anywhere.
     await expect(page.getByText(`${name}-x`)).toHaveCount(0);
   });

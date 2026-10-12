@@ -430,7 +430,7 @@ An assignment makes an exam **visible** to one target and says **when it opens**
   - `400` if no exam matches.
   - In all three cases, nothing is saved.
 
-**`POST /api/assignments/preview`** (same body as bulk, same checks) → one row per affected student and exam, **without saving**:
+**`POST /api/assignments/preview`** (same body and access checks as bulk) → one row per affected student and exam, **without saving**. Unlike bulk, it doesn’t refuse pairs that are already assigned, so it also previews a schedule change:
 ```json
 [{ "examId": "…", "examTitle": "Cloud Gates",
    "student": { "id": "…", "username": "student.b", "fullName": "…" },

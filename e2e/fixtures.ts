@@ -146,3 +146,78 @@ export async function examId(api: APIRequestContext, key: keyof typeof WORLD.exa
   if (!found) throw new Error(`exam ${key} not seeded`);
   return found.id;
 }
+
+/** A published exam with a unique code, in a seeded category (or a category id). */
+export async function createExam(
+  admin: APIRequestContext,
+  category: keyof typeof WORLD.categories | { id: string },
+  title = uid("E2E Exam"),
+): Promise<{ id: string; title: string; code: string }> {
+  const categoryIdValue = typeof category === "string" ? await categoryId(admin, category) : category.id;
+  const code = `E2E-${uid("X")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(-12)}`;
+  const exam = await call<{ id: string }>(admin, "post", "/catalog/exams", {
+    code,
+    title,
+    categoryId: categoryIdValue,
+    durationMinutes: 45,
+  });
+  await call(admin, "patch", `/catalog/exams/${exam.id}`, { status: "PUBLISHED" });
+  return { id: exam.id, title, code };
+}
+
+/** A group with an intake date and members (late joiners get their own join date). */
+export async function createGroup(
+  admin: APIRequestContext,
+  intakeStartDate: string,
+  members: { id: string; joinDate?: string }[] = [],
+): Promise<{ id: string; name: string }> {
+  const name = `E2E Group ${uid("g")}`;
+  const group = await call<{ id: string }>(admin, "post", "/groups", { name, intakeStartDate });
+  for (const m of members)
+    await call(admin, "post", `/groups/${group.id}/members`, { userIds: [m.id], joinDate: m.joinDate ?? null });
+  return { id: group.id, name };
+}
+
+/** An API session of a new student who has set their own password: what the student UI will call. */
+export async function studentSession(
+  admin: APIRequestContext,
+  playwright: { request: { newContext: (o: { baseURL: string }) => Promise<APIRequestContext> } },
+  baseURL: string,
+  fullName: string,
+) {
+  const u = await createUser(admin, { fullName });
+  const api = await playwright.request.newContext({ baseURL });
+  await call(api, "post", "/auth/login", { username: u.username, password: u.temporaryPassword });
+  await call(api, "post", "/auth/change-password", {
+    currentPassword: u.temporaryPassword,
+    newPassword: "Student-pass-2026",
+  });
+  return { ...u, api };
+}
+
+export interface StudentExam {
+  exam: { id: string; title: string };
+  status: string;
+  opensAt: string | null;
+  closesAt: string | null;
+  reason: string;
+}
+/** The student's own view of one exam (GET /api/student/exams), or undefined when not listed. */
+export async function studentExam(api: APIRequestContext, examIdValue: string): Promise<StudentExam | undefined> {
+  const rows = await call<StudentExam[]>(api, "get", "/student/exams");
+  return rows.find((r) => r.exam.id === examIdValue);
+}
+
+/**
+ * Clicks a confirmation dialog's button and waits until the dialog has closed, i.e. the action
+ * finished. Needed before asserting that something is GONE: while a dialog is open the rest of the
+ * page is aria-hidden, so "0 matching rows" would pass before the server has even answered.
+ */
+export async function confirmDialog(page: Page, dialogName: string | RegExp, button: string) {
+  const dialog = page.getByRole("dialog", { name: dialogName });
+  await dialog.getByRole("button", { name: button, exact: true }).click();
+  await expect(dialog).toBeHidden();
+}

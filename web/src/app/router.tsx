@@ -1,5 +1,9 @@
 import { createBrowserRouter, Outlet } from "react-router";
 import { Loading } from "../components/ui";
+import { BulkAssign } from "../features/assignments/BulkAssign";
+import { ExamAssignments } from "../features/assignments/ExamAssignments";
+import { ExamAvailability } from "../features/assignments/ExamAvailability";
+import { ExamOverrides } from "../features/assignments/ExamOverrides";
 import { AuditLog } from "../features/audit/AuditLog";
 import { CatalogPage } from "../features/catalog/CatalogPage";
 import { ExamLayout } from "../features/exams/ExamLayout";
@@ -62,10 +66,16 @@ export const router = createBrowserRouter([
               { path: "students", element: <UsersList mode="instructor" /> },
               { path: "exams", element: <ExamsList /> },
               { path: "exams/new", element: <NewExam /> },
+              { path: "assignments/new", element: <BulkAssign /> },
               {
                 path: "exams/:id",
                 element: <ExamLayout />,
-                children: [{ index: true, element: <ExamSettings /> }],
+                children: [
+                  { index: true, element: <ExamSettings /> },
+                  { path: "assignments", element: <ExamAssignments /> },
+                  { path: "overrides", element: <ExamOverrides /> },
+                  { path: "availability", element: <ExamAvailability /> },
+                ],
               },
               { path: "students/:id", element: <UserDetail mode="instructor" /> },
             ],

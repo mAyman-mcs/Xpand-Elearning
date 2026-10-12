@@ -73,7 +73,16 @@ export function ExamsList() {
       <PageHeader
         title="Exams"
         description={total !== undefined ? `${total} exam${total === 1 ? "" : "s"} match.` : undefined}
-        actions={can(perms, "EXAM_EDIT") && <ButtonLink to="/exams/new">New exam</ButtonLink>}
+        actions={
+          <>
+            {can(perms, "EXAM_ASSIGN") && (
+              <ButtonLink to="/assignments/new" variant="secondary">
+                Assign several exams
+              </ButtonLink>
+            )}
+            {can(perms, "EXAM_EDIT") && <ButtonLink to="/exams/new">New exam</ButtonLink>}
+          </>
+        }
       />
       <div className="mb-4 space-y-3 rounded-xl border border-slate-200 bg-white p-4">
         <div className="grid gap-3 sm:grid-cols-3">
