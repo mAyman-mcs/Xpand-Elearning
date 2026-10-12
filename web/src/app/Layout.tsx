@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router";
 import { cx } from "../components/ui";
 import { ROLE_LABEL } from "../lib/labels";
-import { can, hasAnyGrant } from "../lib/permissions";
+import { hasAnyGrant } from "../lib/permissions";
 import { useAuth, usePermissions } from "./auth";
 
 interface NavItem {
@@ -27,7 +27,8 @@ const NAV: NavItem[] = [
   { to: "/admin/catalog", label: "Categories & tags", show: admin },
   { to: "/exams", label: "Exams", show: staff },
   { to: "/students", label: "Students", show: (role, perms) => role === "INSTRUCTOR" && hasAnyGrant(perms) },
-  { to: "/admin/audit", label: "Audit log", show: (role, perms) => admin(role) || can(perms, "AUDIT_VIEW") },
+  // Instructors with AUDIT_VIEW get a scoped audit view in phase B9 (NEXT_PLAN E18).
+  { to: "/admin/audit", label: "Audit log", show: admin },
   { to: "/student", label: "My exams", end: true, show: (role) => role === "STUDENT" },
 ];
 

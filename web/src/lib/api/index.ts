@@ -1,7 +1,9 @@
 // Typed functions for every API endpoint the web app uses (docs/API.md). Screens call these through
 // TanStack Query hooks; nothing else calls fetch.
 import type {
+  AdminStats,
   Assignment,
+  AuditEntry,
   AvailabilityRow,
   Category,
   Exam,
@@ -81,6 +83,14 @@ export interface UserListFilter {
   q?: string;
   includeInactive?: boolean;
 }
+export interface AuditFilter {
+  actorId?: string;
+  action?: string;
+  entityType?: string;
+  entityId?: string;
+  from?: string;
+  to?: string;
+}
 export interface ExamListFilter {
   categoryId?: string;
   tagIds?: string[];
@@ -158,6 +168,14 @@ export const api = {
     bulk: (input: BulkInput) => http.post<{ created: number }>("/assignments/bulk", input),
     preview: (input: BulkInput) => http.post<PreviewRow[]>("/assignments/preview", input),
     availability: (examId: string) => http.get<AvailabilityRow[]>("/assignments/availability", { examId }),
+  },
+  admin: {
+    stats: () => http.get<AdminStats>("/admin/stats"),
+  },
+  audit: {
+    list: (filter: AuditFilter, cursor?: string) =>
+      http.get<Page<AuditEntry>>("/audit", { ...filter, cursor, limit: 50 }),
+    actions: () => http.get<string[]>("/audit/actions"),
   },
   overrides: {
     list: (examId: string, includeEnded: boolean) => http.get<Override[]>("/overrides", { examId, includeEnded }),

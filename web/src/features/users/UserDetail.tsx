@@ -10,7 +10,7 @@ import { QueryErrorPage, usePageTitle } from "../../app/pages";
 import { ConfirmDialog, SecretDialog } from "../../components/Dialog";
 import { FormError, SelectInput, TextInput } from "../../components/form";
 import { useToast } from "../../components/Toast";
-import { Badge, Button, Card, Loading, PageHeader } from "../../components/ui";
+import { Badge, Button, ButtonLink, Card, Loading, PageHeader } from "../../components/ui";
 import { api, type UserPatch } from "../../lib/api";
 import { applyServerErrors, blankToNull } from "../../lib/forms";
 import { accountState, ROLE_LABEL, ROLE_TONE } from "../../lib/labels";
@@ -202,6 +202,9 @@ function AccountCard({ user: u }: { user: User }) {
         <Button variant="secondary" onClick={() => setConfirmReset(true)}>
           Reset password
         </Button>
+        <ButtonLink to={`/admin/audit?entityType=User&entityId=${u.id}`} variant="ghost">
+          View history
+        </ButtonLink>
         <Button
           variant={u.isActive ? "danger" : "secondary"}
           disabled={isSelf}

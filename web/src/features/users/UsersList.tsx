@@ -1,6 +1,6 @@
 import type { Role, UserDetail } from "@contracts";
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { usePageTitle } from "../../app/pages";
 import { Checkbox, SelectInput, TextInput } from "../../components/form";
 import { Table, type Column } from "../../components/Table";
@@ -17,10 +17,12 @@ import { useGroups, useUsers } from "./queries";
 export function UsersList({ mode }: { mode: "admin" | "instructor" }) {
   const admin = mode === "admin";
   usePageTitle(admin ? "Users" : "Students");
+  // Initial filters may come from the URL (dashboard cards link to e.g. ?role=STUDENT).
+  const [params] = useSearchParams();
   const [search, setSearch] = useState("");
-  const [role, setRole] = useState<Role | "">("");
-  const [groupId, setGroupId] = useState("");
-  const [includeInactive, setIncludeInactive] = useState(false);
+  const [role, setRole] = useState<Role | "">((params.get("role") as Role | null) ?? "");
+  const [groupId, setGroupId] = useState(params.get("groupId") ?? "");
+  const [includeInactive, setIncludeInactive] = useState(params.get("includeInactive") === "true");
   const q = useDebounced(search.trim());
   const groups = useGroups();
   const users = useUsers({

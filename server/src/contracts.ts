@@ -225,3 +225,25 @@ export interface StudentExamRow {
   closesAt: string | null;
   reason: string;
 }
+
+// ─────────────────────────────── Admin ───────────────────────────────
+
+export interface AdminStats {
+  users: { students: number; instructors: number; admins: number; inactive: number; locked: number };
+  groups: number;
+  exams: { draft: number; published: number; archived: number };
+  assignments: number;
+  activeOverrides: number;
+  activeSessions: number;
+}
+
+export interface AuditEntry {
+  id: string;
+  at: string;
+  actor: PersonRef | null;
+  action: string;
+  entityType: string | null;
+  entityId: string | null;
+  detail: unknown;
+  ip: string | null;
+}

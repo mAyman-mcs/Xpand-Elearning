@@ -18,6 +18,8 @@ export function createQueryClient() {
 /** Query keys in one place, so a change can refetch everything that depends on it. */
 export const qk = {
   permissions: ["me", "permissions"] as const,
+  stats: ["admin", "stats"] as const,
+  audit: ["audit"] as const,
   users: ["users"] as const,
   user: (id: string) => ["users", id] as const,
   groups: ["groups"] as const,

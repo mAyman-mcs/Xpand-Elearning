@@ -1,5 +1,6 @@
 import { createBrowserRouter, Outlet } from "react-router";
 import { Loading } from "../components/ui";
+import { AuditLog } from "../features/audit/AuditLog";
 import { ChangePassword } from "../features/auth/ChangePassword";
 import { Login } from "../features/auth/Login";
 import { Dashboard } from "../features/dashboard/Dashboard";
@@ -41,6 +42,7 @@ export const router = createBrowserRouter([
               { path: "users/:id", element: <UserDetail mode="admin" /> },
               { path: "groups", element: <GroupsList /> },
               { path: "groups/:id", element: <GroupDetail /> },
+              { path: "audit", element: <AuditLog /> },
             ],
           },
           {

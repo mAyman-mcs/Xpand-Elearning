@@ -2,6 +2,7 @@
 // contracts.ts (after JSON serialization). Nothing here runs; `npm run typecheck` fails on drift.
 import type * as C from "./contracts.js";
 import type { Page } from "./core/pagination.js";
+import type { adminStats, listAudit } from "./modules/admin/service.js";
 import type { assignmentDto, previewAssignments } from "./modules/assignments/assignments.service.js";
 import type { examAvailability, studentExams } from "./modules/assignments/availability.service.js";
 import type { overrideDto } from "./modules/assignments/overrides.service.js";
@@ -42,4 +43,6 @@ export type Checks = [
   Assert<Same<Item<typeof examAvailability>, C.AvailabilityRow>>,
   Assert<Same<Item<typeof studentExams>, C.StudentExamRow>>,
   Assert<Same<Wire<Page<C.Exam>>, C.Page<C.Exam>>>,
+  Assert<Same<Out<typeof adminStats>, C.AdminStats>>,
+  Assert<Same<Out<typeof listAudit>, C.Page<C.AuditEntry>>>,
 ];

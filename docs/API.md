@@ -1,6 +1,6 @@
 # API reference
 
-All endpoints of the Xpand CS Academy backend: 47 routes, matching `apiRouteTable()` in `server/src/app.ts`.
+All endpoints of the Xpand CS Academy backend: 50 routes, matching `apiRouteTable()` in `server/src/app.ts`.
 
 - **Sections 2–5** list the endpoints of each role: everyone, students, instructors, super admins.
 - **Section 6** covers every exam-related endpoint: catalog, assignment and scheduling, overrides, availability.
@@ -270,6 +270,34 @@ Super admins pass every permission check, including all exam endpoints (§6). Th
 - **`PATCH`** `{ name }` → `Tag` (rename).
 - **`DELETE`** → `204`. Removes the tag from every exam; the audit log records how many.
 
+### 5.5 Dashboard and audit log
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/api/admin/stats` | Super admin |
+| GET | `/api/audit` | Super admin (instructors with `AUDIT_VIEW` get a scoped view in a later phase) |
+| GET | `/api/audit/actions` | Super admin |
+
+**`GET /api/admin/stats`** → counts for the dashboard:
+```json
+{ "users": { "students": 120, "instructors": 6, "admins": 2, "inactive": 3, "locked": 1 },
+  "groups": 4, "exams": { "draft": 2, "published": 9, "archived": 1 },
+  "assignments": 31, "activeOverrides": 2, "activeSessions": 17 }
+```
+`users.students`, `instructors` and `admins` count active accounts; `inactive` counts deactivated ones; `locked` counts active accounts locked after failed logins. `activeSessions` counts sessions used in the last `SESSION_IDLE_MINUTES`.
+
+**`GET /api/audit`** → `{ items: AuditEntry[], nextCursor }`, newest first. Reading the log is not itself audited.
+
+| Query | Meaning |
+|---|---|
+| `action` | An exact action (`users.created`), or a prefix ending in `.` (`users.`) |
+| `actorId` | Entries by this user |
+| `entityType`, `entityId` | Entries about one record, e.g. `entityType=User&entityId=…` (a user's history) |
+| `from`, `to` | Instants (ISO 8601), inclusive; `400` if `from` is after `to` |
+| `cursor`, `limit` | As for other lists, except the cursor is the numeric `id` of the last entry |
+
+**`GET /api/audit/actions`** → the distinct actions in the log, sorted (for the filter).
+
 ---
 
 ## 6. Exam endpoints
@@ -512,6 +540,7 @@ Legend: ✅ allowed · 🔑 instructors with the named permission on the exam/ta
 | `POST /api/assignments/bulk`, `…/preview` | — | ❌ | 🔑 `EXAM_ASSIGN` on every pair | ✅ |
 | `PATCH /api/assignments/:id`, `POST /api/overrides`, `POST /api/overrides/:id/end` | — | ❌ | 🔑 `EXAM_SCHEDULE` | ✅ |
 | `GET /api/assignments/availability` | — | ❌ | 🔑 any | ✅ |
+| `GET /api/admin/stats`, `GET /api/audit`, `GET /api/audit/actions` | — | ❌ | ❌ | ✅ |
 
 The authoritative version, with every endpoint × 8 test users, is the RBAC matrix in the code: `server/src/modules/*/*.matrix.ts`, run by `server/src/rbac.matrix.int.test.ts`.
 
@@ -527,7 +556,7 @@ The authoritative version, with every endpoint × 8 test users, is the RBAC matr
 
 **UserDetail** (from `/api/users`): User plus
 ```ts
-{ isActive: boolean, joinDate: "YYYY-MM-DD" | null,
+{ isActive: boolean, lockedUntil: string | null /* locked while in the future */, joinDate: "YYYY-MM-DD" | null,
   groups: { id, name, joinDate: "YYYY-MM-DD" | null }[], createdAt }
 ```
 
@@ -565,6 +594,12 @@ The authoritative version, with every endpoint × 8 test users, is the RBAC matr
   schedule: { mode: "FIXED" | "RELATIVE" | "MANUAL", opensAt, closesAt,
               offsetDays, openTime, windowMinutes },   // fields of other modes are null
   createdAt, createdById }
+```
+
+**AuditEntry**:
+```ts
+{ id: string /* numeric */, at, actor: { id, username, fullName } | null, action,
+  entityType: string | null, entityId: string | null, detail: unknown, ip: string | null }
 ```
 
 **Override**:

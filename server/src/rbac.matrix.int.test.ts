@@ -2,6 +2,7 @@
 // each cell against a freshly seeded world. Add rows in the module's *.matrix.ts file.
 import { afterAll, describe, expect, it } from "vitest";
 import { apiRouteTable } from "./app.js";
+import { adminRows } from "./modules/admin/admin.matrix.js";
 import { assignmentsRows } from "./modules/assignments/assignments.matrix.js";
 import { catalogRows } from "./modules/catalog/catalog.matrix.js";
 import { authAndRbacRows, groupsRows, usersRows } from "./modules/rbac/rbac.matrix.js";
@@ -9,7 +10,14 @@ import { createTestApp, resetDb } from "./test/app.js";
 import { runCell, type MatrixRow } from "./test/matrix.js";
 import { ACTORS, seedWorld } from "./test/rbac-world.js";
 
-const ROWS: MatrixRow[] = [...authAndRbacRows, ...usersRows, ...groupsRows, ...catalogRows, ...assignmentsRows];
+const ROWS: MatrixRow[] = [
+  ...authAndRbacRows,
+  ...usersRows,
+  ...groupsRows,
+  ...catalogRows,
+  ...assignmentsRows,
+  ...adminRows,
+];
 
 const { app, db, deps } = createTestApp();
 afterAll(() => db.$disconnect());
