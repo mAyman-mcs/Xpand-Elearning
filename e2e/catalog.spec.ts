@@ -107,7 +107,20 @@ test.describe("exams (super admin)", () => {
     await page.getByRole("button", { name: "Save changes" }).click();
     await expect(page.getByRole("status").filter({ hasText: "Exam saved" })).toBeVisible();
 
-    // Publish.
+    // Publishing needs a valid question (questions.spec covers the editor): blocked first, then allowed.
+    await expect(page.getByRole("button", { name: "Publish" })).toBeDisabled();
+    const examIdFromUrl = new URL(page.url()).pathname.split("/")[2] ?? "";
+    await page.request.post(`/api/catalog/exams/${examIdFromUrl}/questions`, {
+      data: {
+        type: "TRUE_FALSE",
+        text: "Ready?",
+        options: [
+          { text: "True", isCorrect: true },
+          { text: "False", isCorrect: false },
+        ],
+      },
+    });
+    await page.reload();
     await page.getByRole("button", { name: "Publish" }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Publish" }).click();
     await expect(page.getByRole("status").filter({ hasText: "Exam is now published" })).toBeVisible();

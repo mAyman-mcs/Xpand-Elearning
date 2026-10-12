@@ -57,6 +57,20 @@ for (const e of Object.values(WORLD.exams)) {
       categoryId: categoryIds[e.category] ?? "",
       durationMinutes: 45,
       status: "PUBLISHED",
+      // Published exams have at least one valid question (the publish check).
+      questions: {
+        create: {
+          type: "SINGLE_CHOICE",
+          text: `Sample question of ${e.title}`,
+          position: 0,
+          options: {
+            create: [
+              { text: "Right", isCorrect: true, position: 0 },
+              { text: "Wrong", isCorrect: false, position: 1 },
+            ],
+          },
+        },
+      },
     },
   });
 }

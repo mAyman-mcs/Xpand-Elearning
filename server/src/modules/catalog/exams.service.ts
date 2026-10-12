@@ -8,6 +8,7 @@ import { nonBlank, uuid, uuidList } from "../../core/schemas.js";
 import { ExamStatus, type Prisma } from "../../generated/prisma/client.js";
 import { authorize } from "../rbac/authorize.js";
 import { examWhere, reachOf } from "../rbac/scope.js";
+import { assertPublishable } from "./content.service.js";
 
 // ─────────────────────────────── Schemas ───────────────────────────────
 
@@ -198,6 +199,14 @@ export async function updateExam(ctx: Ctx, examId: string, patch: z.infer<typeof
       if (!authorize(actor, "EXAM_EDIT", { categoryId: patch.categoryId }, ctx.now)) {
         throw new AppError("FORBIDDEN", { message: "You cannot move exams into that category." });
       }
+    }
+
+    if (patch.status === "PUBLISHED" && before.status !== "PUBLISHED") {
+      await assertPublishable(tx, examId, {
+        isExternal: patch.isExternal ?? before.isExternal,
+        questionsPerAttempt:
+          patch.questionsPerAttempt !== undefined ? patch.questionsPerAttempt : before.questionsPerAttempt,
+      });
     }
 
     const exam = await tx.exam.update({ where: { id: examId }, data: patch, include: examInclude });

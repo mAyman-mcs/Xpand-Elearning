@@ -7,6 +7,7 @@ import type { assignmentDto, previewAssignments } from "./modules/assignments/as
 import type { examAvailability, studentExams } from "./modules/assignments/availability.service.js";
 import type { overrideDto } from "./modules/assignments/overrides.service.js";
 import type { publicUser } from "./modules/auth/service.js";
+import type { importQuestions, listMaterials, listQuestions, questionDto } from "./modules/catalog/content.service.js";
 import type { examDto } from "./modules/catalog/exams.service.js";
 import type { categoryDto, tagDto } from "./modules/catalog/taxonomy.service.js";
 import type { getGroup, groupDto } from "./modules/groups/service.js";
@@ -48,4 +49,8 @@ export type Checks = [
   Assert<Same<Out<typeof listAudit>, C.Page<C.AuditEntry>>>,
   Assert<Same<Item<typeof lookupUsers>, C.UserLookup>>,
   Assert<Same<Out<typeof importUsers>, C.ImportResult>>,
+  Assert<Same<Out<typeof questionDto>, C.StaffQuestion>>,
+  Assert<Same<Out<typeof listQuestions>, C.QuestionList>>,
+  Assert<Same<Out<typeof importQuestions>, C.QuestionImportResult>>,
+  Assert<Same<Item<typeof listMaterials>, C.Material>>,
 ];

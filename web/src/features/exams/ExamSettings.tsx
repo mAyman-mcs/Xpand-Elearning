@@ -1,6 +1,7 @@
 import type { Exam, ExamStatus } from "@contracts";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { Link } from "react-router";
 import { usePermissions } from "../../app/auth";
 import { ConfirmDialog } from "../../components/Dialog";
 import { FormError } from "../../components/form";
@@ -170,6 +171,13 @@ function StatusCard({
   onChanged: (e: Exam) => Promise<void>;
 }) {
   const toast = useToast();
+  // What blocks publishing, shown before anyone tries (the server checks again on publish).
+  const content = useQuery({
+    queryKey: qk.questions(exam.id),
+    queryFn: () => api.questions.list(exam.id),
+    enabled: canEdit && exam.status !== "PUBLISHED",
+  });
+  const blockers = content.data?.publishProblems ?? [];
   const [target, setTarget] = useState<(typeof TRANSITIONS)[ExamStatus][number] | null>(null);
   const change = useMutation({
     mutationFn: (status: ExamStatus) => api.exams.update(exam.id, { status }),
@@ -191,11 +199,25 @@ function StatusCard({
             <Button
               key={t.to}
               variant={t.danger ? "danger" : t.to === "PUBLISHED" ? "primary" : "secondary"}
+              disabled={t.to === "PUBLISHED" && blockers.length > 0}
               onClick={() => setTarget(t)}
             >
               {t.label}
             </Button>
           ))}
+        </div>
+      )}
+      {canEdit && blockers.length > 0 && exam.status !== "PUBLISHED" && (
+        <div className="mt-4 text-sm">
+          <p className="font-semibold text-slate-700">Before publishing:</p>
+          <ul className="mt-1 list-disc pl-5 text-slate-600">
+            {blockers.map((b) => (
+              <li key={b}>{b}</li>
+            ))}
+          </ul>
+          <Link to={`/exams/${exam.id}/questions`} className="mt-2 inline-block text-teal-700 hover:underline">
+            Go to the questions
+          </Link>
         </div>
       )}
       <ConfirmDialog

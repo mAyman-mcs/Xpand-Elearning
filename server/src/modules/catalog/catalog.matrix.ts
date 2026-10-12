@@ -96,4 +96,85 @@ export const catalogRows: MatrixRow[] = [
     request: (w) => ({ path: `/api/catalog/exams/${w.e3.id}/tags`, body: { tagIds: [w.tagCore.id] } }),
     expect: scoped({ instCategory: 200 }),
   },
+
+  // ── Exam content (EXAM_EDIT on the exam). E3 is in Cloud: only instCategory (Cloud × all groups) edits it.
+  //    E1 is visible to instExamA/instSplit (other permissions): 403, not 404.
+  {
+    route: "GET /api/catalog/exams/:id/questions",
+    label: "E3 (Cloud)",
+    request: (w) => ({ path: `/api/catalog/exams/${w.e3.id}/questions` }),
+    expect: scoped({ instCategory: 200 }),
+  },
+  {
+    route: "GET /api/catalog/exams/:id/questions",
+    label: "E1, visible without EXAM_EDIT",
+    request: (w) => ({ path: `/api/catalog/exams/${w.e1.id}/questions` }),
+    expect: scoped({ instExamA: 403, instSplit: 403 }),
+  },
+  {
+    route: "POST /api/catalog/exams/:id/questions",
+    request: (w) => ({
+      path: `/api/catalog/exams/${w.e3.id}/questions`,
+      body: {
+        type: "TRUE_FALSE",
+        text: "Sky is blue",
+        options: [
+          { text: "True", isCorrect: true },
+          { text: "False", isCorrect: false },
+        ],
+      },
+    }),
+    expect: statuses(404, { superAdmin: 201, student: 403, instCategory: 201 }),
+  },
+  {
+    route: "PUT /api/catalog/exams/:id/questions/order",
+    request: (w) => ({
+      path: `/api/catalog/exams/${w.e3.id}/questions/order`,
+      body: { questionIds: [w.questionE3.id] },
+    }),
+    expect: scoped({ instCategory: 200 }),
+  },
+  {
+    route: "POST /api/catalog/exams/:id/questions/import",
+    request: (w) => ({ path: `/api/catalog/exams/${w.e3.id}/questions/import`, body: { questions: [{}] } }),
+    expect: scoped({ instCategory: 200 }),
+  },
+  {
+    route: "PATCH /api/catalog/questions/:id",
+    request: (w) => ({ path: `/api/catalog/questions/${w.questionE3.id}`, body: { text: "Two plus two?" } }),
+    expect: scoped({ instCategory: 200 }),
+  },
+  {
+    route: "DELETE /api/catalog/questions/:id",
+    request: (w) => ({ path: `/api/catalog/questions/${w.questionE3.id}` }),
+    expect: statuses(404, { superAdmin: 204, student: 403, instCategory: 204 }),
+  },
+  {
+    route: "GET /api/catalog/exams/:id/materials",
+    request: (w) => ({ path: `/api/catalog/exams/${w.e3.id}/materials` }),
+    expect: scoped({ instCategory: 200 }),
+  },
+  {
+    route: "POST /api/catalog/exams/:id/materials",
+    request: (w) => ({
+      path: `/api/catalog/exams/${w.e3.id}/materials`,
+      body: { title: "Notes", url: "https://example.com/n" },
+    }),
+    expect: statuses(404, { superAdmin: 201, student: 403, instCategory: 201 }),
+  },
+  {
+    route: "PATCH /api/catalog/materials/:id",
+    request: (w) => ({ path: `/api/catalog/materials/${w.materialE3.id}`, body: { title: "Slides v2" } }),
+    expect: scoped({ instCategory: 200 }),
+  },
+  {
+    route: "DELETE /api/catalog/materials/:id",
+    request: (w) => ({ path: `/api/catalog/materials/${w.materialE3.id}` }),
+    expect: statuses(404, { superAdmin: 204, student: 403, instCategory: 204 }),
+  },
+  {
+    route: "POST /api/catalog/exams/:id/duplicate",
+    request: (w) => ({ path: `/api/catalog/exams/${w.e3.id}/duplicate`, body: { code: "E3-COPY" } }),
+    expect: statuses(404, { superAdmin: 201, student: 403, instCategory: 201 }),
+  },
 ];

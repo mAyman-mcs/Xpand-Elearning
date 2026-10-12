@@ -12,7 +12,9 @@ export const authFile = (who: WorldUser) => path.resolve("e2e", ".auth", `${who}
 export const uid = (prefix: string) => `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
 /** Response fields that must never reach a browser. */
-const FORBIDDEN_FIELDS = ["passwordHash", "sessionTokenHash", "tokenHash", "isCorrect"];
+const FORBIDDEN_FIELDS = ["passwordHash", "sessionTokenHash", "tokenHash"];
+/** The answer key: allowed only on the staff question routes (permission-checked by the server). */
+const STAFF_ANSWER_KEY = /\/api\/catalog\/(exams\/[^/]+\/questions|questions\/)/;
 
 /**
  * Every test fails if the page logs a JavaScript error, the server answers 5xx, or a response
@@ -35,6 +37,7 @@ export const test = base.extend<{ guard: void; apiAs: (who: WorldUser) => Promis
         if (!type.includes("json")) return;
         const body = await r.text().catch(() => "");
         for (const f of FORBIDDEN_FIELDS) if (body.includes(`"${f}"`)) problems.push(`${f} in ${r.url()}`);
+        if (body.includes('"isCorrect"') && !STAFF_ANSWER_KEY.test(r.url())) problems.push(`answer key in ${r.url()}`);
       });
       await use();
       expect(problems, "browser errors, server errors or leaked fields").toEqual([]);
@@ -164,6 +167,15 @@ export async function createExam(
     categoryId: categoryIdValue,
     durationMinutes: 45,
   });
+  // Publishing needs at least one valid question.
+  await call(admin, "post", `/catalog/exams/${exam.id}/questions`, {
+    type: "TRUE_FALSE",
+    text: "The exam has a question.",
+    options: [
+      { text: "True", isCorrect: true },
+      { text: "False", isCorrect: false },
+    ],
+  });
   await call(admin, "patch", `/catalog/exams/${exam.id}`, { status: "PUBLISHED" });
   return { id: exam.id, title, code };
 }
@@ -220,4 +232,25 @@ export async function confirmDialog(page: Page, dialogName: string | RegExp, but
   const dialog = page.getByRole("dialog", { name: dialogName });
   await dialog.getByRole("button", { name: button, exact: true }).click();
   await expect(dialog).toBeHidden();
+}
+
+/**
+ * Marks an exam as taken by inserting one submitted attempt straight into the e2e database. Test-only:
+ * attempts get an API in phase B6; until then this is the only way to see the "locked" screens.
+ */
+export async function insertSubmittedAttempt(examIdValue: string, userId: string) {
+  const { default: pg } = await import("pg");
+  const adminUrl = process.env.E2E_ADMIN_DATABASE_URL ?? "postgresql://xpand:xpand-dev@localhost:5433/postgres";
+  const client = new pg.Client({
+    connectionString: Object.assign(new URL(adminUrl), { pathname: "/xpand_e2e" }).toString(),
+  });
+  await client.connect();
+  try {
+    await client.query(
+      `INSERT INTO "Attempt" (id, "examId", "userId", status, "submittedAt") VALUES (gen_random_uuid(), $1, $2, 'SUBMITTED', now())`,
+      [examIdValue, userId],
+    );
+  } finally {
+    await client.end();
+  }
 }

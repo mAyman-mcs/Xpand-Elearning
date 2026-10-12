@@ -72,11 +72,38 @@ export async function seedWorld(db: Db, now = new Date()) {
   });
   const assignmentE3B = await db.assignment.create({ data: { examId: e3.id, groupId: groupB.id, mode: "MANUAL" } });
   const overrideE1A = await db.accessOverride.create({
-    data: { examId: e1.id, groupId: groupA.id, action: "OPEN", reason: "seed", validFrom: new Date(now.getTime() - 60_000) },
+    data: {
+      examId: e1.id,
+      groupId: groupA.id,
+      action: "OPEN",
+      reason: "seed",
+      validFrom: new Date(now.getTime() - 60_000),
+    },
+  });
+
+  // Content of E3 (Cloud), for the exam-content routes.
+  const questionE3 = await db.question.create({
+    data: {
+      examId: e3.id,
+      type: "SINGLE_CHOICE",
+      text: "2 + 2?",
+      position: 0,
+      options: {
+        create: [
+          { text: "4", isCorrect: true, position: 0 },
+          { text: "5", isCorrect: false, position: 1 },
+        ],
+      },
+    },
+  });
+  const materialE3 = await db.material.create({
+    data: { examId: e3.id, title: "Slides", url: "https://example.com/s" },
   });
 
   return {
     users,
+    questionE3,
+    materialE3,
     studentB,
     groupA,
     groupB,

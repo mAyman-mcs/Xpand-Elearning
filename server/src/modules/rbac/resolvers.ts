@@ -11,6 +11,19 @@ export async function examScope(db: DbClient, examId: string): Promise<Scope> {
   return { examId: exam.id, categoryId: exam.categoryId };
 }
 
+/** A question or material is in the scope of its exam. */
+export async function questionScope(db: DbClient, questionId: string): Promise<Scope> {
+  const q = await db.question.findUnique({ where: { id: questionId }, select: { examId: true } });
+  if (!q) throw notFound("Question not found.");
+  return examScope(db, q.examId);
+}
+
+export async function materialScope(db: DbClient, materialId: string): Promise<Scope> {
+  const m = await db.material.findUnique({ where: { id: materialId }, select: { examId: true } });
+  if (!m) throw notFound("Material not found.");
+  return examScope(db, m.examId);
+}
+
 export async function categoryScope(db: DbClient, categoryId: string): Promise<Scope> {
   const category = await db.category.findUnique({ where: { id: categoryId }, select: { id: true } });
   if (!category) throw notFound("Category not found.");

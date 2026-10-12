@@ -1,9 +1,9 @@
 # API reference
 
-All endpoints of the Xpand CS Academy backend: 52 routes, matching `apiRouteTable()` in `server/src/app.ts`.
+All endpoints of the Xpand CS Academy backend: 63 routes, matching `apiRouteTable()` in `server/src/app.ts`.
 
 - **Sections 2–5** list the endpoints of each role: everyone, students, instructors, super admins.
-- **Section 6** covers every exam-related endpoint: catalog, assignment and scheduling, overrides, availability.
+- **Section 6** covers every exam-related endpoint: catalog, exam content (questions, materials), assignment and scheduling, overrides, availability.
 - **Section 7** is a quick matrix of who can call what.
 - **Section 8** defines the shared response shapes.
 
@@ -369,6 +369,38 @@ All endpoints that create, find, assign, schedule or open exams. The "Who" colum
 
 **`PUT /api/catalog/exams/:id/tags`** `{ tagIds: [..] }` → `Exam`. Replaces the exam's whole tag set; sending the same set again changes nothing.
 
+**Publishing** (`PATCH … { status: "PUBLISHED" }`) is refused with `409 CONFLICT` until the exam is ready; `details` lists the problems in words. An exam is ready when it is external, or when it has at least one question, every question is valid, and `questionsPerAttempt` is empty (random draws come with question pools). The check uses the settings sent in the same request.
+
+### 6.1a Exam content: questions, materials, duplicate
+
+All need **Perm `EXAM_EDIT`** on the exam (SA always). These responses **include the answer key** (`isCorrect`): staff only. Students never receive questions from these routes.
+
+| Method | Path | Does |
+|---|---|---|
+| GET | `/api/catalog/exams/:id/questions` | `QuestionList`: the questions in order, `locked`, and `publishProblems` |
+| POST | `/api/catalog/exams/:id/questions` | Adds a question at the end → `201 StaffQuestion` |
+| PATCH | `/api/catalog/questions/:id` | Edits a question → `StaffQuestion` |
+| DELETE | `/api/catalog/questions/:id` | `204`; the others are renumbered |
+| PUT | `/api/catalog/exams/:id/questions/order` | `{ questionIds }`: every question of the exam exactly once → `StaffQuestion[]` |
+| POST | `/api/catalog/exams/:id/questions/import` | `{ questions: [...], dryRun = true }` → `QuestionImportResult`; all or nothing, at most 200 |
+| GET | `/api/catalog/exams/:id/materials` | `Material[]` |
+| POST | `/api/catalog/exams/:id/materials` | `{ title, url }` (https only) → `201 Material` |
+| PATCH | `/api/catalog/materials/:id` | `{ title?, url? }` → `Material` |
+| DELETE | `/api/catalog/materials/:id` | `204` |
+| POST | `/api/catalog/exams/:id/duplicate` | `{ code, title? }` → `201 { id }`: a DRAFT copy (settings, tags, questions, materials). Also needs `EXAM_EDIT` on the exam's **category** (`403` otherwise); `409` if the code is taken. |
+
+**A question:**
+```json
+{ "type": "SINGLE_CHOICE", "text": "Which port does HTTPS use?", "imageUrl": null, "points": 1,
+  "options": [{ "text": "443", "isCorrect": true }, { "text": "80", "isCorrect": false }] }
+```
+- `type`: `SINGLE_CHOICE` (2–10 options, exactly 1 correct), `MULTI_CHOICE` (2–10 options, at least 1 correct) or `TRUE_FALSE` (exactly 2 options, 1 correct).
+- `points` defaults to 1 (more than 0, at most 100); `imageUrl` is optional and must be https.
+- A violation → `400 VALIDATION_FAILED` with a readable `message`.
+- **PATCH** sends any of the fields; `options` replaces the whole list (each may carry its `id`). The result is validated as a whole.
+
+**Locked exams.** Once any student has an attempt, only **wording** can change: the question `text`/`imageUrl` and option `text` (options identified by `id`, same correct answers). Changing the type, points, options or correct answers, adding, deleting or importing → `409 CONFLICT`. Duplicate the exam to change more.
+
 ### 6.2 Assigning and scheduling
 
 | Method | Path | Who |
@@ -555,6 +587,7 @@ Legend: ✅ allowed · 🔑 instructors with the named permission on the exam/ta
 | `GET /api/catalog/exams` | — | ❌ | 👁 | ✅ |
 | `GET /api/catalog/exams/:id` | — | ❌ | 🔑 any | ✅ |
 | `POST /api/catalog/exams`, `PATCH …/:id`, `PUT …/:id/tags` | — | ❌ | 🔑 `EXAM_EDIT` | ✅ |
+| Exam content: questions, materials, duplicate (§6.1a) | — | ❌ | 🔑 `EXAM_EDIT` | ✅ |
 | `GET /api/assignments`, `GET /api/overrides` | — | ❌ | 🔑 `EXAM_ASSIGN` or `EXAM_SCHEDULE` | ✅ |
 | `POST /api/assignments`, `DELETE /api/assignments/:id` | — | ❌ | 🔑 `EXAM_ASSIGN` | ✅ |
 | `POST /api/assignments/bulk`, `…/preview` | — | ❌ | 🔑 `EXAM_ASSIGN` on every pair | ✅ |
@@ -623,6 +656,18 @@ The authoritative version, with every endpoint × 8 test users, is the RBAC matr
   summary: { users: number, newGroups: string[], existingGroups: string[] },
   created: { username, fullName, temporaryPassword }[] }   // real run only
 ```
+
+**StaffQuestion** (with the answer key: staff only):
+```ts
+{ id, type: "SINGLE_CHOICE" | "MULTI_CHOICE" | "TRUE_FALSE", text, imageUrl: string | null, points: number,
+  position: number, options: { id, text, isCorrect: boolean, position: number }[] }
+```
+
+**QuestionList**: `{ locked: boolean, questions: StaffQuestion[], publishProblems: string[] }`
+
+**QuestionImportResult**: `{ dryRun, errors: { index /* 1-based; 0 = the whole import */, message }[], imported: number, questions: StaffQuestion[] }`
+
+**Material**: `{ id, title, url, position }`
 
 **AuditEntry**:
 ```ts

@@ -13,11 +13,16 @@ import type {
   Group,
   GroupDetail,
   ImportResult,
+  Material,
   MyPermissions,
   Override,
   OverrideAction,
   Page,
   PreviewRow,
+  QuestionImportResult,
+  QuestionList,
+  QuestionType,
+  StaffQuestion,
   Role,
   SessionUser,
   Tag,
@@ -77,6 +82,14 @@ export interface OverrideInput {
   validFrom?: string;
   validUntil: string | null;
   reason: string;
+}
+
+export interface QuestionInput {
+  type: QuestionType;
+  text: string;
+  imageUrl: string | null;
+  points: number;
+  options: { id?: string; text: string; isCorrect: boolean }[];
 }
 
 export interface UserListFilter {
@@ -163,6 +176,27 @@ export const api = {
     create: (input: ExamInput) => http.post<Exam>("/catalog/exams", input),
     update: (id: string, patch: ExamPatch) => http.patch<Exam>(`/catalog/exams/${id}`, patch),
     setTags: (id: string, tagIds: string[]) => http.put<Exam>(`/catalog/exams/${id}/tags`, { tagIds }),
+    duplicate: (id: string, code: string, title?: string) =>
+      http.post<{ id: string }>(`/catalog/exams/${id}/duplicate`, { code, title }),
+  },
+  questions: {
+    list: (examId: string) => http.get<QuestionList>(`/catalog/exams/${examId}/questions`),
+    create: (examId: string, input: QuestionInput) =>
+      http.post<StaffQuestion>(`/catalog/exams/${examId}/questions`, input),
+    update: (id: string, patch: Partial<QuestionInput>) => http.patch<StaffQuestion>(`/catalog/questions/${id}`, patch),
+    remove: (id: string) => http.del(`/catalog/questions/${id}`),
+    reorder: (examId: string, questionIds: string[]) =>
+      http.put<StaffQuestion[]>(`/catalog/exams/${examId}/questions/order`, { questionIds }),
+    import: (examId: string, questions: unknown[], dryRun: boolean) =>
+      http.post<QuestionImportResult>(`/catalog/exams/${examId}/questions/import`, { questions, dryRun }),
+  },
+  materials: {
+    list: (examId: string) => http.get<Material[]>(`/catalog/exams/${examId}/materials`),
+    create: (examId: string, input: { title: string; url: string }) =>
+      http.post<Material>(`/catalog/exams/${examId}/materials`, input),
+    update: (id: string, patch: { title?: string; url?: string }) =>
+      http.patch<Material>(`/catalog/materials/${id}`, patch),
+    remove: (id: string) => http.del(`/catalog/materials/${id}`),
   },
   assignments: {
     list: (examId: string) => http.get<Assignment[]>("/assignments", { examId }),

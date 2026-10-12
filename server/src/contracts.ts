@@ -260,3 +260,41 @@ export interface ImportResult {
   /** Real run only: each temporary password, shown once. */
   created: { username: string; fullName: string; temporaryPassword: string }[];
 }
+
+// ─────────────────────────────── Exam content (staff only) ───────────────────────────────
+
+export type QuestionType = "SINGLE_CHOICE" | "MULTI_CHOICE" | "TRUE_FALSE";
+
+/** A question WITH its answer key: staff screens only. */
+export interface StaffQuestion {
+  id: string;
+  type: QuestionType;
+  text: string;
+  imageUrl: string | null;
+  points: number;
+  position: number;
+  options: { id: string; text: string; isCorrect: boolean; position: number }[];
+}
+
+export interface QuestionList {
+  /** Students have taken the exam: only wording can change. */
+  locked: boolean;
+  questions: StaffQuestion[];
+  /** Why it can't be published yet (empty = ready). */
+  publishProblems: string[];
+}
+
+export interface QuestionImportResult {
+  dryRun: boolean;
+  /** `index` is the 1-based position in the imported list (0 = the whole import). */
+  errors: { index: number; message: string }[];
+  imported: number;
+  questions: StaffQuestion[];
+}
+
+export interface Material {
+  id: string;
+  title: string;
+  url: string;
+  position: number;
+}

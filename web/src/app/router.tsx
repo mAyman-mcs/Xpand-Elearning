@@ -6,6 +6,8 @@ import { ExamAvailability } from "../features/assignments/ExamAvailability";
 import { ExamOverrides } from "../features/assignments/ExamOverrides";
 import { AuditLog } from "../features/audit/AuditLog";
 import { CatalogPage } from "../features/catalog/CatalogPage";
+import { ExamMaterials } from "../features/content/ExamMaterials";
+import { ExamQuestions } from "../features/content/ExamQuestions";
 import { ExamLayout } from "../features/exams/ExamLayout";
 import { ExamSettings } from "../features/exams/ExamSettings";
 import { ExamsList } from "../features/exams/ExamsList";
@@ -72,6 +74,8 @@ export const router = createBrowserRouter([
                 element: <ExamLayout />,
                 children: [
                   { index: true, element: <ExamSettings /> },
+                  { path: "questions", element: <ExamQuestions /> },
+                  { path: "materials", element: <ExamMaterials /> },
                   { path: "assignments", element: <ExamAssignments /> },
                   { path: "overrides", element: <ExamOverrides /> },
                   { path: "availability", element: <ExamAvailability /> },

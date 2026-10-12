@@ -29,6 +29,8 @@ const on = (p: MyPermissions | undefined, e: Exam, ...perms: Permission[]) =>
 
 export const EXAM_TABS: Tab[] = [
   { to: "", label: "Settings", show: () => true },
+  { to: "questions", label: "Questions", show: (p, e) => !e.isExternal && on(p, e, "EXAM_EDIT") },
+  { to: "materials", label: "Materials", show: (p, e) => on(p, e, "EXAM_EDIT") },
   { to: "assignments", label: "Assignments", show: (p, e) => on(p, e, "EXAM_ASSIGN", "EXAM_SCHEDULE") },
   { to: "overrides", label: "Open / close", show: (p, e) => on(p, e, "EXAM_ASSIGN", "EXAM_SCHEDULE") },
   { to: "availability", label: "Availability", show: () => true },
