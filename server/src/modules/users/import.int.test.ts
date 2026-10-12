@@ -24,7 +24,7 @@ type Result = {
 const run = async (rows: Record<string, string>[], dryRun: boolean) =>
   admin.post("/api/users/import").send({ rows, dryRun });
 
-const good = [
+const good: Record<string, string>[] = [
   {
     username: "Imp.One",
     fullName: "Imp One",
@@ -90,7 +90,7 @@ describe("POST /api/users/import", () => {
   });
 
   it("reports every problem with its row and field, and imports nothing", async () => {
-    const rows = [
+    const rows: Record<string, string>[] = [
       { username: "ok.user", fullName: "Ok" },
       { username: "x", fullName: "" }, // too short, missing name
       { username: "student.a", fullName: "Taken" }, // exists
