@@ -24,14 +24,15 @@ describe("scope resolvers", () => {
   });
 
   it("answer NOT_FOUND for missing targets (and for non-students as students)", async () => {
-    for (const p of [
-      examScope(db, MISSING),
-      categoryScope(db, MISSING),
-      groupScope(db, MISSING),
-      studentScope(db, MISSING),
-      studentScope(db, w.users.instNone.id),
+    // Thunks, not promises: started one at a time, so none rejects before it is awaited.
+    for (const resolve of [
+      () => examScope(db, MISSING),
+      () => categoryScope(db, MISSING),
+      () => groupScope(db, MISSING),
+      () => studentScope(db, MISSING),
+      () => studentScope(db, w.users.instNone.id),
     ]) {
-      await expect(p).rejects.toMatchObject({ code: "NOT_FOUND" });
+      await expect(resolve()).rejects.toMatchObject({ code: "NOT_FOUND" });
     }
   });
 
