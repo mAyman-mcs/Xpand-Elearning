@@ -12,7 +12,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "typecheck": "npm run typecheck -w server && npm run typecheck -w web",
+    "typecheck": "npm run typecheck -w server && npm run typecheck -w web && tsc -p e2e",
     "test": "npm test -w server",
     "test:int": "npm run test:int -w server",
     "test:web": "npm test -w web",

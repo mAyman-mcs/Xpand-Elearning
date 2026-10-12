@@ -1,6 +1,11 @@
 import { createBrowserRouter, Outlet } from "react-router";
 import { Loading } from "../components/ui";
 import { AuditLog } from "../features/audit/AuditLog";
+import { CatalogPage } from "../features/catalog/CatalogPage";
+import { ExamLayout } from "../features/exams/ExamLayout";
+import { ExamSettings } from "../features/exams/ExamSettings";
+import { ExamsList } from "../features/exams/ExamsList";
+import { NewExam } from "../features/exams/NewExam";
 import { ChangePassword } from "../features/auth/ChangePassword";
 import { Login } from "../features/auth/Login";
 import { Dashboard } from "../features/dashboard/Dashboard";
@@ -48,12 +53,20 @@ export const router = createBrowserRouter([
               { path: "audit", element: <AuditLog /> },
               { path: "instructors", element: <InstructorsList /> },
               { path: "instructors/:id", element: <InstructorDetail /> },
+              { path: "catalog", element: <CatalogPage /> },
             ],
           },
           {
             element: <RequireStaff />,
             children: [
               { path: "students", element: <UsersList mode="instructor" /> },
+              { path: "exams", element: <ExamsList /> },
+              { path: "exams/new", element: <NewExam /> },
+              {
+                path: "exams/:id",
+                element: <ExamLayout />,
+                children: [{ index: true, element: <ExamSettings /> }],
+              },
               { path: "students/:id", element: <UserDetail mode="instructor" /> },
             ],
           },

@@ -1,4 +1,4 @@
-import { test as base, expect, request, type APIRequestContext, type Page } from "@playwright/test";
+import { test as base, expect, request, type APIRequestContext, type Browser, type Page } from "@playwright/test";
 import path from "node:path";
 import { E2E_PASSWORD, WORLD, type WorldUser } from "../server/scripts/e2e-world";
 
@@ -99,5 +99,50 @@ export async function groupId(api: APIRequestContext, key: keyof typeof WORLD.gr
   const groups = await call<{ id: string; name: string }[]>(api, "get", "/groups");
   const found = groups.find((g) => g.name === WORLD.groups[key].name);
   if (!found) throw new Error(`group ${key} not seeded`);
+  return found.id;
+}
+
+/** A fresh instructor who has already set their own password (UI login goes straight in). */
+export async function freshStaff(
+  admin: APIRequestContext,
+  playwright: { request: { newContext: (o: { baseURL: string }) => Promise<APIRequestContext> } },
+  baseURL: string,
+  name: string,
+  grant?: Record<string, unknown>,
+) {
+  const u = await createUser(admin, { fullName: name, role: "INSTRUCTOR" });
+  if (grant) await call(admin, "post", "/rbac/grants", { userId: u.id, ...grant });
+  const password = "Instructor-pass-2026";
+  const ctx = await playwright.request.newContext({ baseURL });
+  await call(ctx, "post", "/auth/login", { username: u.username, password: u.temporaryPassword });
+  await call(ctx, "post", "/auth/change-password", { currentPassword: u.temporaryPassword, newPassword: password });
+  await ctx.dispose();
+  return { ...u, password };
+}
+
+/** A separate browser context logged in through the UI, starting at `path`. Close the context when done. */
+export async function asUser(browser: Browser, path: string, username: string, password: string) {
+  const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+  const page = await context.newPage();
+  await page.goto(path);
+  await login(page, username, password);
+  return { context, page };
+}
+
+/** The id of a seeded category or exam, by its WORLD key. */
+export async function categoryId(api: APIRequestContext, key: keyof typeof WORLD.categories): Promise<string> {
+  const all = await call<{ id: string; name: string }[]>(api, "get", "/catalog/categories?includeArchived=true");
+  const found = all.find((c) => c.name === WORLD.categories[key].name);
+  if (!found) throw new Error(`category ${key} not seeded`);
+  return found.id;
+}
+export async function examId(api: APIRequestContext, key: keyof typeof WORLD.exams): Promise<string> {
+  const res = await call<{ items: { id: string; code: string }[] }>(
+    api,
+    "get",
+    `/catalog/exams?q=${WORLD.exams[key].code}`,
+  );
+  const found = res.items.find((e) => e.code === WORLD.exams[key].code);
+  if (!found) throw new Error(`exam ${key} not seeded`);
   return found.id;
 }

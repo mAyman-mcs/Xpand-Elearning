@@ -1,31 +1,6 @@
-import { authFile, call, createUser, expect, login, test, WORLD } from "./fixtures";
-import type { Browser } from "@playwright/test";
+import { asUser, authFile, createUser, expect, freshStaff, test, WORLD } from "./fixtures";
 
 test.use({ storageState: authFile("admin") });
-
-/** A fresh instructor who has already set their own password, so the UI login goes straight in. */
-async function freshInstructor(
-  admin: Parameters<typeof createUser>[0],
-  playwright: typeof import("@playwright/test"),
-  baseURL: string,
-  name: string,
-) {
-  const u = await createUser(admin, { fullName: name, role: "INSTRUCTOR" });
-  const password = "Instructor-pass-2026";
-  const ctx = await playwright.request.newContext({ baseURL });
-  await call(ctx, "post", "/auth/login", { username: u.username, password: u.temporaryPassword });
-  await call(ctx, "post", "/auth/change-password", { currentPassword: u.temporaryPassword, newPassword: password });
-  await ctx.dispose();
-  return { ...u, password };
-}
-
-async function asInstructor(browser: Browser, username: string, password: string) {
-  const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
-  const page = await context.newPage();
-  await page.goto("/students");
-  await login(page, username, password);
-  return { context, page };
-}
 
 test("grant, edit and remove an instructor's access, and the instructor sees exactly that", async ({
   page,
@@ -34,7 +9,7 @@ test("grant, edit and remove an instructor's access, and the instructor sees exa
   playwright,
   baseURL,
 }) => {
-  const inst = await freshInstructor(await apiAs("admin"), playwright, baseURL ?? "", "Gina Granted");
+  const inst = await freshStaff(await apiAs("admin"), playwright, baseURL ?? "", "Gina Granted");
 
   // No access yet.
   await page.goto("/admin/instructors");
@@ -65,12 +40,16 @@ test("grant, edit and remove an instructor's access, and the instructor sees exa
   await expect(grants).toContainText("Active");
 
   // The instructor sees Group A's students only, and Cloud exams only (checked through the API they use).
-  const { context, page: instPage } = await asInstructor(browser, inst.username, inst.password);
+  const { context, page: instPage } = await asUser(browser, "/students", inst.username, inst.password);
   const students = instPage.getByRole("table", { name: "Students" });
   await expect(students).toContainText(WORLD.users.studentA1.fullName);
   await expect(students).not.toContainText(WORLD.users.studentB1.fullName);
   const exams = await (await instPage.request.get("/api/catalog/exams")).json();
-  expect(exams.items.map((e: { code: string }) => e.code)).toEqual([WORLD.exams.cloudGates.code]);
+  // Other specs may add exams to Cloud: check the scope, not an exact list.
+  const seen = exams.items as { code: string; category: { name: string } }[];
+  expect(seen.map((e) => e.code)).toContain(WORLD.exams.cloudGates.code);
+  expect(seen.map((e) => e.code)).not.toContain(WORLD.exams.netBasics.code);
+  expect(new Set(seen.map((e) => e.category.name))).toEqual(new Set([WORLD.categories.cloud.name]));
 
   // Edit: Group B instead of Group A → applies on the instructor's next page load.
   await grants.getByRole("button", { name: "Edit" }).click();
