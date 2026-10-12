@@ -21,7 +21,7 @@ export function CatalogPage() {
         title="Categories & tags"
         description="Every exam belongs to exactly one category; tags are extra labels. Instructors can be given access to a whole category."
       />
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Categories />
         <Tags />
       </div>
@@ -138,7 +138,7 @@ function Categories() {
       cell: (c) => (
         <span>
           <span className="font-semibold">{c.name}</span> {c.archived && <Badge tone="amber">Archived</Badge>}
-          <span className="block font-mono text-xs text-slate-500">{c.slug}</span>
+          <span className="block font-mono text-xs text-slate-600">{c.slug}</span>
         </span>
       ),
     },
@@ -248,7 +248,7 @@ function Tags() {
       cell: (t) => (
         <span>
           <span className="font-semibold">{t.name}</span>
-          <span className="block font-mono text-xs text-slate-500">{t.slug}</span>
+          <span className="block font-mono text-xs text-slate-600">{t.slug}</span>
         </span>
       ),
     },

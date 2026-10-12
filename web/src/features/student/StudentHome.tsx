@@ -9,7 +9,7 @@ export function StudentHome() {
   return (
     <Card>
       <h1 className="mb-2 text-2xl font-extrabold text-slate-800">Welcome back, {user?.fullName.split(" ")[0]}.</h1>
-      <p className="text-sm text-slate-500">Your dashboard is coming in the next release.</p>
+      <p className="text-sm text-slate-600">Your dashboard is coming in the next release.</p>
     </Card>
   );
 }

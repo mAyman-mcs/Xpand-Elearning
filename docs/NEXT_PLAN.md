@@ -78,6 +78,8 @@ Everything in [BACKEND_PLAN.md §2 and §8](BACKEND_PLAN.md) still applies:
 
 ## 2. B5: Exam content (EXAM-2, EXAM-4, EXAM-5 setup)
 
+> **Done (2026-10-12)** as part of the admin dashboard (phase A6): every endpoint and rule below, with the question editor on top. JSON import only (no CSV yet).
+
 **Goal:** an exam can hold questions and materials, and can't be published broken.
 
 ### API

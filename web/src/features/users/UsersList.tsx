@@ -39,7 +39,7 @@ export function UsersList({ mode }: { mode: "admin" | "instructor" }) {
       cell: (u) => (
         <Link to={`${base}/${u.id}`} className="font-semibold text-teal-700 hover:underline">
           {u.fullName}
-          <span className="block font-mono text-xs font-normal text-slate-500">{u.username}</span>
+          <span className="block font-mono text-xs font-normal text-slate-600">{u.username}</span>
         </Link>
       ),
     },

@@ -2,7 +2,7 @@
 
 Replaces the Google Apps Script prototype (`frontend.html`, `frontend.js`, `portal.json`, `test/`). The prototype stays in the repo as a reference until the new app reaches feature parity.
 
-Status: backend phases B0–B4 of [BACKEND_PLAN.md](BACKEND_PLAN.md) are done (foundations, access control, catalog, assignment and scheduling, infrastructure). The exam session itself (attempts, anti-cheat, proctoring) is next: see [NEXT_PLAN.md](NEXT_PLAN.md).
+Status: backend phases B0–B4 of [BACKEND_PLAN.md](BACKEND_PLAN.md) are done (foundations, access control, catalog, assignment and scheduling, infrastructure). The admin dashboard (A0–A7 of [ADMIN_DASHBOARD_PLAN.md](ADMIN_DASHBOARD_PLAN.md)) and exam content (B5) are done too. The exam session itself (attempts, anti-cheat, proctoring) is next: see [NEXT_PLAN.md](NEXT_PLAN.md).
 
 ## Stack
 
@@ -40,6 +40,12 @@ ops/                Caddyfile, backup.sh, restore-test.sh
 - Routes are thin: they validate, check access, call one service function, and send the result.
 - Services take a `Ctx` (`db`, `now`, `actor`, `ip`, `logger`), so tests pass a fixed clock or a transaction instead of mocking globals.
 - Business rules that can be pure functions are pure, and carry most of the tests: `authorize`, the list filters in `rbac/scope.ts`, and `resolveAvailability`.
+
+## Web app and API contracts
+
+- `web/` is a React single-page app served by the API in production (one origin, so the session cookie stays `SameSite=Strict`). Structure and rules: [FRONTEND_GUIDE.md](FRONTEND_GUIDE.md) §2–3.
+- **Contracts:** `server/src/contracts.ts` defines every response shape as plain types; the web imports them type-only. `contracts.check.ts` proves at compile time that each response builder produces exactly that shape, so drift fails `npm run typecheck`.
+- **Browser integration tests** (`e2e/`, Playwright) run the built app against a fresh `xpand_e2e` database seeded by `server/scripts/seed-e2e.ts` (which refuses any other database). They also check accessibility (axe) and phone width, and fail on JavaScript errors, server errors or leaked secrets.
 
 ## Routes and access policies
 

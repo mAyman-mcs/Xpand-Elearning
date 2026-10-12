@@ -30,10 +30,12 @@ npm run dev:web             # React on :5173 (proxies /api)
 Tests:
 
 ```sh
-npm test                         # unit tests
-npm run test:int                 # integration tests (database xpand_test, created by docker-compose.dev.yml)
+npm test                         # server unit tests
+npm run test:int                 # server integration tests (database xpand_test, created by docker-compose.dev.yml)
 npm run test:coverage -w server  # both, with coverage gates (as in CI)
-npm run lint && npm run format:check
+npm run test:web                 # web unit and component tests
+npm run e2e                      # build, then browser integration tests against a fresh xpand_e2e database
+npm run typecheck && npm run lint && npm run format:check
 ```
 
 Schema changes: edit `server/prisma/schema.prisma`, then run `npm run db:migrate -w server -- --name <change>` **in an interactive terminal**. It may ask for confirmation, and while waiting it holds a database lock; never run it from scripts or CI. Review the generated SQL before committing; hand-written constraints go at the end of the migration file.

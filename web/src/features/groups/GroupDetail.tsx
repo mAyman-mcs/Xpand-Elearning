@@ -44,7 +44,7 @@ export function GroupDetail() {
       cell: (m) => (
         <Link to={`/admin/users/${m.id}`} className="font-semibold text-teal-700 hover:underline">
           {m.fullName}
-          <span className="block font-mono text-xs font-normal text-slate-500">{m.username}</span>
+          <span className="block font-mono text-xs font-normal text-slate-600">{m.username}</span>
         </Link>
       ),
     },
@@ -56,7 +56,7 @@ export function GroupDetail() {
           {m.joinDate ? (
             <Badge tone="amber">Late joiner</Badge>
           ) : (
-            <span className="text-xs text-slate-500">(intake)</span>
+            <span className="text-xs text-slate-600">(intake)</span>
           )}
         </span>
       ),

@@ -94,7 +94,7 @@ export function ExamSettings() {
       ];
 
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       <Card title="Settings" className="lg:col-span-2">
         {!canEdit && (
           <p className="mb-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
@@ -192,7 +192,7 @@ function StatusCard({
       <p className="mb-1">
         <Badge tone={EXAM_STATUS[exam.status].tone}>{EXAM_STATUS[exam.status].label}</Badge>
       </p>
-      <p className="mb-4 text-xs text-slate-500">Last changed {formatInstant(exam.updatedAt)}</p>
+      <p className="mb-4 text-xs text-slate-600">Last changed {formatInstant(exam.updatedAt)}</p>
       {canEdit && (
         <div className="flex flex-col gap-2">
           {TRANSITIONS[exam.status].map((t) => (

@@ -30,7 +30,7 @@ export function Dialog({ open, onOpenChange, title, description, children, foote
         >
           <RadixDialog.Title className="text-lg font-bold text-slate-800">{title}</RadixDialog.Title>
           {description && (
-            <RadixDialog.Description className="mt-1 text-sm text-slate-500">{description}</RadixDialog.Description>
+            <RadixDialog.Description className="mt-1 text-sm text-slate-600">{description}</RadixDialog.Description>
           )}
           <div className="mt-4 space-y-4">{children}</div>
           {footer && <div className="mt-6 flex flex-wrap justify-end gap-2">{footer}</div>}
@@ -159,7 +159,7 @@ export function SecretDialog({
         {secret?.map((s) => (
           <li key={s.label} className="flex items-center justify-between gap-3 rounded-lg bg-slate-100 px-3 py-2">
             <span className="text-sm">
-              <span className="block text-xs text-slate-500">{s.label}</span>
+              <span className="block text-xs text-slate-600">{s.label}</span>
               <code data-testid="secret-value" className="font-mono text-base font-bold text-slate-900">
                 {s.value}
               </code>

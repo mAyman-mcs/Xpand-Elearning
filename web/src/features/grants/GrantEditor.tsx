@@ -171,7 +171,7 @@ export function GrantEditor({ open, onClose, instructor, grant, names, onSaved }
                     />
                   ))
                 ) : (
-                  <p className="text-sm text-slate-500">No categories yet.</p>
+                  <p className="text-sm text-slate-600">No categories yet.</p>
                 )}
               </div>
             </div>
@@ -194,7 +194,7 @@ export function GrantEditor({ open, onClose, instructor, grant, names, onSaved }
                     />
                   ))
                 ) : (
-                  <p className="text-sm text-slate-500">No exams match.</p>
+                  <p className="text-sm text-slate-600">No exams match.</p>
                 )}
               </div>
             </div>
@@ -235,7 +235,7 @@ export function GrantEditor({ open, onClose, instructor, grant, names, onSaved }
       />
 
       <div className="rounded-lg bg-slate-50 p-3 text-sm" aria-live="polite">
-        <p className="text-xs font-semibold text-slate-500 uppercase">This grant means</p>
+        <p className="text-xs font-semibold text-slate-600 uppercase">This grant means</p>
         {problems.length ? (
           <ul className="mt-1 list-disc pl-5 text-amber-800">
             {problems.map((p) => (

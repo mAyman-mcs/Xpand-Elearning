@@ -42,7 +42,7 @@ export function ScheduleFields({ draft, onChange }: { draft: ScheduleDraft; onCh
               />
               {SCHEDULE_MODE[mode]}
             </span>
-            <span className="mt-1 block text-xs text-slate-500">{MODE_HELP[mode]}</span>
+            <span className="mt-1 block text-xs text-slate-600">{MODE_HELP[mode]}</span>
           </label>
         ))}
       </div>
@@ -154,7 +154,7 @@ export function TargetPicker({ value, onChange }: { value: Targets; onChange: (t
             ))}
           </div>
         ) : (
-          <p className="text-sm text-slate-500">No groups available.</p>
+          <p className="text-sm text-slate-600">No groups available.</p>
         )}
       </div>
       <PersonPicker
@@ -163,7 +163,7 @@ export function TargetPicker({ value, onChange }: { value: Targets; onChange: (t
         selected={value.people}
         onChange={(people) => onChange({ ...value, people })}
       />
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-slate-600">
         A personal assignment replaces the student&apos;s group assignments for this exam (use it for a different date).
       </p>
     </fieldset>
@@ -186,7 +186,7 @@ export function PreviewTable({ rows, showExam }: { rows: PreviewRow[]; showExam?
           header: "Student",
           cell: (r) => (
             <span>
-              {r.student.fullName} <span className="font-mono text-xs text-slate-500">{r.student.username}</span>
+              {r.student.fullName} <span className="font-mono text-xs text-slate-600">{r.student.username}</span>
             </span>
           ),
         },

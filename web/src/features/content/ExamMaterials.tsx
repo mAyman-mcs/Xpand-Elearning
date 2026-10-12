@@ -38,7 +38,7 @@ export function ExamMaterials() {
 
   return (
     <Card title="Training material">
-      <p className="mb-4 text-sm text-slate-500">
+      <p className="mb-4 text-sm text-slate-600">
         Students the exam is assigned to see these links (Google Docs, PDFs, slides). Use links that students can open.
       </p>
       <form onSubmit={submit} className="mb-4 grid gap-3 sm:grid-cols-[1fr_2fr_auto] sm:items-start">
@@ -84,7 +84,7 @@ export function ExamMaterials() {
           },
           {
             header: "Link",
-            cell: (m) => <span className="block max-w-xs truncate text-xs text-slate-500">{m.url}</span>,
+            cell: (m) => <span className="block max-w-xs truncate text-xs text-slate-600">{m.url}</span>,
           },
           {
             header: "",

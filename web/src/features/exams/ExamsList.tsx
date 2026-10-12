@@ -49,7 +49,7 @@ export function ExamsList() {
       cell: (e) => (
         <Link to={`/exams/${e.id}`} className="font-semibold text-teal-700 hover:underline">
           {e.title}
-          <span className="block font-mono text-xs font-normal text-slate-500">{e.code}</span>
+          <span className="block font-mono text-xs font-normal text-slate-600">{e.code}</span>
         </Link>
       ),
     },
@@ -125,7 +125,7 @@ export function ExamsList() {
                     className={cx(
                       "rounded-full border px-3 py-1 text-xs font-semibold",
                       on
-                        ? "border-teal-600 bg-teal-600 text-white"
+                        ? "border-teal-700 bg-teal-700 text-white"
                         : "border-slate-300 text-slate-600 hover:bg-slate-50",
                     )}
                   >

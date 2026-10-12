@@ -63,7 +63,7 @@ export function PersonPicker({ label, role, selected, onChange, excludeIds, max 
         {people.isPending ? (
           <Loading />
         ) : !people.data?.length ? (
-          <p className="p-3 text-sm text-slate-500">Nobody matches.</p>
+          <p className="p-3 text-sm text-slate-600">Nobody matches.</p>
         ) : (
           <ul className="divide-y divide-slate-100">
             {people.data.map((u) => {
@@ -73,10 +73,10 @@ export function PersonPicker({ label, role, selected, onChange, excludeIds, max 
                 <li key={u.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
                   <span>
                     <span className="font-medium">{u.fullName}</span>{" "}
-                    <span className="font-mono text-xs text-slate-500">{u.username}</span>
+                    <span className="font-mono text-xs text-slate-600">{u.username}</span>
                   </span>
                   {taken ? (
-                    <span className="text-xs text-slate-400">Already added</span>
+                    <span className="text-xs text-slate-500">Already added</span>
                   ) : (
                     <Button
                       size="sm"
@@ -95,7 +95,7 @@ export function PersonPicker({ label, role, selected, onChange, excludeIds, max 
           </ul>
         )}
         {people.data?.length === LIMIT && (
-          <p className="border-t border-slate-100 p-2 text-center text-xs text-slate-500">
+          <p className="border-t border-slate-100 p-2 text-center text-xs text-slate-600">
             Showing the first {LIMIT}. Type more of the name to narrow the list.
           </p>
         )}

@@ -9,8 +9,8 @@ export function cx(...classes: (string | false | null | undefined)[]): string {
 // ─────────────────────────────── Button ───────────────────────────────
 
 const variants = {
-  primary: "bg-teal-600 text-white hover:bg-teal-700 disabled:bg-slate-300",
-  secondary: "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:text-slate-400",
+  primary: "bg-teal-700 text-white hover:bg-teal-800 disabled:bg-slate-300",
+  secondary: "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:text-slate-500",
   danger: "bg-red-600 text-white hover:bg-red-700 disabled:bg-slate-300",
   ghost: "text-slate-600 hover:bg-slate-100 disabled:text-slate-300",
 };
@@ -98,7 +98,7 @@ export function PageHeader({
     <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
       <div>
         <h1 className="text-2xl font-extrabold text-slate-800">{title}</h1>
-        {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
+        {description && <p className="mt-1 text-sm text-slate-600">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
     </div>
@@ -119,7 +119,7 @@ export function Card({
   return (
     <section className={cx("rounded-xl border border-slate-200 bg-white p-5 shadow-sm", className)}>
       {(title || actions) && (
-        <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           {title && <h2 className="text-base font-bold text-slate-800">{title}</h2>}
           {actions}
         </div>
@@ -156,7 +156,7 @@ export function Badge({ tone = "gray", children }: { tone?: BadgeTone; children:
 
 export function Loading({ label = "Loading…" }: { label?: string }) {
   return (
-    <div role="status" className="flex items-center gap-2 p-6 text-sm text-slate-500">
+    <div role="status" className="flex items-center gap-2 p-6 text-sm text-slate-600">
       <Spinner /> {label}
     </div>
   );
@@ -166,7 +166,7 @@ export function EmptyState({ title, children }: { title: string; children?: Reac
   return (
     <div className="rounded-lg border border-dashed border-slate-300 p-8 text-center">
       <p className="font-semibold text-slate-700">{title}</p>
-      {children && <div className="mt-1 text-sm text-slate-500">{children}</div>}
+      {children && <div className="mt-1 text-sm text-slate-600">{children}</div>}
     </div>
   );
 }

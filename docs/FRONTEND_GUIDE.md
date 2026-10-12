@@ -18,30 +18,31 @@ npm run dev:server     # API on :8080
 npm run dev:web        # React on http://localhost:5173 (proxies /api to :8080)
 ```
 
-To create test students, see "Importing students" in the [README](../README.md).
+To create test students, see "Importing students" in the [README](../README.md), or use **Users → Import CSV** in the app.
 
-Stack: React 19, TypeScript (strict), Vite, Tailwind 4. `react-router-dom` is installed but not used yet; introduce it with the first M1 screens.
+Tests:
 
-## 2. What exists today (M0)
+```sh
+npm run test:web       # Vitest: pure helpers and component tests (MSW mocks the API)
+npm run e2e            # builds, then drives the real app in Chromium against a fresh xpand_e2e database
+npm run e2e:run -- --ui   # the Playwright UI, without rebuilding
+```
 
-| File | What it does |
+## 2. What exists today (admin dashboard, phases A0–A7)
+
+The staff side is built: dashboard, users, groups, CSV import, instructors and grants, categories and tags, exams with settings, questions, materials, assignments with preview, open/close overrides, availability and the audit log. See [ADMIN_DASHBOARD_PLAN.md](ADMIN_DASHBOARD_PLAN.md) for what each phase delivered. **Still to build:** the student dashboard (§4.2), the exam session (§4.3) and the M2 screens (§4.5).
+
+Stack: React 19, TypeScript (strict), Vite, Tailwind 4, React Router 8, TanStack Query 5, React Hook Form + Zod 4, Radix (dialog), `@date-fns/tz`.
+
+| Where | What |
 |---|---|
-| [web/src/api.ts](../web/src/api.ts) | `call()` wraps `fetch`: same-origin cookies, JSON bodies, and it throws `ApiError(status, code, message)` on any non-2xx response. Add every new endpoint to the `api` object here. |
-| [web/src/auth.tsx](../web/src/auth.tsx) | `AuthProvider` / `useAuth()` → `{ user, loading, setUser, logout }`. Loads `/api/auth/me` once on start. |
-| [web/src/main.tsx](../web/src/main.tsx) | Gate: loading → `Login` → `ChangePassword` (while `mustChangePassword`) → `Home`. |
-| `web/src/pages/` | `Login`, `ChangePassword`, and a placeholder `Home`. |
-
-### Available endpoints
-
-| Method | Path | Body | Success |
-|---|---|---|---|
-| POST | `/api/auth/login` | `{ username, password }` | `{ user }` and sets the session cookie |
-| POST | `/api/auth/logout` | `{}` | 204 |
-| GET | `/api/auth/me` | | `{ user }` |
-| POST | `/api/auth/change-password` | `{ currentPassword, newPassword }` | `{ user }` |
-| GET | `/api/health/live`, `/api/health/ready` | | `{ ok: true }` |
-
-`user` = `{ id, username, fullName, email, mobile, role: "SUPER_ADMIN" | "INSTRUCTOR" | "STUDENT", mustChangePassword }`
+| `web/src/lib/api/` | `http` (fetch wrapper: same-origin cookies, a JSON body on every write, `ApiError(status, code, message, details)`), one typed function per endpoint in `api`, and `errorMessage()` / `fieldErrors()`. **Screens never call `fetch`.** |
+| `@contracts` | The API's response types, shared with the server (`server/src/contracts.ts`, imported type-only). The server's typecheck fails if a response builder drifts from them. |
+| `web/src/lib/` | `query.ts` (query client, all query keys), `time.ts` (Cairo ↔ UTC; never the browser's zone), `permissions.ts` (`can()`: what to *show*), `schedule.ts`, `questions.ts`, `grants.ts`, `csv.ts`, `labels.ts`, `forms.ts` |
+| `web/src/components/` | The kit: `Button`/`ButtonLink`, `Card`, `Badge`, form fields with labels and errors, `Table` (loading / error / empty / load more), `Dialog`, `ConfirmDialog` (with an optional required reason), `SecretDialog` (shown once), `Toast`, `PersonPicker` |
+| `web/src/app/` | Router, layout (sidebar by role and grants), guards (`RequireRole`, `RequireStaff`), not-found and no-access pages, `AuthProvider` (a 401 anywhere shows Login on the same URL, with a "session expired" notice) |
+| `web/src/features/<area>/` | One folder per area; one component per route |
+| `e2e/` | Playwright specs. Every test fails on a JavaScript error, a 5xx response, or a secret field in any response (the answer key is allowed only on the staff question routes). `a11y.spec.ts` runs axe on every page and checks phone width. |
 
 ### Error codes
 
@@ -65,7 +66,7 @@ Every error body is `{ error: CODE, message?, details? }`. The full list lives i
 | 429 | `TOO_MANY_ATTEMPTS` | Login form: "Too many attempts, try later." |
 | 500 | `INTERNAL_ERROR` | Generic error with a retry button |
 
-**First M1 task:** handle the two **global** cases once, centrally in `api.ts` and `auth.tsx` (for example an `onUnauthenticated` callback), instead of in each screen.
+The two **global** cases are handled once: `setSessionEndedHandler` in `lib/api/client.ts` (401 → Login on the same URL, with a notice), and the forced password change in the router's root.
 
 ### All other endpoints
 
@@ -98,7 +99,7 @@ These rules are why the platform is being rebuilt. A PR that breaks one is not d
 
 Feature IDs (for example `ASN-3`) refer to the project feature list; the milestone is in each heading. In the API notes, **DRAFT** means the backend hasn't built the endpoint yet. Treat names and shapes as proposals, agree them with the backend developer before coding against them, and mock them until then.
 
-### 4.1 App shell and navigation (M1)
+### 4.1 App shell and navigation (M1) — built (A0)
 
 - Routes set up with react-router. The sidebar shows only what the role allows.
   - Students: Dashboard, Program Rules.
@@ -183,7 +184,7 @@ The most important screen. The server enforces the attempt; the browser **detect
 
 > Browsers can't stop a phone or a second computer, and some signals have false positives (for example an OS notification can cause a blur). That's why the server decides how much each signal counts and the proctor sees them all. The frontend reports faithfully and doesn't decide.
 
-### 4.4 Staff screens (M1)
+### 4.4 Staff screens (M1) — built (A1–A6), except Results (needs the results phase)
 
 Shared pattern:
 - A list page with search, filters and pagination.

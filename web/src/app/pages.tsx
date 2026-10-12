@@ -44,7 +44,7 @@ function Message({ title, children }: { title: string; children: React.ReactNode
   return (
     <div className="mx-auto max-w-lg rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
       <h1 className="text-xl font-bold text-slate-800">{title}</h1>
-      <div className="mt-2 text-sm text-slate-500">{children}</div>
+      <div className="mt-2 text-sm text-slate-600">{children}</div>
       <Link to="/" className="mt-6 inline-block text-sm font-semibold text-teal-700 hover:underline">
         Go to the start page
       </Link>

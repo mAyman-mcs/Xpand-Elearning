@@ -40,7 +40,7 @@ export function UserDetail({ mode }: { mode: "admin" | "instructor" }) {
           </span>
         }
       />
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           {mode === "admin" ? <DetailsForm user={u} /> : <ReadOnlyDetails user={u} />}
           <GroupsCard user={u} linkGroups={mode === "admin"} />
@@ -62,7 +62,7 @@ function ReadOnlyDetails({ user: u }: { user: User }) {
       <dl className="grid gap-3 sm:grid-cols-3">
         {rows.map(([k, v]) => (
           <div key={k}>
-            <dt className="text-xs font-semibold text-slate-500 uppercase">{k}</dt>
+            <dt className="text-xs font-semibold text-slate-600 uppercase">{k}</dt>
             <dd className="text-sm">{v}</dd>
           </div>
         ))}
@@ -181,20 +181,20 @@ function AccountCard({ user: u }: { user: User }) {
     <Card title="Account">
       <dl className="mb-4 space-y-2 text-sm">
         <div>
-          <dt className="text-xs font-semibold text-slate-500 uppercase">Status</dt>
+          <dt className="text-xs font-semibold text-slate-600 uppercase">Status</dt>
           <dd>
             <Badge tone={state.tone}>{state.label}</Badge>
             {state.label === "Locked" && (
-              <span className="ml-2 text-xs text-slate-500">until {formatInstant(u.lockedUntil)}</span>
+              <span className="ml-2 text-xs text-slate-600">until {formatInstant(u.lockedUntil)}</span>
             )}
           </dd>
         </div>
         <div>
-          <dt className="text-xs font-semibold text-slate-500 uppercase">Password</dt>
+          <dt className="text-xs font-semibold text-slate-600 uppercase">Password</dt>
           <dd>{u.mustChangePassword ? "Temporary (must change at next login)" : "Set by the user"}</dd>
         </div>
         <div>
-          <dt className="text-xs font-semibold text-slate-500 uppercase">Created</dt>
+          <dt className="text-xs font-semibold text-slate-600 uppercase">Created</dt>
           <dd>{formatInstant(u.createdAt)}</dd>
         </div>
       </dl>
@@ -274,14 +274,14 @@ function GroupsCard({ user: u, linkGroups }: { user: User; linkGroups: boolean }
               ) : (
                 <span className="font-semibold">{g.name}</span>
               )}
-              <span className="text-slate-500">
+              <span className="text-slate-600">
                 {g.joinDate ? `Joined late: ${formatDate(g.joinDate)}` : "From intake"}
               </span>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-slate-600">
           Not in any group.{linkGroups && u.role === "STUDENT" ? " Add the student from a group's page." : ""}
         </p>
       )}

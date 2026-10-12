@@ -133,12 +133,12 @@ export function NewUser() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-slate-500">No groups yet.</p>
+                <p className="text-sm text-slate-600">No groups yet.</p>
               )}
             </fieldset>
           )}
           {role !== "STUDENT" && (
-            <p className="text-sm text-slate-500 sm:col-span-2">
+            <p className="text-sm text-slate-600 sm:col-span-2">
               {role === "INSTRUCTOR"
                 ? "Instructors see nothing until you give them access grants (Instructors page)."
                 : "Super admins can do everything, including managing other admins."}

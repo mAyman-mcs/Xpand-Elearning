@@ -44,7 +44,7 @@ export function ExamOverrides() {
       header: "For",
       cell: (o) => (
         <span>
-          <span className="text-xs text-slate-500">{o.target.type === "group" ? "Group " : "Student "}</span>
+          <span className="text-xs text-slate-600">{o.target.type === "group" ? "Group " : "Student "}</span>
           <span className="font-semibold">{o.target.name}</span>
         </span>
       ),

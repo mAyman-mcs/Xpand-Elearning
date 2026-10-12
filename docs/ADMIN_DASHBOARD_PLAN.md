@@ -29,6 +29,17 @@ Phases are named **A0 to A7**.
 
 ---
 
+> **Status (2026-10-12): A0–A7 are implemented** on the `feat/admin-dashboard` branch, one commit per phase.
+>
+> - **Decisions:** all as recommended. React Router is version 8 (the current major; the plan said 7).
+> - **Backend added:** BE-1 to BE-6 as planned, plus B5 (exam content) in full: 63 API routes in total.
+> - **Tests:** 830 server tests (coverage gates met), 36 web unit and component tests, and 61 browser tests (including axe on every page and phone width) that run in CI.
+> - **Where the build differs:**
+>   - Questions are reordered with "move up / move down" buttons rather than drag and drop: the same result, and it works with the keyboard and screen readers.
+>   - The audit log is super-admin only. The scoped view for instructors with `AUDIT_VIEW` comes in B9, as planned in NEXT_PLAN E18.
+>   - The exit test (§7) is automated as `e2e/exit.spec.ts`. Run it once by hand on staging before the first real intake.
+>   - Fixed along the way: primary colours darkened for WCAG AA contrast; page grids no longer overflow on phones; number fields show "At least 1" instead of "Enter a number" for values out of range.
+
 ## 1. Decisions to confirm
 
 Each has a recommended default; the plan assumes it.

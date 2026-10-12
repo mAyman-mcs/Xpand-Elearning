@@ -76,7 +76,7 @@ export function ExamQuestions() {
       <Card
         title={`Questions (${questions.length}, ${totalPoints} point${totalPoints === 1 ? "" : "s"})`}
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {!locked && (
               <>
                 <Button variant="secondary" onClick={() => setImporting(true)}>
@@ -122,7 +122,7 @@ export function ExamQuestions() {
               <li key={q.id} className="rounded-lg border border-slate-200 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="mb-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                    <p className="mb-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">
                       <span className="font-bold text-slate-700">Q{i + 1}</span>
                       <Badge>{QUESTION_TYPE_LABEL[q.type]}</Badge>
                       <span>
@@ -335,7 +335,7 @@ function ImportDialog({
       <details className="text-sm">
         <summary className="cursor-pointer text-teal-700">Show the format</summary>
         <pre className="mt-2 max-h-56 overflow-auto rounded bg-slate-50 p-2 text-xs">{IMPORT_EXAMPLE}</pre>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-slate-600">
           type: SINGLE_CHOICE, MULTI_CHOICE or TRUE_FALSE · points defaults to 1 · imageUrl (optional) must be https.
         </p>
       </details>

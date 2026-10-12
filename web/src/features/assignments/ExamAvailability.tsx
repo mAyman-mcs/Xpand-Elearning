@@ -52,7 +52,7 @@ export function ExamAvailability() {
       cell: (r) => (
         <span>
           <span className="font-semibold">{r.student.fullName}</span>
-          <span className="block font-mono text-xs text-slate-500">{r.student.username}</span>
+          <span className="block font-mono text-xs text-slate-600">{r.student.username}</span>
         </span>
       ),
     },
@@ -64,7 +64,7 @@ export function ExamAvailability() {
         r.opensAt ? (
           <span className="text-sm">
             {formatInstant(r.opensAt)}
-            <span className="block text-slate-500">→ {r.closesAt ? formatInstant(r.closesAt) : "no end"}</span>
+            <span className="block text-slate-600">→ {r.closesAt ? formatInstant(r.closesAt) : "no end"}</span>
           </span>
         ) : (
           "—"
@@ -75,7 +75,7 @@ export function ExamAvailability() {
       cell: (r) => (
         <span className="text-sm">
           {r.reason}
-          <span className="block text-xs text-slate-500">Decided by: {SOURCE[r.source] ?? r.source}</span>
+          <span className="block text-xs text-slate-600">Decided by: {SOURCE[r.source] ?? r.source}</span>
         </span>
       ),
     },
@@ -83,7 +83,7 @@ export function ExamAvailability() {
 
   return (
     <Card title="Who can take it, and why">
-      <p className="mb-4 text-sm text-slate-500">
+      <p className="mb-4 text-sm text-slate-600">
         Computed now by the same rules students see. Statuses:{" "}
         {[...counts.entries()].map(([s, n]) => `${AVAILABILITY[s].label} ${n}`).join(" · ") || "—"}
       </p>

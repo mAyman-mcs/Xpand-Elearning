@@ -45,7 +45,7 @@ export function ExamAssignments() {
         ) : (
           <span>
             <Badge tone="teal">Student</Badge> <span className="font-semibold">{a.target.name}</span>{" "}
-            <span className="font-mono text-xs text-slate-500">{a.target.username}</span>
+            <span className="font-mono text-xs text-slate-600">{a.target.username}</span>
           </span>
         ),
     },

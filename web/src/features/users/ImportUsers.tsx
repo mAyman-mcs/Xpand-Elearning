@@ -102,7 +102,7 @@ export function ImportUsers() {
 
         {rows && (
           <Card title={`2. Check ${fileName ?? "the file"}`}>
-            {dryRun.isPending && <p className="text-sm text-slate-500">Checking {rows.length} rows…</p>}
+            {dryRun.isPending && <p className="text-sm text-slate-600">Checking {rows.length} rows…</p>}
             {check && check.errors.length > 0 && (
               <div className="space-y-3">
                 <p role="alert" className="text-sm font-semibold text-red-700">
@@ -173,7 +173,7 @@ export function ImportUsers() {
         <div className="max-h-80 overflow-y-auto">
           <table className="w-full text-left text-sm">
             <caption className="sr-only">Credentials</caption>
-            <thead className="text-xs text-slate-500 uppercase">
+            <thead className="text-xs text-slate-600 uppercase">
               <tr>
                 <th className="py-1">Name</th>
                 <th className="py-1">Username</th>
@@ -195,7 +195,7 @@ export function ImportUsers() {
         </div>
       </Dialog>
       {!rows && !fileError && (
-        <p className="mt-6 text-sm text-slate-500">
+        <p className="mt-6 text-sm text-slate-600">
           Prefer single accounts?{" "}
           <ButtonLink to="/admin/users/new" variant="ghost" size="sm">
             Create one user

@@ -73,8 +73,8 @@ export function ExamLayout() {
                   cx(
                     "block border-b-2 px-4 py-2 text-sm font-semibold",
                     isActive
-                      ? "border-teal-600 text-teal-700"
-                      : "border-transparent text-slate-500 hover:text-slate-800",
+                      ? "border-teal-700 text-teal-700"
+                      : "border-transparent text-slate-600 hover:text-slate-800",
                   )
                 }
               >

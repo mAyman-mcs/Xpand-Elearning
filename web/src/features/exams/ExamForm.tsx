@@ -152,7 +152,7 @@ export function ExamFields({ form, mode, categories, tags, readOnly }: FieldsPro
                     className={cx(
                       "rounded-full border px-3 py-1 text-xs font-semibold disabled:opacity-60",
                       on
-                        ? "border-teal-600 bg-teal-600 text-white"
+                        ? "border-teal-700 bg-teal-700 text-white"
                         : "border-slate-300 text-slate-600 hover:bg-slate-50",
                     )}
                   >

@@ -31,7 +31,7 @@ export function Table<T>({ columns, rows, rowKey, loading, error, onRetry, empty
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-left text-sm">
           {caption && <caption className="sr-only">{caption}</caption>}
-          <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+          <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-600 uppercase">
             <tr>
               {columns.map((c) => (
                 <th key={c.header} scope="col" className={cx("px-4 py-3 font-semibold", c.className)}>

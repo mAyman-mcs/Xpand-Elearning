@@ -33,7 +33,7 @@ export function Login() {
       <form onSubmit={(e) => void submit(e)} className="w-full max-w-md space-y-5 rounded-xl bg-white p-8 shadow-2xl">
         <div className="mb-6 text-center">
           <h1 className="mb-2 text-2xl font-bold text-slate-800">Xpand CS Academy</h1>
-          <p className="font-mono text-sm text-slate-500">Secure Assessment Portal</p>
+          <p className="font-mono text-sm text-slate-600">Secure Assessment Portal</p>
         </div>
         {sessionExpired && !error && (
           <div

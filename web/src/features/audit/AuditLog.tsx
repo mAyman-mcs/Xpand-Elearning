@@ -62,7 +62,7 @@ export function AuditLog() {
             {e.actor.fullName}
           </Link>
         ) : (
-          <span className="text-slate-500">System / deleted user</span>
+          <span className="text-slate-600">System / deleted user</span>
         ),
     },
     { header: "Action", cell: (e) => <code className="text-xs">{e.action}</code> },
@@ -71,14 +71,14 @@ export function AuditLog() {
       header: "Details",
       cell: (e) =>
         e.detail === null || e.detail === undefined ? (
-          <span className="text-slate-400">—</span>
+          <span className="text-slate-500">—</span>
         ) : (
           <details>
             <summary className="cursor-pointer text-sm text-teal-700">Show</summary>
             <pre className="mt-2 max-w-md overflow-x-auto rounded bg-slate-50 p-2 text-xs">
               {JSON.stringify(e.detail, null, 2)}
             </pre>
-            {e.ip && <p className="mt-1 text-xs text-slate-500">IP {e.ip}</p>}
+            {e.ip && <p className="mt-1 text-xs text-slate-600">IP {e.ip}</p>}
           </details>
         ),
     },
@@ -171,7 +171,7 @@ export function AuditLog() {
 }
 
 function Target({ entry: e }: { entry: AuditEntry }) {
-  if (!e.entityType) return <span className="text-slate-400">—</span>;
+  if (!e.entityType) return <span className="text-slate-500">—</span>;
   const link = e.entityId ? TARGET_LINKS[e.entityType] : undefined;
   const label = `${e.entityType} ${e.entityId?.slice(0, 8) ?? ""}`;
   return link && e.entityId ? (

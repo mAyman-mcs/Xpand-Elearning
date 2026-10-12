@@ -66,7 +66,7 @@ export function Dashboard() {
       <div className="space-y-8">
         {sections.map((section) => (
           <section key={section.title} aria-labelledby={`stats-${section.title}`}>
-            <h2 id={`stats-${section.title}`} className="mb-3 text-sm font-bold tracking-wide text-slate-500 uppercase">
+            <h2 id={`stats-${section.title}`} className="mb-3 text-sm font-bold tracking-wide text-slate-600 uppercase">
               {section.title}
             </h2>
             <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -86,11 +86,11 @@ export function Dashboard() {
 function StatCard({ label, value, to, warn, hint }: Stat) {
   const body = (
     <>
-      <span className="block text-sm font-medium text-slate-500">{label}</span>
+      <span className="block text-sm font-medium text-slate-600">{label}</span>
       <span className={cx("mt-1 block text-3xl font-extrabold", warn ? "text-amber-600" : "text-slate-800")}>
         {value}
       </span>
-      {hint && <span className="mt-1 block text-xs text-slate-500">{hint}</span>}
+      {hint && <span className="mt-1 block text-xs text-slate-600">{hint}</span>}
     </>
   );
   const box = "block h-full rounded-xl border bg-white p-5 shadow-sm";

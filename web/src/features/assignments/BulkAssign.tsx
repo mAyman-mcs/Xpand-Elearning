@@ -109,7 +109,7 @@ export function BulkAssign() {
                     onChange={() => setTagIds(toggle(tagIds, t.id))}
                   />
                 ))}
-                {!tags.data?.length && <p className="text-sm text-slate-500">No tags yet.</p>}
+                {!tags.data?.length && <p className="text-sm text-slate-600">No tags yet.</p>}
               </div>
             )}
             {mode === "exams" && (

@@ -193,6 +193,8 @@ ROLLBACK;
 
 For every staff permission test, check **both**: (a) the UI hides or disables the action, and (b) the API refuses it (HTTP 403) when called directly with that user's cookie.
 
+> **Automated (2026-10-12):** most of §5.1–5.3 is now covered by browser tests in `e2e/` (`grants`, `users`, `groups`, `import`, `catalog`, `assign`, `overrides`, `exit`), which run in CI on every pull request. Run these checklists by hand on staging once before the first real intake, and after any change to access control or scheduling.
+
 ### 5.1 Roles and access control (M1)
 
 Test setup: two groups (A, B), three exams (E1, E2, E3), and these instructors:

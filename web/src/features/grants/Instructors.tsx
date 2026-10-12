@@ -51,7 +51,7 @@ export function InstructorsList() {
       cell: (u) => (
         <Link to={`/admin/instructors/${u.id}`} className="font-semibold text-teal-700 hover:underline">
           {u.fullName}
-          <span className="block font-mono text-xs font-normal text-slate-500">{u.username}</span>
+          <span className="block font-mono text-xs font-normal text-slate-600">{u.username}</span>
         </Link>
       ),
     },
@@ -164,7 +164,7 @@ export function InstructorDetail() {
                 <div className="min-w-0 flex-1">
                   <div className="mb-1">{g.active ? <Badge tone="green">Active</Badge> : <Badge>Expired</Badge>}</div>
                   <p className="text-sm text-slate-800">{grantSentence(g, names)}</p>
-                  <p className="mt-1 text-xs text-slate-500">Granted {formatInstant(g.createdAt)}</p>
+                  <p className="mt-1 text-xs text-slate-600">Granted {formatInstant(g.createdAt)}</p>
                 </div>
                 <div className="flex gap-2">
                   <Button size="sm" variant="secondary" onClick={() => setEditing(g)}>

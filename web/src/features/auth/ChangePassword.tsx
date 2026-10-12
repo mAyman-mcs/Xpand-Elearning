@@ -37,7 +37,7 @@ export function ChangePassword() {
     <div className="flex min-h-screen items-center justify-center bg-slate-900 p-4">
       <form onSubmit={(e) => void submit(e)} className="w-full max-w-md space-y-4 rounded-xl bg-white p-8 shadow-2xl">
         <h1 className="text-xl font-bold text-slate-800">Set a new password</h1>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-slate-600">
           Welcome, {user?.fullName}. You are using a temporary password; choose your own to continue. It needs at least
           10 characters, with letters and numbers, and must not contain your username.
         </p>

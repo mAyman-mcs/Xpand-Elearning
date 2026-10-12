@@ -116,7 +116,7 @@ export function QuestionEditor({ examId, question, locked, onClose, onSaved }: P
       <fieldset>
         <legend className="mb-2 text-sm font-bold text-slate-800">
           Options{" "}
-          <span className="font-normal text-slate-500">
+          <span className="font-normal text-slate-600">
             — mark the correct {draft.type === "MULTI_CHOICE" ? "ones" : "one"}
           </span>
         </legend>
@@ -178,7 +178,7 @@ export function QuestionEditor({ examId, question, locked, onClose, onSaved }: P
       <FormError message={save.error ? errorMessage(save.error) : null} />
 
       <section aria-label="Student preview" className="rounded-lg border border-dashed border-slate-300 p-4">
-        <p className="mb-2 text-xs font-semibold text-slate-500 uppercase">What the student sees (answers hidden)</p>
+        <p className="mb-2 text-xs font-semibold text-slate-600 uppercase">What the student sees (answers hidden)</p>
         <p className="font-semibold whitespace-pre-wrap text-slate-800">{draft.text || "…"}</p>
         {draft.imageUrl && !imageProblem && <img src={draft.imageUrl} alt="" className="mt-2 max-h-40 rounded" />}
         <ul className="mt-2 space-y-1">
