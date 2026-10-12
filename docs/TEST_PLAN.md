@@ -251,7 +251,8 @@ Use a test exam with 5 questions, 10 minutes, strike limit 3, fullscreen require
 - [ ] Start when the exam isn't open (via the UI and via the API) → refused
 - [ ] The rules must be accepted before Start; fullscreen is entered on Start; no question is visible outside fullscreen
 - [ ] Open the exam in a second tab while it's in progress → the second tab is refused, or the first tab is stopped, as designed; never two active sessions
-- [ ] Start on a second computer → the same: one active device only, flagged for the proctor
+- [ ] Start or open the exam on a second computer (or another browser) → refused ("in progress elsewhere"), no questions shown, a strike is added; the first computer keeps working
+- [ ] Close the browser and reopen it on the **same** computer → the attempt continues; log out and back in → it can no longer be continued (there is no "allow resume")
 - [ ] Two students get different question and option orders (when shuffle is on)
 
 **During the exam**
@@ -298,7 +299,6 @@ Use a test exam with 5 questions, 10 minutes, strike limit 3, fullscreen require
 - [ ] The live board shows in-progress students, time left, heartbeat (it goes red within about 30 s of disconnecting a student's network) and strikes
 - [ ] Force submit → the student's screen ends immediately with the reason
 - [ ] Add 5 minutes → the student's timer increases without a reload
-- [ ] Allow resume after a device change → the student continues with the same answers
 - [ ] Void or reopen requires a reason, is audited, and allows exactly one new attempt
 - [ ] Attendance and warnings: penalties match the program rules; the 3rd warning flags removal
 - [ ] The scorecard PNG matches the server data; certificate eligibility = 80% overall **and** at least 80% in every topic

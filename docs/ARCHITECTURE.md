@@ -2,7 +2,7 @@
 
 Replaces the Google Apps Script prototype (`frontend.html`, `frontend.js`, `portal.json`, `test/`). The prototype stays in the repo as a reference until the new app reaches feature parity.
 
-Status: backend phases B0–B4 of [BACKEND_PLAN.md](BACKEND_PLAN.md) are done (foundations, access control, catalog, assignment and scheduling, infrastructure). The exam session itself (attempts, anti-cheat, proctoring) is next.
+Status: backend phases B0–B4 of [BACKEND_PLAN.md](BACKEND_PLAN.md) are done (foundations, access control, catalog, assignment and scheduling, infrastructure). The exam session itself (attempts, anti-cheat, proctoring) is next: see [NEXT_PLAN.md](NEXT_PLAN.md).
 
 ## Stack
 

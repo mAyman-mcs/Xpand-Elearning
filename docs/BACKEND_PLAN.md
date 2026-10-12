@@ -6,7 +6,7 @@ Scope of this plan: **backend only**.
 3. **Exam catalog with categories and tags.**
 4. **Exam assignment and scheduling.**
 
-Out of scope (next plan): the exam session itself (attempts, anti-cheat, proctoring), results and grading, frontend work.
+Out of scope ([NEXT_PLAN.md](NEXT_PLAN.md)): the exam session itself (attempts, anti-cheat, proctoring), results and grading, frontend work.
 
 The current state is M0 (see [ARCHITECTURE.md](ARCHITECTURE.md)): login, sessions, the `authorize()` core, the full data model, Docker. The phases are named **B0 to B4**.
 

@@ -5,6 +5,7 @@ Student portal and secure assessment platform for Xpand CS Academy.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): design, data model, access-control rules
 - [docs/API.md](docs/API.md): every API endpoint, by role, with exam endpoints in their own section
 - [docs/BACKEND_PLAN.md](docs/BACKEND_PLAN.md): backend phases B0–B4 (structure, RBAC, catalog, assignment, infrastructure)
+- [docs/NEXT_PLAN.md](docs/NEXT_PLAN.md): phases B5–B14 for every remaining feature (exam content, exam session, results, proctoring, M2/M3)
 - [docs/FRONTEND_GUIDE.md](docs/FRONTEND_GUIDE.md): frontend rules and screens for the next phases
 - [docs/TEST_PLAN.md](docs/TEST_PLAN.md): test cases (M0 now, checklists for M1/M2)
 - [docs/DEPLOY.md](docs/DEPLOY.md): EC2 deployment, HTTPS, logs, backups and restore tests, upgrades
