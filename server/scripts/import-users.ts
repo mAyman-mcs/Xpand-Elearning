@@ -1,116 +1,78 @@
-// Imports students from a CSV and issues temporary passwords.
-//   npm run import-users -w server -- --file ../imports/students.csv [--out ../imports]
+// Imports students from a CSV and issues temporary passwords. The same rules as the admin screen
+// (src/modules/users/import.ts): every row is checked first, then everything is created in one
+// transaction, or nothing at all.
+//   npm run import-users -w server -- --file ../imports/students.csv [--out ../imports] [--dry-run]
 //
 // CSV columns (header row required):
-//   username, fullName, email, mobile, group, groupIntakeDate (YYYY-MM-DD), joinDate (optional, YYYY-MM-DD)
+//   username, fullName, email, mobile, group, groupIntakeDate (YYYY-MM-DD), joinDate (YYYY-MM-DD)
+// Only username and fullName are required. A group that doesn't exist yet is created with its
+// groupIntakeDate. Usernames that already exist are reported as errors (nothing is overwritten).
 //
-// - Groups are created on first sight using groupIntakeDate.
-// - Existing usernames are skipped, never overwritten.
-// - Credentials are written to <out>/credentials-<timestamp>.csv — hand them out, then delete the file.
+// Credentials are written to <out>/credentials-<timestamp>.csv: hand them out, then delete the file.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { parseArgs } from "node:util";
-import { z } from "zod";
-import { audit } from "../src/core/audit.js";
+import pino from "pino";
 import { loadConfig } from "../src/core/config.js";
 import { createPrisma } from "../src/core/db.js";
+import { AppError } from "../src/core/errors.js";
 import { parseCsv, toCsv } from "../src/core/lib/csv.js";
-import { tempPassword } from "../src/core/lib/tokens.js";
-import { hashPassword } from "../src/modules/auth/password.js";
+import { importUsers, MAX_IMPORT_ROWS, type ImportError } from "../src/modules/users/import.js";
 
 const { values } = parseArgs({
-  options: { file: { type: "string" }, out: { type: "string", default: "../imports" } },
+  options: {
+    file: { type: "string" },
+    out: { type: "string", default: "../imports" },
+    "dry-run": { type: "boolean", default: false },
+  },
 });
 if (!values.file) {
-  console.error("Usage: import-users --file <students.csv> [--out <dir>]");
+  console.error("Usage: import-users --file <students.csv> [--out <dir>] [--dry-run]");
   process.exit(1);
 }
 
 const config = loadConfig();
 const prisma = createPrisma(config.DATABASE_URL);
-
-const date = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/)
-  .transform((s) => new Date(`${s}T00:00:00Z`));
-
-const rowSchema = z.object({
-  username: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .regex(/^[a-z0-9._-]{3,50}$/, "3-50 chars: a-z 0-9 . _ -"),
-  fullName: z.string().trim().min(1),
-  email: z.union([z.literal(""), z.email()]).transform((v) => v || null),
-  mobile: z
-    .string()
-    .trim()
-    .transform((v) => v || null),
-  group: z.string().trim().min(1),
-  groupIntakeDate: date,
-  joinDate: z.union([z.literal(""), date]).transform((v) => (v === "" ? null : v)),
-});
+const ctx = { db: prisma, now: new Date(), actor: null, logger: pino({ level: "silent" }) };
 
 const rows = parseCsv(readFileSync(values.file, "utf8"));
-const validRows: z.infer<typeof rowSchema>[] = [];
-const errors: string[] = [];
-rows.forEach((row, i) => {
-  const result = rowSchema.safeParse(row);
-  if (result.success) validRows.push(result.data);
-  else errors.push(`line ${i + 2}: ${result.error.issues.map((x) => `${x.path.join(".")}: ${x.message}`).join("; ")}`);
-});
-if (errors.length > 0) {
-  for (const e of errors) console.error(e);
-  console.error("No users imported; fix the rows above and retry.");
+if (rows.length > MAX_IMPORT_ROWS) {
+  console.error(`The file has ${rows.length} rows; import at most ${MAX_IMPORT_ROWS} at a time.`);
   process.exit(1);
 }
 
-const credentials: Record<string, string>[] = [];
-let skipped = 0;
+const printErrors = (errors: { row: number; field: string; message: string }[]) => {
+  // CSV line = data row + 1 (the header is line 1).
+  for (const e of errors) console.error(`line ${e.row + 1}: ${e.field}: ${e.message}`);
+  console.error("No users imported; fix the rows above and retry.");
+};
 
-for (const r of validRows) {
-  const group = await prisma.group.upsert({
-    where: { name: r.group },
-    create: { name: r.group, intakeStartDate: r.groupIntakeDate },
-    update: {},
-  });
-
-  if (await prisma.user.findUnique({ where: { username: r.username } })) {
-    console.warn(`skip: username "${r.username}" already exists`);
-    skipped++;
-    continue;
+try {
+  const result = await importUsers(ctx, config.BCRYPT_COST, { rows, dryRun: values["dry-run"] }, "script");
+  if (result.errors.length) {
+    printErrors(result.errors);
+    process.exitCode = 1;
+  } else if (result.dryRun) {
+    console.log(
+      `Dry run: ${result.summary.users} user(s) would be created; new groups: ${result.summary.newGroups.join(", ") || "none"}.`,
+    );
+  } else {
+    mkdirSync(values.out, { recursive: true });
+    const outFile = path.join(values.out, `credentials-${new Date().toISOString().replace(/[:.]/g, "-")}.csv`);
+    writeFileSync(outFile, toCsv(result.created), { mode: 0o600 });
+    console.log(`Imported ${result.created.length} user(s). Credentials: ${outFile}`);
   }
-
-  const password = tempPassword();
-  const user = await prisma.user.create({
-    data: {
-      username: r.username,
-      fullName: r.fullName,
-      email: r.email,
-      mobile: r.mobile,
-      role: "STUDENT",
-      passwordHash: await hashPassword(password, config.BCRYPT_COST),
-      joinDate: r.joinDate,
-      memberships: { create: { groupId: group.id, joinDate: r.joinDate } },
-    },
-  });
-  await audit(prisma, {
-    action: "admin.user_imported",
-    actorId: null,
-    entityType: "User",
-    entityId: user.id,
-    detail: { username: r.username, group: r.group },
-  });
-  credentials.push({ username: r.username, fullName: r.fullName, email: r.email ?? "", temporaryPassword: password });
+} catch (err) {
+  if (err instanceof AppError && err.code === "VALIDATION_FAILED") {
+    printErrors(
+      (err.options.details as (ImportError & { path: string })[]).map(({ row, path: p, message }) => ({
+        row,
+        field: p.split(".").slice(2).join("."),
+        message,
+      })),
+    );
+    process.exitCode = 1;
+  } else throw err;
+} finally {
+  await prisma.$disconnect();
 }
-
-const outDir = values.out;
-if (credentials.length > 0) {
-  mkdirSync(outDir, { recursive: true });
-  const outFile = path.join(outDir, `credentials-${new Date().toISOString().replace(/[:.]/g, "-")}.csv`);
-  writeFileSync(outFile, toCsv(credentials), { mode: 0o600 });
-  console.log(`Imported ${credentials.length} user(s), skipped ${skipped}. Credentials: ${outFile}`);
-} else {
-  console.log(`Nothing imported (skipped ${skipped}).`);
-}
-await prisma.$disconnect();

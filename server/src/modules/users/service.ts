@@ -73,6 +73,36 @@ function visibleUsers(ctx: Ctx): Prisma.UserWhereInput {
   return actor.role === "SUPER_ADMIN" ? {} : studentWhere(reachOf(actor, "any", ctx.now));
 }
 
+export const lookupQuery = z.object({
+  q: z.string().trim().max(100).optional(),
+  role: z.enum(Role).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+});
+
+/** Light search for pickers (id, username, name, role), within the same scope as the list. Active users only. */
+export async function lookupUsers(ctx: Ctx, query: z.infer<typeof lookupQuery>) {
+  return ctx.db.user.findMany({
+    where: {
+      AND: [
+        visibleUsers(ctx),
+        { isActive: true },
+        query.role ? { role: query.role } : {},
+        query.q
+          ? {
+              OR: [
+                { username: { contains: query.q, mode: "insensitive" } },
+                { fullName: { contains: query.q, mode: "insensitive" } },
+              ],
+            }
+          : {},
+      ],
+    },
+    select: { id: true, username: true, fullName: true, role: true },
+    orderBy: [{ fullName: "asc" }, { id: "asc" }],
+    take: query.limit,
+  });
+}
+
 export async function listUsers(
   ctx: Ctx,
   filter: z.infer<typeof userListQuery>,

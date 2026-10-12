@@ -1,6 +1,6 @@
 # API reference
 
-All endpoints of the Xpand CS Academy backend: 50 routes, matching `apiRouteTable()` in `server/src/app.ts`.
+All endpoints of the Xpand CS Academy backend: 52 routes, matching `apiRouteTable()` in `server/src/app.ts`.
 
 - **Sections 2–5** list the endpoints of each role: everyone, students, instructors, super admins.
 - **Section 6** covers every exam-related endpoint: catalog, assignment and scheduling, overrides, availability.
@@ -118,6 +118,7 @@ Instructors read people and groups **within their reach**: students in, and grou
 |---|---|---|
 | GET | `/api/users` | Paginated: **students in reach only**. Filters never widen this (e.g. `?role=INSTRUCTOR` → empty). |
 | GET | `/api/users/:id` | A student in reach; otherwise `404` |
+| GET | `/api/users/lookup` | Students in reach only (for pickers) |
 | GET | `/api/groups` | Groups in reach |
 | GET | `/api/groups/:id` | A group in reach, with its members; otherwise `404` |
 | GET | `/api/catalog/categories` | All categories (pickers) |
@@ -140,6 +141,8 @@ Super admins pass every permission check, including all exam endpoints (§6). Th
 | POST | `/api/users` | Super admin |
 | PATCH | `/api/users/:id` | Super admin |
 | POST | `/api/users/:id/reset-password` | Super admin |
+| GET | `/api/users/lookup` | Super admin (instructors: §4) |
+| POST | `/api/users/import` | Super admin |
 
 **`GET /api/users`** (*paginated*): returns `{ items: UserDetail[], nextCursor }`.
 
@@ -168,6 +171,22 @@ Super admins pass every permission check, including all exam endpoints (§6). Th
 - `409 CONFLICT` if you try to change your own role or deactivate yourself. This also guarantees an active super admin always remains.
 
 **`POST /api/users/:id/reset-password`** → `{ temporaryPassword }`. Unlocks the account, sets `mustChangePassword`, and signs the user out everywhere.
+
+**`GET /api/users/lookup?q=&role=&limit=`** → `[{ id, username, fullName, role }]`: a light search for pickers. Active users only, in the same scope as the list, sorted by name. `limit` 1–50, default 20.
+
+**`POST /api/users/import`** creates many students from CSV rows (the browser or the `import-users` script parses the file):
+```json
+{ "dryRun": true,
+  "rows": [{ "username": "sara.ali", "fullName": "Sara Ali", "email": "", "mobile": "",
+             "group": "Intake Nov 2026", "groupIntakeDate": "2026-11-01", "joinDate": "" }] }
+```
+- Columns: `username` and `fullName` are required; `email`, `mobile`, `group`, `groupIntakeDate`, `joinDate` are optional (an empty string = not given). Dates are `YYYY-MM-DD`. 1–200 rows.
+- A `group` that doesn't exist yet is created; its rows must give one `groupIntakeDate`.
+- **Dry run** (the default) → `200 ImportResult` with every problem and nothing written.
+- **Real run** (`dryRun: false`) → `200 ImportResult` with `created`: each temporary password, **shown once**. If any row has a problem, nothing is created: `400 VALIDATION_FAILED`, `details` = `[{ path: "rows.<row>.<field>", row, message }]`.
+- Checked: each row's fields, the same username twice in the file, usernames that already exist, new groups without (or with conflicting) intake dates.
+- Each student, each new group and the import itself are audited (`users.created`, `groups.created`, `users.imported`).
+- About 0.25 s per row (one password hash each), so a full file can take close to a minute.
 
 ### 5.2 Groups (cohorts / intakes)
 
@@ -526,7 +545,8 @@ Legend: ✅ allowed · 🔑 instructors with the named permission on the exam/ta
 | `GET /api/auth/me`, `POST /api/auth/change-password`, `GET /api/me/permissions` | — | ✅ | ✅ | ✅ |
 | `GET /api/student/exams` | — | ✅ | ❌ | ❌ |
 | `GET /api/users`, `GET /api/users/:id` | — | ❌ | 👁 students | ✅ |
-| `POST/PATCH /api/users…`, `POST /api/users/:id/reset-password` | — | ❌ | ❌ | ✅ |
+| `GET /api/users/lookup` | — | ❌ | 👁 students | ✅ |
+| `POST/PATCH /api/users…`, `POST /api/users/:id/reset-password`, `POST /api/users/import` | — | ❌ | ❌ | ✅ |
 | `GET /api/groups`, `GET /api/groups/:id` | — | ❌ | 👁 | ✅ |
 | Group writes and members | — | ❌ | ❌ | ✅ |
 | `/api/rbac/grants` (all) | — | ❌ | ❌ | ✅ |
@@ -594,6 +614,14 @@ The authoritative version, with every endpoint × 8 test users, is the RBAC matr
   schedule: { mode: "FIXED" | "RELATIVE" | "MANUAL", opensAt, closesAt,
               offsetDays, openTime, windowMinutes },   // fields of other modes are null
   createdAt, createdById }
+```
+
+**ImportResult**:
+```ts
+{ dryRun: boolean,
+  errors: { row: number /* 1-based data row; CSV line = row + 1 */, field: string, message: string }[],
+  summary: { users: number, newGroups: string[], existingGroups: string[] },
+  created: { username, fullName, temporaryPassword }[] }   // real run only
 ```
 
 **AuditEntry**:

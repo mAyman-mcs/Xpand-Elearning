@@ -4,9 +4,11 @@ import { AuditLog } from "../features/audit/AuditLog";
 import { ChangePassword } from "../features/auth/ChangePassword";
 import { Login } from "../features/auth/Login";
 import { Dashboard } from "../features/dashboard/Dashboard";
+import { InstructorDetail, InstructorsList } from "../features/grants/Instructors";
 import { GroupDetail } from "../features/groups/GroupDetail";
 import { GroupsList } from "../features/groups/GroupsList";
 import { StudentHome } from "../features/student/StudentHome";
+import { ImportUsers } from "../features/users/ImportUsers";
 import { NewUser } from "../features/users/NewUser";
 import { UserDetail } from "../features/users/UserDetail";
 import { UsersList } from "../features/users/UsersList";
@@ -39,10 +41,13 @@ export const router = createBrowserRouter([
               { index: true, element: <Dashboard /> },
               { path: "users", element: <UsersList mode="admin" /> },
               { path: "users/new", element: <NewUser /> },
+              { path: "users/import", element: <ImportUsers /> },
               { path: "users/:id", element: <UserDetail mode="admin" /> },
               { path: "groups", element: <GroupsList /> },
               { path: "groups/:id", element: <GroupDetail /> },
               { path: "audit", element: <AuditLog /> },
+              { path: "instructors", element: <InstructorsList /> },
+              { path: "instructors/:id", element: <InstructorDetail /> },
             ],
           },
           {

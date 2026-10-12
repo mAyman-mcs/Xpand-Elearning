@@ -9,9 +9,17 @@ export function createPrisma(databaseUrl: string): PrismaClient {
   return new PrismaClient({ adapter: new PrismaPg({ connectionString: databaseUrl }) });
 }
 
-/** Runs `fn` in a transaction, or directly when `db` already is one (nested service calls, tests). */
-export function inTransaction<T>(db: DbClient, fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
-  return "$transaction" in db ? db.$transaction(fn) : fn(db);
+/**
+ * Runs `fn` in a transaction, or directly when `db` already is one (nested service calls, tests).
+ * `timeoutMs` overrides Prisma's 5 s limit for the rare large batch (CSV import).
+ */
+export function inTransaction<T>(
+  db: DbClient,
+  fn: (tx: Prisma.TransactionClient) => Promise<T>,
+  options?: { timeoutMs?: number },
+): Promise<T> {
+  if (!("$transaction" in db)) return fn(db);
+  return options?.timeoutMs ? db.$transaction(fn, { timeout: options.timeoutMs }) : db.$transaction(fn);
 }
 
 /** True for a unique-constraint violation (Prisma P2002), e.g. a duplicate name. */

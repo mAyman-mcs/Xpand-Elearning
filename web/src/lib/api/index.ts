@@ -12,6 +12,7 @@ import type {
   GrantScopeFields,
   Group,
   GroupDetail,
+  ImportResult,
   MyPermissions,
   Override,
   OverrideAction,
@@ -21,6 +22,7 @@ import type {
   SessionUser,
   Tag,
   UserDetail,
+  UserLookup,
 } from "@contracts";
 import { http } from "./client";
 
@@ -119,6 +121,9 @@ export const api = {
     create: (input: UserInput) => http.post<{ user: UserDetail; temporaryPassword: string }>("/users", input),
     update: (id: string, patch: UserPatch) => http.patch<UserDetail>(`/users/${id}`, patch),
     resetPassword: (id: string) => http.post<{ temporaryPassword: string }>(`/users/${id}/reset-password`),
+    lookup: (q: string, role?: Role) => http.get<UserLookup[]>("/users/lookup", { q, role, limit: 20 }),
+    import: (rows: Record<string, string>[], dryRun: boolean) =>
+      http.post<ImportResult>("/users/import", { rows, dryRun }),
   },
   groups: {
     list: () => http.get<Group[]>("/groups"),

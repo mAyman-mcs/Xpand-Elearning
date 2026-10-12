@@ -247,3 +247,16 @@ export interface AuditEntry {
   detail: unknown;
   ip: string | null;
 }
+
+export interface UserLookup extends PersonRef {
+  role: Role;
+}
+
+export interface ImportResult {
+  dryRun: boolean;
+  /** `row` is the 1-based data row (CSV line = row + 1). */
+  errors: { row: number; field: string; message: string }[];
+  summary: { users: number; newGroups: string[]; existingGroups: string[] };
+  /** Real run only: each temporary password, shown once. */
+  created: { username: string; fullName: string; temporaryPassword: string }[];
+}

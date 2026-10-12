@@ -25,11 +25,12 @@ test("an action done in the UI appears in the audit log with its actor, target a
     0,
   );
 
-  // The newest groups.created entry is ours: its details name the group, and the target opens it.
-  const newest = log.getByRole("row").nth(1);
-  await newest.getByText("Show").click();
-  await expect(newest).toContainText(name);
-  await newest.getByRole("link", { name: /^Group / }).click();
+  // Other specs create groups in parallel: find our entry by the group name in its details.
+  const ours = log.getByRole("row").filter({ hasText: name });
+  await expect(ours).toHaveCount(1);
+  await ours.getByText("Show").click();
+  await expect(ours.locator("pre")).toBeVisible();
+  await ours.getByRole("link", { name: /^Group / }).click();
   await expect(page.getByRole("heading", { name })).toBeVisible();
 });
 

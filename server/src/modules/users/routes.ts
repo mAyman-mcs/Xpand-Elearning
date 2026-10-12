@@ -7,11 +7,14 @@ import {
   createUserBody,
   getUser,
   listUsers,
+  lookupQuery,
+  lookupUsers,
   resetPassword,
   updateUser,
   updateUserBody,
   userListQuery,
 } from "./service.js";
+import { importBody, importUsers } from "./import.js";
 
 /** Mounted at /api/users. Writes are super-admin only; instructors may look up students in their reach. */
 export function usersRoutes(deps: AppDeps): ApiRouter {
@@ -24,6 +27,15 @@ export function usersRoutes(deps: AppDeps): ApiRouter {
     access: staff,
     query: userListQuery.extend(pageQuery.shape),
     handler: (ctx, { query }) => listUsers(ctx, query, query),
+  });
+
+  // Before "/:id", so "lookup" is never read as an id.
+  api.get("/lookup", { access: staff, query: lookupQuery, handler: (ctx, { query }) => lookupUsers(ctx, query) });
+
+  api.post("/import", {
+    access: superAdmin,
+    body: importBody,
+    handler: (ctx, { body }) => importUsers(ctx, cost, body, "screen"),
   });
 
   api.get("/:id", {

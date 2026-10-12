@@ -1,9 +1,13 @@
 import type { PersonRef, Role } from "@contracts";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { useUsers } from "../features/users/queries";
+import { api } from "../lib/api";
 import { useDebounced } from "../lib/forms";
+import { qk } from "../lib/query";
 import { TextInput } from "./form";
 import { Button, Loading } from "./ui";
+
+const LIMIT = 20;
 
 interface Props {
   label: string;
@@ -15,11 +19,11 @@ interface Props {
   max?: number;
 }
 
-/** Search people on the server (within the caller's scope) and pick one or more. */
+/** Search active people on the server (within the caller's scope) and pick one or more. */
 export function PersonPicker({ label, role, selected, onChange, excludeIds, max }: Props) {
   const [search, setSearch] = useState("");
   const q = useDebounced(search.trim());
-  const users = useUsers({ q: q || undefined, role });
+  const people = useQuery({ queryKey: [...qk.users, "lookup", q, role], queryFn: () => api.users.lookup(q, role) });
   const chosen = new Set(selected.map((p) => p.id));
   const full = max !== undefined && selected.length >= max;
 
@@ -56,13 +60,13 @@ export function PersonPicker({ label, role, selected, onChange, excludeIds, max 
         </ul>
       )}
       <div className="max-h-64 overflow-y-auto rounded-lg border border-slate-200">
-        {users.isPending ? (
+        {people.isPending ? (
           <Loading />
-        ) : !users.rows?.length ? (
+        ) : !people.data?.length ? (
           <p className="p-3 text-sm text-slate-500">Nobody matches.</p>
         ) : (
           <ul className="divide-y divide-slate-100">
-            {users.rows.map((u) => {
+            {people.data.map((u) => {
               const taken = excludeIds?.has(u.id) ?? false;
               const isChosen = chosen.has(u.id);
               return (
@@ -90,17 +94,10 @@ export function PersonPicker({ label, role, selected, onChange, excludeIds, max 
             })}
           </ul>
         )}
-        {users.hasNextPage && (
-          <div className="p-2 text-center">
-            <Button
-              size="sm"
-              variant="ghost"
-              busy={users.isFetchingNextPage}
-              onClick={() => void users.fetchNextPage()}
-            >
-              Show more
-            </Button>
-          </div>
+        {people.data?.length === LIMIT && (
+          <p className="border-t border-slate-100 p-2 text-center text-xs text-slate-500">
+            Showing the first {LIMIT}. Type more of the name to narrow the list.
+          </p>
         )}
       </div>
     </div>

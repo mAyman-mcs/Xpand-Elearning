@@ -36,6 +36,18 @@ export const authAndRbacRows: MatrixRow[] = [
 
 export const usersRows: MatrixRow[] = [
   { route: "GET /api/users", request: () => ({ path: "/api/users" }), expect: statuses(200, { student: 403 }) },
+  // Scoped like the list: instructors get only students in reach (an empty list, not an error).
+  {
+    route: "GET /api/users/lookup",
+    request: () => ({ path: "/api/users/lookup?q=student" }),
+    expect: statuses(200, { student: 403 }),
+  },
+  {
+    route: "POST /api/users/import",
+    label: "dry run",
+    request: () => ({ path: "/api/users/import", body: { rows: [{ username: "imp.one", fullName: "Imp One" }] } }),
+    expect: superAdminOnly(200),
+  },
   {
     route: "GET /api/users/:id",
     label: "student in group A",

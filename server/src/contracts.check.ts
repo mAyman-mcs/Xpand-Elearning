@@ -11,7 +11,8 @@ import type { examDto } from "./modules/catalog/exams.service.js";
 import type { categoryDto, tagDto } from "./modules/catalog/taxonomy.service.js";
 import type { getGroup, groupDto } from "./modules/groups/service.js";
 import type { grantDto } from "./modules/rbac/grants.service.js";
-import type { userDto } from "./modules/users/service.js";
+import type { importUsers } from "./modules/users/import.js";
+import type { lookupUsers, userDto } from "./modules/users/service.js";
 
 /** What JSON.stringify makes of a value: Dates become ISO strings. */
 export type Wire<T> = T extends Date
@@ -45,4 +46,6 @@ export type Checks = [
   Assert<Same<Wire<Page<C.Exam>>, C.Page<C.Exam>>>,
   Assert<Same<Out<typeof adminStats>, C.AdminStats>>,
   Assert<Same<Out<typeof listAudit>, C.Page<C.AuditEntry>>>,
+  Assert<Same<Item<typeof lookupUsers>, C.UserLookup>>,
+  Assert<Same<Out<typeof importUsers>, C.ImportResult>>,
 ];
