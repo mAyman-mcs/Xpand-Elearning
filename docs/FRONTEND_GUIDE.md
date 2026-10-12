@@ -119,7 +119,7 @@ Matches the legacy dashboard, with real data:
 |---|---|---|---|
 | `SCHEDULED` | Scheduled | "Opens on …" plus a live countdown | none |
 | `OPEN` | Available | "Closes at …" if there is a closing time | **Start** (→ §4.3) |
-| `IN_PROGRESS` | In progress | Time left | **Resume** (only if the server allows; otherwise "Contact your proctor") |
+| `IN_PROGRESS` | In progress | Time left | **Resume** on the device that started it; on any other device the server refuses (`ATTEMPT_IN_PROGRESS_ELSEWHERE`): show "This exam is in progress on another device" |
 | `SUBMITTED` | Submitted | Submission time; score only if results are released, otherwise "Pending" | none |
 | `CLOSED` | Closed | "Locked by instructor" | none |
 | `MISSED` | Missed | The window passed without an attempt | none |
@@ -171,7 +171,7 @@ The most important screen. The server enforces the attempt; the browser **detect
 - The server replies `{ strikes, strikeLimit, action: "WARN" | "AUTO_SUBMITTED" }`. Show a blocking warning overlay ("Warning 2 of 3: leaving the exam window is not allowed"), which must be acknowledged, then require fullscreen again.
 - On `AUTO_SUBMITTED`, go to the Submitted page with the reason.
 - Queue events that fail to send and retry them; don't drop them.
-- **Heartbeat:** **DRAFT** `POST /api/attempts/:id/heartbeat` every 10 s. If the reply says the attempt is no longer active (submitted, or opened on another device), stop immediately and show why.
+- **Heartbeat:** **DRAFT** `POST /api/attempts/:id/heartbeat` every 10 s. If the reply says the attempt is no longer active (submitted or auto-submitted), stop immediately and show why. There is no "allow resume": an attempt never moves to another device, so warn the student before Logout during an exam.
 - **Reloading the page** during an attempt must resume the same attempt (if the server allows) with the remaining time, not start a new one.
 - Disable text selection in the question area with CSS (`user-select: none`), but keep it in text inputs.
 - **Accessibility:** the anti-cheat measures must not block keyboard navigation (Tab, Enter, Space, arrows).
@@ -207,7 +207,7 @@ The backend will provide the list endpoints already filtered to the caller's sco
 
 - **Live proctor board (PROC-1):**
   - Students currently in an exam: time left, last heartbeat (green if under 20 s ago, amber, red), strikes, latest violation.
-  - Actions: force submit, add time, allow resume.
+  - Actions: force submit, add time.
   - Updates live (the server will push via Server-Sent Events or WebSocket; to be confirmed).
 - **Attempt detail (RES-4):** answers, timeline of violations and heartbeats.
 - **Void or reopen an attempt (PROC-5)** with a required reason.
