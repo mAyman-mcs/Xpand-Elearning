@@ -5,11 +5,14 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "jsx": "react-jsx",
-    "types": ["vite/client"],
+    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom/vitest"],
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "verbatimModuleSyntax": true,
+    // The API's response shapes, shared with the server (type-only: never bundled).
+    "paths": { "@contracts": ["../server/src/contracts.ts"] }
   },
   "include": ["src", "vite.config.ts"]
 }

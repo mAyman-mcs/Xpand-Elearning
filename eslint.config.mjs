@@ -58,5 +58,16 @@ export default tseslint.config(
     files: ["web/src/**/*.{ts,tsx}"],
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     languageOptions: { globals: globals.browser },
+    rules: {
+      "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
+    },
+  },
+
+  // ── Browser integration tests (Playwright, runs in Node) ──
+  {
+    files: ["e2e/**/*.{ts,mjs}", "playwright.config.ts"],
+    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    languageOptions: { globals: globals.node },
+    rules: { "no-empty-pattern": "off" },
   },
 );

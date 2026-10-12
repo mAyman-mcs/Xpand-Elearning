@@ -301,7 +301,8 @@ export async function previewAssignments(ctx: Ctx, body: BulkAssignment) {
       : members.filter((m) => m.groupId === pair.target.groupId).map((m) => m.userId);
     return ids.flatMap((userId) => {
       const student = students.get(userId);
-      if (!student) return [];
+      const who = person.get(userId);
+      if (!student || !who) return [];
       const assignment = { userId: pair.target.userId ?? null, groupId: pair.target.groupId ?? null };
       const anchor = anchorFor(assignment, student);
       const window = scheduleWindow(columns, anchor);
@@ -309,7 +310,7 @@ export async function previewAssignments(ctx: Ctx, body: BulkAssignment) {
         {
           examId: pair.exam.id,
           examTitle: pair.exam.title,
-          student: person.get(userId),
+          student: who,
           anchorDate: anchor,
           opensAt: window?.opensAt ?? null,
           closesAt: window?.closesAt ?? null,

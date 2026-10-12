@@ -1,4 +1,4 @@
 {
   "extends": "./tsconfig.json",
-  "exclude": ["src/**/*.test.ts"]
+  "exclude": ["src/**/*.test.ts", "scripts/seed-e2e.ts", "scripts/e2e-world.ts"]
 }

@@ -41,7 +41,49 @@ jobs:
       - run: npm run typecheck
       - name: Unit + integration tests with coverage gates
         run: npm run test:coverage -w server
+      - name: Web unit tests
+        run: npm run test:web
       - run: npm run build -w web
+
+  # Browser integration tests: the built app against its own database (docs/ADMIN_DASHBOARD_PLAN.md §5).
+  e2e:
+    runs-on: ubuntu-latest
+    needs: check
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: xpand
+          POSTGRES_PASSWORD: xpand-ci
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U xpand"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      E2E_ADMIN_DATABASE_URL: postgresql://xpand:xpand-ci@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+      - name: Browser integration tests
+        run: npm run e2e:run
+      - name: Upload the report, traces and screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          path: |
+            e2e/report
+            e2e/test-results
+          retention-days: 14
 
   docker:
     runs-on: ubuntu-latest

@@ -1,9 +1,14 @@
 import { useState, type FormEvent } from "react";
-import { api, ApiError } from "../api";
-import { useAuth } from "../auth";
+import { useAuth } from "../../app/auth";
+import { usePageTitle } from "../../app/pages";
+import { FormError, TextInput } from "../../components/form";
+import { Button } from "../../components/ui";
+import { api, errorMessage } from "../../lib/api";
 
+/** Forced at first login (temporary password), and after an admin reset. */
 export function ChangePassword() {
-  const { user, setUser, logout } = useAuth();
+  usePageTitle("Set a new password");
+  const { user, signedIn, logout } = useAuth();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -19,69 +24,54 @@ export function ChangePassword() {
     setBusy(true);
     setError(null);
     try {
-      const res = await api.changePassword(current, next);
-      setUser(res.user);
+      const res = await api.auth.changePassword(current, next);
+      signedIn(res.user);
     } catch (err) {
-      if (err instanceof ApiError && err.code === "WRONG_CURRENT_PASSWORD")
-        setError("Your current password is incorrect.");
-      else if (err instanceof ApiError && err.code === "WEAK_PASSWORD") setError(err.message);
-      else setError("Could not change the password.");
+      setError(errorMessage(err, { WRONG_CURRENT_PASSWORD: "Your current password is incorrect." }));
     } finally {
       setBusy(false);
     }
   }
 
-  const field = "w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:ring-2 focus:ring-teal-500";
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-900 p-4">
-      <form onSubmit={submit} className="w-full max-w-md space-y-4 rounded-xl bg-white p-8 shadow-2xl">
+      <form onSubmit={(e) => void submit(e)} className="w-full max-w-md space-y-4 rounded-xl bg-white p-8 shadow-2xl">
         <h1 className="text-xl font-bold text-slate-800">Set a new password</h1>
         <p className="text-sm text-slate-500">
           Welcome, {user?.fullName}. You are using a temporary password; choose your own to continue. It needs at least
-          10 characters, with letters and numbers.
+          10 characters, with letters and numbers, and must not contain your username.
         </p>
-        {error && (
-          <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
-            {error}
-          </div>
-        )}
-        <input
+        <FormError message={error} />
+        <TextInput
+          label="Current (temporary) password"
           type="password"
-          placeholder="Current (temporary) password"
           autoComplete="current-password"
-          className={field}
           value={current}
           onChange={(e) => setCurrent(e.target.value)}
           required
         />
-        <input
+        <TextInput
+          label="New password"
           type="password"
-          placeholder="New password"
           autoComplete="new-password"
-          className={field}
           value={next}
           onChange={(e) => setNext(e.target.value)}
           required
         />
-        <input
+        <TextInput
+          label="Confirm new password"
           type="password"
-          placeholder="Confirm new password"
           autoComplete="new-password"
-          className={field}
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
           required
         />
-        <button
-          disabled={busy}
-          className="w-full rounded-lg bg-teal-600 px-4 py-3 font-bold text-white hover:bg-teal-700 disabled:bg-slate-400"
-        >
+        <Button type="submit" busy={busy} className="w-full py-3">
           {busy ? "Saving…" : "Save password"}
-        </button>
-        <button type="button" onClick={logout} className="w-full text-sm text-slate-500 hover:text-slate-700">
+        </Button>
+        <Button variant="ghost" onClick={() => void logout()} className="w-full">
           Sign out
-        </button>
+        </Button>
       </form>
     </div>
   );

@@ -58,6 +58,7 @@ export function userDto(u: UserRow) {
     mobile: u.mobile,
     role: u.role,
     isActive: u.isActive,
+    lockedUntil: u.lockedUntil,
     mustChangePassword: u.mustChangePassword,
     joinDate: formatDateOnly(u.joinDate),
     groups: u.memberships.map((m) => ({ id: m.group.id, name: m.group.name, joinDate: formatDateOnly(m.joinDate) })),

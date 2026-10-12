@@ -1,23 +1,26 @@
+import { QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { AuthProvider, useAuth } from "./auth";
+import { RouterProvider } from "react-router";
+import { AuthProvider } from "./app/auth";
+import { router } from "./app/router";
+import { ToastProvider } from "./components/Toast";
 import "./index.css";
-import { ChangePassword } from "./pages/ChangePassword";
-import { Home } from "./pages/Home";
-import { Login } from "./pages/Login";
+import { createQueryClient } from "./lib/query";
 
-function App() {
-  const { user, loading } = useAuth();
-  if (loading) return <div className="flex min-h-screen items-center justify-center text-slate-400">Loading…</div>;
-  if (!user) return <Login />;
-  if (user.mustChangePassword) return <ChangePassword />;
-  return <Home />;
-}
+const queryClient = createQueryClient();
 
-createRoot(document.getElementById("root")!).render(
+const root = document.getElementById("root");
+if (!root) throw new Error("#root missing from index.html");
+
+createRoot(root).render(
   <StrictMode>
-    <AuthProvider>
-      <App />
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <ToastProvider>
+          <RouterProvider router={router} />
+        </ToastProvider>
+      </AuthProvider>
+    </QueryClientProvider>
   </StrictMode>,
 );
