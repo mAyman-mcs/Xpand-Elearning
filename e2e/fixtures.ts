@@ -71,3 +71,33 @@ export async function call<T>(
   if (!res.ok()) throw new Error(`${method.toUpperCase()} ${url} → ${res.status()} ${await res.text()}`);
   return (res.status() === 204 ? undefined : await res.json()) as T;
 }
+
+export interface CreatedUser {
+  id: string;
+  username: string;
+  fullName: string;
+  temporaryPassword: string;
+}
+
+/** Creates a user through the API (as the seeded super admin) with a unique username. */
+export async function createUser(
+  admin: APIRequestContext,
+  input: { fullName: string; role?: string; groupIds?: string[]; username?: string },
+): Promise<CreatedUser> {
+  const username = input.username ?? uid("u").toLowerCase();
+  const res = await call<{ user: { id: string }; temporaryPassword: string }>(admin, "post", "/users", {
+    username,
+    fullName: input.fullName,
+    role: input.role ?? "STUDENT",
+    groupIds: input.groupIds ?? [],
+  });
+  return { id: res.user.id, username, fullName: input.fullName, temporaryPassword: res.temporaryPassword };
+}
+
+/** The id of a seeded group, by its WORLD key. */
+export async function groupId(api: APIRequestContext, key: keyof typeof WORLD.groups): Promise<string> {
+  const groups = await call<{ id: string; name: string }[]>(api, "get", "/groups");
+  const found = groups.find((g) => g.name === WORLD.groups[key].name);
+  if (!found) throw new Error(`group ${key} not seeded`);
+  return found.id;
+}

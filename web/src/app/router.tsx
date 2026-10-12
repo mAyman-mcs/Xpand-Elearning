@@ -3,7 +3,12 @@ import { Loading } from "../components/ui";
 import { ChangePassword } from "../features/auth/ChangePassword";
 import { Login } from "../features/auth/Login";
 import { Dashboard } from "../features/dashboard/Dashboard";
+import { GroupDetail } from "../features/groups/GroupDetail";
+import { GroupsList } from "../features/groups/GroupsList";
 import { StudentHome } from "../features/student/StudentHome";
+import { NewUser } from "../features/users/NewUser";
+import { UserDetail } from "../features/users/UserDetail";
+import { UsersList } from "../features/users/UsersList";
 import { useAuth } from "./auth";
 import { Layout } from "./Layout";
 import { HomeRedirect, NotFound, RequireRole, RequireStaff, RouteError } from "./pages";
@@ -29,11 +34,21 @@ export const router = createBrowserRouter([
           {
             path: "admin",
             element: <RequireRole roles={["SUPER_ADMIN"]} />,
-            children: [{ index: true, element: <Dashboard /> }],
+            children: [
+              { index: true, element: <Dashboard /> },
+              { path: "users", element: <UsersList mode="admin" /> },
+              { path: "users/new", element: <NewUser /> },
+              { path: "users/:id", element: <UserDetail mode="admin" /> },
+              { path: "groups", element: <GroupsList /> },
+              { path: "groups/:id", element: <GroupDetail /> },
+            ],
           },
           {
             element: <RequireStaff />,
-            children: [],
+            children: [
+              { path: "students", element: <UsersList mode="instructor" /> },
+              { path: "students/:id", element: <UserDetail mode="instructor" /> },
+            ],
           },
           {
             path: "student",
