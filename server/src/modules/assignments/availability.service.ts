@@ -59,10 +59,17 @@ export async function studentExams(ctx: Ctx) {
 export async function examAvailability(ctx: Ctx, examId: string) {
   const exam = await ctx.db.exam.findUnique({
     where: { id: examId },
-    select: { id: true, categoryId: true, status: true, isExternal: true, maxAttempts: true },
+    select: {
+      id: true,
+      categoryId: true,
+      status: true,
+      isExternal: true,
+      maxAttempts: true,
+      tags: { select: { tagId: true } },
+    },
   });
   if (!exam) throw notFound("Exam not found.");
-  const reach = reachForExam(reachOf(actorOf(ctx), "any", ctx.now), exam);
+  const reach = reachForExam(reachOf(actorOf(ctx), "any", ctx.now), { ...exam, tagIds: exam.tags.map((t) => t.tagId) });
 
   const assigned = await ctx.db.user.findMany({
     where: {

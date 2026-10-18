@@ -9,6 +9,7 @@ import { draftProblems, GrantEditor, toScope } from "./GrantEditor";
 const names = {
   exams: new Map([["e1", "Cloud Gates"]]),
   categories: new Map([["c1", "Cloud"]]),
+  tags: new Map([["t1", "soc"]]),
   groups: new Map([["g1", "Intake July"]]),
 };
 
@@ -17,6 +18,7 @@ const base = {
   examMode: "some" as const,
   examIds: [] as string[],
   categoryIds: [] as string[],
+  tagIds: [] as string[],
   groupMode: "some" as const,
   groupIds: [] as string[],
   expires: "",
@@ -26,7 +28,7 @@ describe("grant draft rules", () => {
   it("lists what's missing before anything is sent", () => {
     expect(draftProblems(base, "2026-10-12")).toEqual([
       "Choose at least one permission.",
-      "Choose the exams: all exams, or at least one category or exam.",
+      "Choose the exams: all exams, or at least one category, tag or exam.",
       "Choose the students: every group, or at least one group.",
     ]);
     expect(
@@ -53,10 +55,33 @@ describe("grant draft rules", () => {
       allExams: true,
       examIds: [],
       categoryIds: [],
+      tagIds: [],
       allGroups: true,
       groupIds: [],
+      studentsWhoSubmitted: false,
       expiresAt: "2026-12-31T21:59:59.999Z", // 23:59:59.999 Cairo (UTC+2 in winter)
     });
+  });
+});
+
+describe("tag grants for students who submitted", () => {
+  it("send the tags and the student mode; no groups", () => {
+    expect(
+      toScope({ ...base, permissions: ["RESULTS_VIEW"], tagIds: ["t1"], groupMode: "submitted", groupIds: ["g1"] }),
+    ).toEqual({
+      permissions: ["RESULTS_VIEW"],
+      allExams: false,
+      examIds: [],
+      categoryIds: [],
+      tagIds: ["t1"],
+      allGroups: false,
+      groupIds: [],
+      studentsWhoSubmitted: true,
+      expiresAt: null,
+    });
+    expect(
+      draftProblems({ ...base, permissions: ["RESULTS_VIEW"], tagIds: ["t1"], groupMode: "submitted" }, "2026-10-12"),
+    ).toEqual([]);
   });
 });
 
@@ -74,6 +99,9 @@ describe("<GrantEditor>", () => {
       ),
       http.get("/api/catalog/categories", () =>
         HttpResponse.json([{ id: "c1", name: "Cloud", slug: "cloud", position: 0, archived: false }]),
+      ),
+      http.get("/api/catalog/tags", () =>
+        HttpResponse.json([{ id: "t1", name: "soc", slug: "soc", examCount: 1, grantCount: 0 }]),
       ),
       http.get("/api/groups", () =>
         HttpResponse.json([{ id: "g1", name: "Intake July", intakeStartDate: "2026-07-01", memberCount: 3 }]),
@@ -124,8 +152,10 @@ describe("<GrantEditor>", () => {
       allExams: false,
       examIds: [],
       categoryIds: ["c1"],
+      tagIds: [],
       allGroups: false,
       groupIds: ["g1"],
+      studentsWhoSubmitted: false,
       expiresAt: null,
     });
     expect(onClose).toHaveBeenCalled();
@@ -149,8 +179,10 @@ describe("<GrantEditor>", () => {
       allExams: true,
       examIds: [],
       categoryIds: [],
+      tagIds: [],
       allGroups: true,
       groupIds: [],
+      studentsWhoSubmitted: false,
       expiresAt: null,
       active: true,
       createdAt: "2026-10-01T00:00:00.000Z",

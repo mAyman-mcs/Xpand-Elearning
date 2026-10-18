@@ -87,18 +87,20 @@ Roles: `SUPER_ADMIN`, `INSTRUCTOR`, `STUDENT`.
 
 An instructor's rights come from **grants**. A grant combines:
 - a set of permissions;
-- an exam scope: all exams, OR listed exams, OR exams in listed **categories** (this includes exams created later);
-- a group scope: all groups, OR listed groups;
+- an exam scope: all exams, OR listed exams, OR exams in listed **categories**, OR exams carrying **any** listed **tag** (categories and tags include exams added later);
+- a student scope: all groups, OR listed groups, OR **only students who have submitted** an exam the grant covers;
 - an optional expiry date.
 
 Permissions: `EXAM_EDIT`, `EXAM_ASSIGN`, `EXAM_SCHEDULE`, `RESULTS_VIEW`, `RESULTS_RELEASE`, `PROCTOR`, `ATTEMPT_VOID`, `ATTEMPT_REVIEW`, `AUDIT_VIEW`.
 
-`authorize(principal, permission, { examId?, categoryId?, groupIds? }, now)`:
+`authorize(principal, permission, { examId?, categoryId?, tagIds?, groupIds?, submitted? }, now)`. A student target carries its groups **and** the exams it has submitted; a group target carries only the group, so "students who submitted" grants never reach a group:
 - A super admin is always allowed; a student never is (students' own data is checked by ownership).
 - An instructor needs **one** unexpired grant that has the permission and covers both the exam and the group(s). Scopes from different grants are never combined: exam A × group X plus exam B × group Y does not allow A × Y.
 - A student is in a grant's group scope when **any** of their groups is listed. A student in no group is reachable only by all-groups grants.
+- With `studentsWhoSubmitted`, a student is in scope only once they have a submitted (not in-progress, not voided) attempt on an exam **that same grant** covers.
+- **Access tags** (used by any grant) are put on or taken off exams by super admins only; an access tag can't be deleted while a grant uses it (the database also restricts it).
 
-List queries use `rbac/scope.ts`. It turns a principal into exam × group pairs (one per grant) and builds the Prisma `where` clauses from them (`examWhere`, `groupWhere`, `studentWhere`, `targetWhere`, `reachForExam`). Randomized tests check these filters against `authorize()` row by row, both in memory and against the database.
+List queries use `rbac/scope.ts`. It turns a principal into exam × student pairs (one per grant) and builds the Prisma `where` clauses from them (`examWhere`, `groupWhere`, `studentWhere`, `targetWhere`, `reachForExam`). Randomized tests check these filters against `authorize()` row by row, both in memory and against the database.
 
 **404 vs 403:** a resource outside everything the caller can reach answers 404, the same as a missing one, so its existence isn't revealed. 403 means "you can see it, but you can't do this".
 

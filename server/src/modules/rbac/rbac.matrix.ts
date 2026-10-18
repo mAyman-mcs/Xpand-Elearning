@@ -53,12 +53,14 @@ export const usersRows: MatrixRow[] = [
     label: "student in group A",
     request: (w) => ({ path: `/api/users/${w.users.student.id}` }),
     // Reachable through group A (instExamA, instSplit) or all groups (instCategory); hidden otherwise.
-    expect: statuses(200, { student: 403, instNone: 404, instExpired: 404 }),
+    // instTag: student A has submitted no "core" exam.
+    expect: statuses(200, { student: 403, instNone: 404, instExpired: 404, instTag: 404 }),
   },
   {
     route: "GET /api/users/:id",
     label: "student in group B",
     request: (w) => ({ path: `/api/users/${w.studentB.id}` }),
+    // instTag: student B has submitted E1, which carries "core".
     expect: statuses(200, { student: 403, instNone: 404, instExamA: 404, instExpired: 404 }),
   },
   {
@@ -90,13 +92,14 @@ export const groupsRows: MatrixRow[] = [
     route: "GET /api/groups/:id",
     label: "group A",
     request: (w) => ({ path: `/api/groups/${w.groupA.id}` }),
-    expect: statuses(200, { student: 403, instNone: 404, instExpired: 404 }),
+    // instTag: "students who submitted" grants never reach a group.
+    expect: statuses(200, { student: 403, instNone: 404, instExpired: 404, instTag: 404 }),
   },
   {
     route: "GET /api/groups/:id",
     label: "group B",
     request: (w) => ({ path: `/api/groups/${w.groupB.id}` }),
-    expect: statuses(200, { student: 403, instNone: 404, instExamA: 404, instExpired: 404 }),
+    expect: statuses(200, { student: 403, instNone: 404, instExamA: 404, instExpired: 404, instTag: 404 }),
   },
   {
     route: "POST /api/groups",

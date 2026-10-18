@@ -110,7 +110,14 @@ export function ExamSettings() {
           className="space-y-6"
         >
           <FormError message={formError} />
-          <ExamFields form={form} mode="edit" categories={categoryOptions} tags={tags.data ?? []} readOnly={!canEdit} />
+          <ExamFields
+            form={form}
+            mode="edit"
+            categories={categoryOptions}
+            tags={tags.data ?? []}
+            readOnly={!canEdit}
+            canChangeAccessTags={perms?.role === "SUPER_ADMIN"}
+          />
           {canEdit && (
             <div className="flex justify-end">
               <Button type="submit" busy={save.isPending} disabled={!form.formState.isDirty}>

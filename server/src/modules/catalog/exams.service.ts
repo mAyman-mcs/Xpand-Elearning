@@ -8,6 +8,7 @@ import { nonBlank, uuid, uuidList } from "../../core/schemas.js";
 import { ExamStatus, type Prisma } from "../../generated/prisma/client.js";
 import { authorize } from "../rbac/authorize.js";
 import { examWhere, reachOf } from "../rbac/scope.js";
+import { assertMayChangeAccessTags } from "./access-tags.js";
 import { assertPublishable } from "./content.service.js";
 
 // ─────────────────────────────── Schemas ───────────────────────────────
@@ -163,6 +164,7 @@ export async function createExam(ctx: Ctx, input: z.infer<typeof createExamBody>
     return await inTransaction(ctx.db, async (tx) => {
       await assertUsableCategory(tx, input.categoryId);
       await assertTagsExist(tx, input.tagIds);
+      await assertMayChangeAccessTags(tx, actor, input.tagIds);
       const { tagIds, ...fields } = input;
       const exam = await tx.exam.create({
         data: { ...fields, tags: { create: tagIds.map((tagId) => ({ tagId })) } },
@@ -233,6 +235,7 @@ export async function setExamTags(ctx: Ctx, examId: string, tagIds: string[]): P
     const current = new Set(before.tags.map((t) => t.tagId));
     const added = tagIds.filter((id) => !current.has(id));
     const removed = [...current].filter((id) => !tagIds.includes(id));
+    await assertMayChangeAccessTags(tx, actor, [...added, ...removed]);
     if (added.length || removed.length) {
       await tx.examTag.deleteMany({ where: { examId, tagId: { in: removed } } });
       await tx.examTag.createMany({ data: added.map((tagId) => ({ examId, tagId })) });

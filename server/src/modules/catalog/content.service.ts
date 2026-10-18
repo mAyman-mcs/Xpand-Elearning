@@ -6,6 +6,7 @@ import { AppError, conflict, notFound } from "../../core/errors.js";
 import { nonBlank, uuid } from "../../core/schemas.js";
 import { QuestionType, type Prisma } from "../../generated/prisma/client.js";
 import { authorize } from "../rbac/authorize.js";
+import { assertMayChangeAccessTags } from "./access-tags.js";
 
 // Exam content: questions, options, materials, duplication and the publish check
 // (docs/NEXT_PLAN.md §2, B5). Staff-only: these DTOs include the answer key (isCorrect) and must
@@ -380,6 +381,12 @@ export async function duplicateExam(ctx: Ctx, examId: string, input: z.infer<typ
   if (!source) throw notFound("Exam not found.");
   if (!authorize(actor, "EXAM_EDIT", { categoryId: source.categoryId }, ctx.now))
     throw new AppError("FORBIDDEN", { message: "Creating a copy needs edit access to the whole category." });
+  // The copy would carry the tags: an access tag on a new exam widens someone's access.
+  await assertMayChangeAccessTags(
+    ctx.db,
+    actor,
+    source.tags.map((t) => t.tagId),
+  );
 
   try {
     return await inTransaction(ctx.db, async (tx) => {

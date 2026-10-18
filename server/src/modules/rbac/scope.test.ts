@@ -9,8 +9,10 @@ const grant = (over: Partial<GrantScope>): GrantScope => ({
   allExams: false,
   examIds: [],
   categoryIds: [],
+  tagIds: [],
   allGroups: false,
   groupIds: [],
+  studentsWhoSubmitted: false,
   expiresAt: null,
   ...over,
 });
@@ -48,10 +50,35 @@ describe("Prisma filters", () => {
     expect(groupWhere(r)).toEqual({});
   });
 
-  it("deduplicates groups across grants", () => {
+  it("combines groups across grants (groups deduplicated; students per grant)", () => {
     const r = reach("INSTRUCTOR", grant({ groupIds: ["g1", "g2"] }), grant({ groupIds: ["g2"] }));
     expect(groupWhere(r)).toEqual({ id: { in: ["g1", "g2"] } });
-    expect(studentWhere(r)).toEqual({ role: "STUDENT", memberships: { some: { groupId: { in: ["g1", "g2"] } } } });
+    expect(studentWhere(r)).toEqual({
+      role: "STUDENT",
+      OR: [
+        { memberships: { some: { groupId: { in: ["g1", "g2"] } } } },
+        { memberships: { some: { groupId: { in: ["g2"] } } } },
+      ],
+    });
+  });
+
+  it('a "students who submitted" grant reaches students through submitted attempts on its exams, and no group', () => {
+    const r = reach("INSTRUCTOR", grant({ tagIds: ["soc"], studentsWhoSubmitted: true }));
+    expect(groupWhere(r)).toEqual(NOTHING);
+    expect(studentWhere(r)).toEqual({
+      role: "STUDENT",
+      OR: [
+        {
+          attempts: {
+            some: {
+              status: { in: ["SUBMITTED", "AUTO_SUBMITTED", "FORCE_SUBMITTED"] },
+              exam: { OR: [{ tags: { some: { tagId: { in: ["soc"] } } } }] },
+            },
+          },
+        },
+      ],
+    });
+    expect(examWhere(r)).toEqual({ OR: [{ tags: { some: { tagId: { in: ["soc"] } } } }] });
   });
 
   it("a grant with an exam scope but no groups reaches no students", () => {

@@ -72,8 +72,11 @@ const alreadyAssigned = () => conflict("This exam is already assigned to that ta
 
 /** Assignments of one exam whose target the caller reaches for that exam. */
 export async function listAssignments(ctx: Ctx, examId: string) {
-  const exam = await ctx.db.exam.findUniqueOrThrow({ where: { id: examId }, select: { id: true, categoryId: true } });
-  const reach = reachForExam(reachOf(actorOf(ctx), "any", ctx.now), exam);
+  const exam = await ctx.db.exam.findUniqueOrThrow({
+    where: { id: examId },
+    select: { id: true, categoryId: true, tags: { select: { tagId: true } } },
+  });
+  const reach = reachForExam(reachOf(actorOf(ctx), "any", ctx.now), { ...exam, tagIds: exam.tags.map((t) => t.tagId) });
   const rows = await ctx.db.assignment.findMany({
     where: { AND: [{ examId }, targetWhere(reach)] },
     include: withTarget,
@@ -164,7 +167,9 @@ export async function deleteAssignment(ctx: Ctx, assignmentId: string): Promise<
 interface Pair {
   exam: { id: string; categoryId: string; title: string };
   target: Target;
-  groupIds: string[];
+  /** The target as access control sees it (groups, and for a student the exams they submitted). */
+  targetScope: Scope;
+  examTagIds: string[];
 }
 
 /**
@@ -175,10 +180,10 @@ interface Pair {
 async function resolvePairs(ctx: Ctx, body: BulkAssignment): Promise<Pair[]> {
   const actor = actorOf(ctx);
   const visible = examWhere(reachOf(actor, "any", ctx.now));
-  const select = { id: true, categoryId: true, title: true, status: true } as const;
+  const select = { id: true, categoryId: true, title: true, status: true, tags: { select: { tagId: true } } } as const;
 
   // Exams the caller cannot see at all are treated as non-existent.
-  let exams: { id: string; categoryId: string; title: string; status: string }[];
+  let exams: { id: string; categoryId: string; title: string; status: string; tags: { tagId: string }[] }[];
   if (body.examIds) {
     exams = await ctx.db.exam.findMany({ where: { AND: [{ id: { in: body.examIds } }, visible] }, select });
     if (exams.length !== body.examIds.length) {
@@ -201,16 +206,21 @@ async function resolvePairs(ctx: Ctx, body: BulkAssignment): Promise<Pair[]> {
     });
   }
 
-  const targetGroups = await Promise.all(body.targets.map((t) => targetScope(ctx.db, t)));
-  const pairs = exams.flatMap((exam) =>
-    body.targets.map((target, i) => ({ exam, target, groupIds: targetGroups[i]?.groupIds ?? [] })),
+  const targetScopes = await Promise.all(body.targets.map((t) => targetScope(ctx.db, t)));
+  const pairs: Pair[] = exams.flatMap((exam) =>
+    body.targets.map((target, i) => ({
+      exam,
+      target,
+      targetScope: targetScopes[i] ?? { groupIds: [] },
+      examTagIds: exam.tags.map((t) => t.tagId),
+    })),
   );
   const refused = pairs.filter(
     (p) =>
       !authorize(
         actor,
         "EXAM_ASSIGN",
-        { examId: p.exam.id, categoryId: p.exam.categoryId, groupIds: p.groupIds },
+        { examId: p.exam.id, categoryId: p.exam.categoryId, tagIds: p.examTagIds, ...p.targetScope },
         ctx.now,
       ),
   );

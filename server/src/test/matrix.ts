@@ -25,6 +25,7 @@ export function statuses(base: number, overrides: Partial<Record<Actor, number>>
     instCategory: base,
     instSplit: base,
     instExpired: base,
+    instTag: base,
     anonymous: 401,
     ...overrides,
   };

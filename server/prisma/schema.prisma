@@ -105,19 +105,22 @@ enum Permission {
 // One scoped grant to an instructor: permissions × exams × groups.
 // Super admins implicitly hold every permission on everything and need no grant.
 model InstructorGrant {
-  id          String       @id @default(uuid()) @db.Uuid
-  userId      String       @db.Uuid
-  user        User         @relation("grantee", fields: [userId], references: [id], onDelete: Cascade)
-  permissions Permission[]
-  allExams    Boolean      @default(false)
-  allGroups   Boolean      @default(false)
-  expiresAt   DateTime?
-  createdById String?      @db.Uuid
-  createdAt   DateTime     @default(now())
+  id                   String       @id @default(uuid()) @db.Uuid
+  userId               String       @db.Uuid
+  user                 User         @relation("grantee", fields: [userId], references: [id], onDelete: Cascade)
+  permissions          Permission[]
+  allExams             Boolean      @default(false)
+  allGroups            Boolean      @default(false)
+  // Student scope "students who submitted an exam this grant covers" (instead of groups).
+  studentsWhoSubmitted Boolean      @default(false)
+  expiresAt            DateTime?
+  createdById          String?      @db.Uuid
+  createdAt            DateTime     @default(now())
 
   exams      GrantExam[]
   groups     GrantGroup[]
   categories GrantCategory[]
+  tags       GrantTag[]
 
   @@index([userId])
 }
@@ -154,6 +157,17 @@ model GrantCategory {
 
 // Flat list; every exam has exactly one (decision D1). Archived categories stay for history.
 // Names are unique case-insensitively (index in the migration).
+// Covers every exam carrying this tag (any of a grant's tags), including exams tagged later.
+model GrantTag {
+  grantId String          @db.Uuid
+  tagId   String          @db.Uuid
+  grant   InstructorGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
+  tag     Tag             @relation(fields: [tagId], references: [id], onDelete: Restrict)
+
+  @@id([grantId, tagId])
+  @@index([tagId])
+}
+
 model Category {
   id        String   @id @default(uuid()) @db.Uuid
   name      String
@@ -173,7 +187,8 @@ model Tag {
   slug      String   @unique
   createdAt DateTime @default(now())
 
-  exams ExamTag[]
+  exams       ExamTag[]
+  grantScopes GrantTag[]
 }
 
 model ExamTag {

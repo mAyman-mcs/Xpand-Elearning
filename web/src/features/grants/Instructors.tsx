@@ -12,7 +12,7 @@ import { grantSentence, type ScopeNames } from "../../lib/grants";
 import { accountState } from "../../lib/labels";
 import { qk } from "../../lib/query";
 import { formatInstant } from "../../lib/time";
-import { useAllExams, useCategories } from "../catalog/queries";
+import { useAllExams, useCategories, useTags } from "../catalog/queries";
 import { useGroups, useUser, useUsers } from "../users/queries";
 import { GrantEditor } from "./GrantEditor";
 
@@ -24,14 +24,16 @@ function useGrants(userId?: string) {
 function useScopeNames(): ScopeNames {
   const exams = useAllExams();
   const categories = useCategories(true);
+  const tags = useTags();
   const groups = useGroups();
   return useMemo(
     () => ({
       exams: new Map((exams.data ?? []).map((e) => [e.id, e.title])),
       categories: new Map((categories.data ?? []).map((c) => [c.id, c.name])),
+      tags: new Map((tags.data ?? []).map((t) => [t.id, t.name])),
       groups: new Map((groups.data ?? []).map((g) => [g.id, g.name])),
     }),
-    [exams.data, categories.data, groups.data],
+    [exams.data, categories.data, tags.data, groups.data],
   );
 }
 

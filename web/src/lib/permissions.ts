@@ -6,6 +6,7 @@ import type { MyPermissions, Permission } from "@contracts";
 export interface ExamRef {
   id: string;
   categoryId: string;
+  tagIds: string[];
 }
 
 /** May the caller (probably) do `permission`, on this exam if given? Mirrors the server's rule. */
@@ -16,7 +17,11 @@ export function can(perms: MyPermissions | undefined, permission: Permission, ex
   return perms.grants.some(
     (g) =>
       g.permissions.includes(permission) &&
-      (!exam || g.allExams || g.examIds.includes(exam.id) || g.categoryIds.includes(exam.categoryId)),
+      (!exam ||
+        g.allExams ||
+        g.examIds.includes(exam.id) ||
+        g.categoryIds.includes(exam.categoryId) ||
+        exam.tagIds.some((t) => g.tagIds.includes(t))),
   );
 }
 

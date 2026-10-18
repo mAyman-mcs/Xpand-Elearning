@@ -1,14 +1,23 @@
 import type { DbClient } from "../../core/db.js";
 import { notFound } from "../../core/errors.js";
-import type { Scope } from "./authorize.js";
+import type { ExamRef, Scope } from "./authorize.js";
+import { SUBMITTED_STATUSES } from "./scope.js";
 
 // Turn request targets into a Scope, in one place each. A missing target is NOT_FOUND —
 // the same answer an out-of-scope caller gets, so existence is never revealed.
 
+const examRefSelect = { id: true, categoryId: true, tags: { select: { tagId: true } } } as const;
+const toRef = (e: { id: string; categoryId: string; tags: { tagId: string }[] }): ExamRef => ({
+  examId: e.id,
+  categoryId: e.categoryId,
+  tagIds: e.tags.map((t) => t.tagId),
+});
+
+/** An exam, with its category and tags (tag grants cover exams by tag). */
 export async function examScope(db: DbClient, examId: string): Promise<Scope> {
-  const exam = await db.exam.findUnique({ where: { id: examId }, select: { id: true, categoryId: true } });
+  const exam = await db.exam.findUnique({ where: { id: examId }, select: examRefSelect });
   if (!exam) throw notFound("Exam not found.");
-  return { examId: exam.id, categoryId: exam.categoryId };
+  return toRef(exam);
 }
 
 /** A question or material is in the scope of its exam. */
@@ -36,14 +45,21 @@ export async function groupScope(db: DbClient, groupId: string): Promise<Scope> 
   return { groupIds: [group.id] };
 }
 
-/** A student is in scope through any of their groups (decision D6). */
+/**
+ * A student is in scope through any of their groups (decision D6), or — for "students who
+ * submitted" grants — through the exams they have submitted.
+ */
 export async function studentScope(db: DbClient, userId: string): Promise<Scope> {
   const user = await db.user.findUnique({
     where: { id: userId },
-    select: { role: true, memberships: { select: { groupId: true } } },
+    select: {
+      role: true,
+      memberships: { select: { groupId: true } },
+      attempts: { where: { status: { in: SUBMITTED_STATUSES } }, select: { exam: { select: examRefSelect } } },
+    },
   });
   if (user?.role !== "STUDENT") throw notFound("Student not found.");
-  return { groupIds: user.memberships.map((m) => m.groupId) };
+  return { groupIds: user.memberships.map((m) => m.groupId), submitted: user.attempts.map((a) => toRef(a.exam)) };
 }
 
 /** An assignment/override target: exactly one of a user or a group. */

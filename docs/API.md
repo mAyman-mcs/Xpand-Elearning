@@ -225,8 +225,8 @@ Super admins pass every permission check, including all exam endpoints (§6). Th
 {
   "userId": "…instructor id…",
   "permissions": ["EXAM_ASSIGN", "EXAM_SCHEDULE", "RESULTS_VIEW"],
-  "allExams": false, "examIds": ["…"], "categoryIds": ["…"],
-  "allGroups": false, "groupIds": ["…"],
+  "allExams": false, "examIds": ["…"], "categoryIds": ["…"], "tagIds": ["…"],
+  "allGroups": false, "groupIds": ["…"], "studentsWhoSubmitted": false,
   "expiresAt": "2026-12-31T22:00:00Z"
 }
 ```
@@ -234,12 +234,13 @@ Super admins pass every permission check, including all exam endpoints (§6). Th
 **Rules** (a violation → `400 VALIDATION_FAILED`, with `details[0].path` naming the field):
 - `userId` must be an instructor.
 - `permissions`: at least one; duplicates are removed.
-- **Exam scope:** either `allExams: true`, or a non-empty `examIds` and/or `categoryIds`, but not both. A category covers every exam in it, including exams created later.
-- **Group scope:** either `allGroups: true`, or a non-empty `groupIds`, but not both.
+- **Exam scope:** either `allExams: true`, or a non-empty `examIds`, `categoryIds` and/or `tagIds`, but not both. A category covers every exam in it; a tag covers every exam carrying it (several tags: **any** of them). Both include exams added later.
+- **Student scope:** exactly one of `allGroups: true`, a non-empty `groupIds`, or `studentsWhoSubmitted: true` (the path in errors is `allGroups`).
+  - `studentsWhoSubmitted`: only students who have **submitted** an exam this same grant covers (an attempt that is submitted, auto-submitted or force-submitted; not in progress, not voided). Such a grant reaches **no group**: it can't list groups or act on a whole group, only on those students.
 - Every listed ID must exist; `expiresAt` (optional) must be in the future.
 
 **How grants work:**
-- A grant allows an action only when **that one grant** has the permission and covers both the exam and the student's group. Two grants are never combined.
+- A grant allows an action only when **that one grant** has the permission and covers both the exam and the student. Two grants are never combined.
 - Changes apply on the instructor's next request; they don't need to log out.
 
 **`PATCH /api/rbac/grants/:id`**: any field except `userId`. Omitted fields keep their value; a list you send replaces the old one. The merged grant is validated with the same rules.
@@ -250,7 +251,7 @@ Super admins pass every permission check, including all exam endpoints (§6). Th
 
 | Permission | Allows |
 |---|---|
-| `EXAM_EDIT` | Create and edit exams (in a category, or a listed exam), set their tags |
+| `EXAM_EDIT` | Create and edit exams (in a category, or a listed exam), set their tags (except access tags, below) |
 | `EXAM_ASSIGN` | Assign exams to students/groups, remove assignments, bulk assign |
 | `EXAM_SCHEDULE` | Change schedules; open or close exams with overrides |
 | `RESULTS_VIEW` | See results (and, like every permission, view the exam) |
@@ -284,10 +285,11 @@ Super admins pass every permission check, including all exam endpoints (§6). Th
 - **`DELETE`** → `204`. `409` if any exam uses the category; archive it instead.
 
 **Tags** (cross-cutting labels):
-- **`GET`** → `Tag[]` with `examCount`.
+- **`GET`** → `Tag[]` with `examCount` and `grantCount`.
+- **Access tags:** a tag used by at least one grant (`grantCount > 0`) gives instructors access to the exams carrying it. Only a **super admin** may put an access tag on an exam, take it off, create an exam with it, or duplicate an exam carrying it (`403` for instructors, whatever their rights on the exam). It can't be deleted while a grant uses it (`409`, even for super admins): remove it from the grants first.
 - **`POST`** `{ name }` → `201 Tag` (`409` on a duplicate name, regardless of case).
 - **`PATCH`** `{ name }` → `Tag` (rename).
-- **`DELETE`** → `204`. Removes the tag from every exam; the audit log records how many.
+- **`DELETE`** → `204`. Removes the tag from every exam; the audit log records how many. `409` for an access tag.
 
 ### 5.5 Dashboard and audit log
 
@@ -625,11 +627,12 @@ The authoritative version, with every endpoint × 8 test users, is the RBAC matr
 **Grant**:
 ```ts
 { id, userId, user: { username, fullName }, permissions: Permission[],
-  allExams, examIds: string[], categoryIds: string[], allGroups, groupIds: string[],
+  allExams, examIds: string[], categoryIds: string[], tagIds: string[],
+  allGroups, groupIds: string[], studentsWhoSubmitted: boolean,
   expiresAt: string | null, active: boolean, createdAt, createdById }
 ```
 
-**Category**: `{ id, name, slug, position, archived, examCount? }` · **Tag**: `{ id, name, slug, examCount? }`
+**Category**: `{ id, name, slug, position, archived, examCount? }` · **Tag**: `{ id, name, slug, examCount?, grantCount? }`
 
 **Exam**:
 ```ts

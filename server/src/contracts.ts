@@ -87,8 +87,13 @@ export interface GrantScopeFields {
   allExams: boolean;
   examIds: string[];
   categoryIds: string[];
+  /** Exams carrying ANY of these tags. */
+  tagIds: string[];
+  /** Student scope: exactly one of allGroups, groupIds (non-empty), studentsWhoSubmitted. */
   allGroups: boolean;
   groupIds: string[];
+  /** Only students who have submitted an exam this grant covers. */
+  studentsWhoSubmitted: boolean;
   expiresAt: string | null;
 }
 
@@ -122,6 +127,8 @@ export interface Tag {
   name: string;
   slug: string;
   examCount?: number;
+  /** Grants using this tag: more than 0 makes it an access tag (only super admins attach or remove it). */
+  grantCount?: number;
 }
 
 export interface Exam {

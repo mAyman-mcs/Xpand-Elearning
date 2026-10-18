@@ -5,7 +5,14 @@ import { formatInstant } from "./time";
 export interface ScopeNames {
   exams: Map<string, string>;
   categories: Map<string, string>;
+  tags: Map<string, string>;
   groups: Map<string, string>;
+}
+
+/** "a", "a or b", "a, b or c" */
+function joinOr(items: string[]): string {
+  if (items.length <= 1) return items.join("");
+  return `${items.slice(0, -1).join(", ")} or ${items.at(-1) ?? ""}`;
 }
 
 /** "a", "a and b", "a, b and c" */
@@ -25,6 +32,7 @@ export function grantSentence(g: GrantScopeFields, names: ScopeNames): string {
 
   const examParts = [
     g.categoryIds.length ? `exams in ${joinList(g.categoryIds.map((id) => name(names.categories, id)))}` : "",
+    g.tagIds.length ? `exams tagged ${joinOr(g.tagIds.map((id) => `“${name(names.tags, id)}”`))}` : "",
     g.examIds.length
       ? `${g.examIds.length === 1 ? "the exam" : "the exams"} ${joinList(g.examIds.map((id) => `“${name(names.exams, id)}”`))}`
       : "",
@@ -33,9 +41,11 @@ export function grantSentence(g: GrantScopeFields, names: ScopeNames): string {
 
   const groups = g.allGroups
     ? "students in every group"
-    : g.groupIds.length
-      ? `students in ${joinList(g.groupIds.map((id) => name(names.groups, id)))}`
-      : "no students";
+    : g.studentsWhoSubmitted
+      ? "only students who have submitted one of these exams"
+      : g.groupIds.length
+        ? `students in ${joinList(g.groupIds.map((id) => name(names.groups, id)))}`
+        : "no students";
 
   const until = g.expiresAt ? `, until ${formatInstant(g.expiresAt)}` : "";
   return `Can ${perms} for ${exams}, for ${groups}${until}.`;

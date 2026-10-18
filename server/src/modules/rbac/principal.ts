@@ -11,6 +11,7 @@ export async function loadPrincipal(db: DbClient, user: Pick<User, "id" | "role"
     include: {
       exams: { select: { examId: true } },
       categories: { select: { categoryId: true } },
+      tags: { select: { tagId: true } },
       groups: { select: { groupId: true } },
     },
   });
@@ -22,8 +23,10 @@ export async function loadPrincipal(db: DbClient, user: Pick<User, "id" | "role"
       allExams: g.allExams,
       examIds: g.exams.map((e) => e.examId),
       categoryIds: g.categories.map((c) => c.categoryId),
+      tagIds: g.tags.map((t) => t.tagId),
       allGroups: g.allGroups,
       groupIds: g.groups.map((x) => x.groupId),
+      studentsWhoSubmitted: g.studentsWhoSubmitted,
       expiresAt: g.expiresAt,
     })),
   };

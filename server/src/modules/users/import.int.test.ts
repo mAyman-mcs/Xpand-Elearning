@@ -158,7 +158,7 @@ describe("GET /api/users/lookup", () => {
 
     const instructors = (await admin.get("/api/users/lookup?role=INSTRUCTOR")).body as Hit[];
     expect(instructors.every((h) => h.role === "INSTRUCTOR")).toBe(true);
-    expect(instructors).toHaveLength(5);
+    expect(instructors).toHaveLength(6);
   });
 
   it("instructors find only students in their reach; deactivated users never appear", async () => {

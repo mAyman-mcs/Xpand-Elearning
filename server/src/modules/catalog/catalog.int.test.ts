@@ -67,10 +67,11 @@ describe("categories and tags", () => {
   });
 
   it("deleting a tag removes it from exams and records how many", async () => {
-    await admin.delete(`/api/catalog/tags/${w.tagCore.id}`).send({});
-    expect((await admin.get(`/api/catalog/exams/${w.e1.id}`)).body.tags).toEqual([]);
+    await db.examTag.create({ data: { examId: w.e2.id, tagId: w.tagSpare.id } });
+    expect((await admin.delete(`/api/catalog/tags/${w.tagSpare.id}`).send({})).status).toBe(204);
+    expect((await admin.get(`/api/catalog/exams/${w.e2.id}`)).body.tags).toEqual([]);
     const entry = await db.auditLog.findFirst({ where: { action: "catalog.tag_deleted" } });
-    expect(entry?.detail).toEqual({ name: "core", removedFromExams: 1 });
+    expect(entry?.detail).toEqual({ name: "spare", removedFromExams: 1 });
   });
 });
 

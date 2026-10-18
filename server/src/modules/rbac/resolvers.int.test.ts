@@ -15,12 +15,21 @@ afterAll(() => db.$disconnect());
 
 describe("scope resolvers", () => {
   it("resolve existing targets", async () => {
-    expect(await examScope(db, w.e3.id)).toEqual({ examId: w.e3.id, categoryId: w.cloud.id });
+    expect(await examScope(db, w.e3.id)).toEqual({ examId: w.e3.id, categoryId: w.cloud.id, tagIds: [] });
+    expect(await examScope(db, w.e1.id)).toEqual({
+      examId: w.e1.id,
+      categoryId: w.networking.id,
+      tagIds: [w.tagCore.id],
+    });
     expect(await categoryScope(db, w.cloud.id)).toEqual({ categoryId: w.cloud.id });
     expect(await groupScope(db, w.groupA.id)).toEqual({ groupIds: [w.groupA.id] });
-    expect(await studentScope(db, w.users.student.id)).toEqual({ groupIds: [w.groupA.id] });
+    expect(await studentScope(db, w.users.student.id)).toEqual({ groupIds: [w.groupA.id], submitted: [] });
     expect(await targetScope(db, { groupId: w.groupB.id })).toEqual({ groupIds: [w.groupB.id] });
-    expect(await targetScope(db, { userId: w.studentB.id })).toEqual({ groupIds: [w.groupB.id] });
+    // Student B has submitted E1 (Networking, tagged "core").
+    expect(await targetScope(db, { userId: w.studentB.id })).toEqual({
+      groupIds: [w.groupB.id],
+      submitted: [{ examId: w.e1.id, categoryId: w.networking.id, tagIds: [w.tagCore.id] }],
+    });
   });
 
   it("answer NOT_FOUND for missing targets (and for non-students as students)", async () => {

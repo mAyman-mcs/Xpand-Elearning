@@ -8,7 +8,7 @@ import { api, errorMessage } from "../../lib/api";
 import { grantSentence, type ScopeNames } from "../../lib/grants";
 import { ALL_PERMISSIONS, PERMISSION_LABELS } from "../../lib/permissions";
 import { cairoToIso, isoToCairo, todayInCairo } from "../../lib/time";
-import { useCategories, useAllExams } from "../catalog/queries";
+import { useAllExams, useCategories, useTags } from "../catalog/queries";
 import { useGroups } from "../users/queries";
 
 // Permissions whose features exist today; the rest are granted ahead of their phase (NEXT_PLAN).
@@ -19,7 +19,9 @@ interface Draft {
   examMode: "all" | "some";
   examIds: string[];
   categoryIds: string[];
-  groupMode: "all" | "some";
+  tagIds: string[];
+  /** Students: every group, chosen groups, or only students who submitted a covered exam. */
+  groupMode: "all" | "some" | "submitted";
   groupIds: string[];
   /** Cairo date; the grant ends at 23:59 that day. Empty = no expiry. */
   expires: string;
@@ -31,7 +33,8 @@ function draftOf(g?: Grant): Draft {
     examMode: g?.allExams ? "all" : "some",
     examIds: g?.examIds ?? [],
     categoryIds: g?.categoryIds ?? [],
-    groupMode: g?.allGroups ? "all" : "some",
+    tagIds: g?.tagIds ?? [],
+    groupMode: g?.allGroups ? "all" : g?.studentsWhoSubmitted ? "submitted" : "some",
     groupIds: g?.groupIds ?? [],
     expires: g?.expiresAt ? isoToCairo(g.expiresAt).date : "",
   };
@@ -43,8 +46,10 @@ export function toScope(d: Draft): GrantScopeFields {
     allExams: d.examMode === "all",
     examIds: d.examMode === "all" ? [] : d.examIds,
     categoryIds: d.examMode === "all" ? [] : d.categoryIds,
+    tagIds: d.examMode === "all" ? [] : d.tagIds,
     allGroups: d.groupMode === "all",
-    groupIds: d.groupMode === "all" ? [] : d.groupIds,
+    groupIds: d.groupMode === "some" ? d.groupIds : [],
+    studentsWhoSubmitted: d.groupMode === "submitted",
     expiresAt: d.expires ? new Date(new Date(cairoToIso(d.expires, "23:59")).getTime() + 59_999).toISOString() : null,
   };
 }
@@ -53,8 +58,8 @@ export function toScope(d: Draft): GrantScopeFields {
 export function draftProblems(d: Draft, today: string): string[] {
   const problems: string[] = [];
   if (!d.permissions.length) problems.push("Choose at least one permission.");
-  if (d.examMode === "some" && !d.examIds.length && !d.categoryIds.length)
-    problems.push("Choose the exams: all exams, or at least one category or exam.");
+  if (d.examMode === "some" && !d.examIds.length && !d.categoryIds.length && !d.tagIds.length)
+    problems.push("Choose the exams: all exams, or at least one category, tag or exam.");
   if (d.groupMode === "some" && !d.groupIds.length)
     problems.push("Choose the students: every group, or at least one group.");
   if (d.expires && d.expires < today) problems.push("The expiry date is in the past.");
@@ -79,6 +84,7 @@ export function GrantEditor({ open, onClose, instructor, grant, names, onSaved }
   const [examSearch, setExamSearch] = useState("");
   const exams = useAllExams();
   const categories = useCategories();
+  const tags = useTags();
   const groups = useGroups();
   const set = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }));
 
@@ -152,7 +158,7 @@ export function GrantEditor({ open, onClose, instructor, grant, names, onSaved }
           {radio("examMode", "all", draft.examMode === "all", "All exams (including future ones)", () =>
             set({ examMode: "all" }),
           )}
-          {radio("examMode", "some", draft.examMode === "some", "Chosen categories or exams", () =>
+          {radio("examMode", "some", draft.examMode === "some", "Chosen categories, tags or exams", () =>
             set({ examMode: "some" }),
           )}
         </div>
@@ -176,6 +182,23 @@ export function GrantEditor({ open, onClose, instructor, grant, names, onSaved }
               </div>
             </div>
             <div>
+              <p className="mb-1 text-sm font-semibold text-slate-700">Tags (any of them; include future exams)</p>
+              <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
+                {tags.data?.length ? (
+                  tags.data.map((t) => (
+                    <Checkbox
+                      key={t.id}
+                      label={t.name}
+                      checked={draft.tagIds.includes(t.id)}
+                      onChange={() => set({ tagIds: toggle(draft.tagIds, t.id) })}
+                    />
+                  ))
+                ) : (
+                  <p className="text-sm text-slate-600">No tags yet.</p>
+                )}
+              </div>
+            </div>
+            <div className="sm:col-span-2">
               <TextInput
                 label="Single exams"
                 type="search"
@@ -204,14 +227,27 @@ export function GrantEditor({ open, onClose, instructor, grant, names, onSaved }
 
       <fieldset>
         <legend className="mb-2 text-sm font-bold text-slate-800">For which students</legend>
-        <div className="mb-3 grid gap-2 sm:grid-cols-2">
+        <div className="mb-3 grid gap-2 sm:grid-cols-3">
           {radio("groupMode", "all", draft.groupMode === "all", "Every group (all students)", () =>
             set({ groupMode: "all" }),
           )}
           {radio("groupMode", "some", draft.groupMode === "some", "Students in chosen groups", () =>
             set({ groupMode: "some" }),
           )}
+          {radio(
+            "groupMode",
+            "submitted",
+            draft.groupMode === "submitted",
+            "Only students who submitted these exams",
+            () => set({ groupMode: "submitted" }),
+          )}
         </div>
+        {draft.groupMode === "submitted" && (
+          <p className="rounded-lg bg-sky-50 p-3 text-sm text-sky-900">
+            The instructor sees a student only after that student has submitted one of the exams above. No groups, and
+            nobody else, are visible to them.
+          </p>
+        )}
         {draft.groupMode === "some" && (
           <div className="grid max-h-40 gap-1 overflow-y-auto rounded-lg border border-slate-200 p-2 sm:grid-cols-2">
             {groups.data?.map((g) => (

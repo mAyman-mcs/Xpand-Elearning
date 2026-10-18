@@ -1,8 +1,10 @@
 import { statuses, type MatrixRow } from "../../test/matrix.js";
 
 /** Scoped staff routes: out-of-scope instructors 404 (existence hidden), students 403. */
-const scoped = (ok: number, overrides: Partial<Record<"instExamA" | "instCategory" | "instSplit", number>>) =>
-  statuses(404, { superAdmin: ok, student: 403, ...overrides });
+const scoped = (
+  ok: number,
+  overrides: Partial<Record<"instExamA" | "instCategory" | "instSplit" | "instTag", number>>,
+) => statuses(404, { superAdmin: ok, student: 403, ...overrides });
 
 const fixedSchedule = { mode: "FIXED", opensAt: "2026-11-01T07:00:00Z", closesAt: "2026-11-01T09:00:00Z" };
 
@@ -11,8 +13,8 @@ export const assignmentsRows: MatrixRow[] = [
     route: "GET /api/assignments",
     label: "E1",
     request: (w) => ({ path: `/api/assignments?examId=${w.e1.id}` }),
-    // instSplit sees E1 (RESULTS_VIEW) but lacks EXAM_ASSIGN/EXAM_SCHEDULE.
-    expect: scoped(200, { instExamA: 200, instSplit: 403 }),
+    // instSplit sees E1 (RESULTS_VIEW) but lacks EXAM_ASSIGN/EXAM_SCHEDULE. instTag: E1 carries "core".
+    expect: scoped(200, { instExamA: 200, instSplit: 403, instTag: 200 }),
   },
   {
     route: "POST /api/assignments",
@@ -40,7 +42,8 @@ export const assignmentsRows: MatrixRow[] = [
       path: "/api/assignments",
       body: { examId: w.e1.id, target: { userId: w.studentB.id }, schedule: fixedSchedule },
     }),
-    expect: scoped(201, {}),
+    // instTag: student B has submitted E1, a "core" exam.
+    expect: scoped(201, { instTag: 201 }),
   },
   {
     route: "POST /api/assignments/bulk",
@@ -62,7 +65,7 @@ export const assignmentsRows: MatrixRow[] = [
   {
     route: "GET /api/assignments/availability",
     request: (w) => ({ path: `/api/assignments/availability?examId=${w.e1.id}` }),
-    expect: scoped(200, { instExamA: 200, instSplit: 200 }),
+    expect: scoped(200, { instExamA: 200, instSplit: 200, instTag: 200 }),
   },
   {
     route: "PATCH /api/assignments/:id",
@@ -80,7 +83,7 @@ export const assignmentsRows: MatrixRow[] = [
   {
     route: "GET /api/overrides",
     request: (w) => ({ path: `/api/overrides?examId=${w.e1.id}` }),
-    expect: scoped(200, { instExamA: 200, instSplit: 403 }),
+    expect: scoped(200, { instExamA: 200, instSplit: 403, instTag: 200 }),
   },
   {
     route: "POST /api/overrides",

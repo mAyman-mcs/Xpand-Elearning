@@ -2,7 +2,7 @@ import { statuses, superAdminOnly, type MatrixRow } from "../../test/matrix.js";
 
 const staffOnly = (ok: number) => statuses(ok, { student: 403 });
 /** Scoped routes: out-of-scope instructors get 404 (existence hidden), students 403. */
-const scoped = (ok: Partial<Record<"instExamA" | "instCategory" | "instSplit", number>>) =>
+const scoped = (ok: Partial<Record<"instExamA" | "instCategory" | "instSplit" | "instTag", number>>) =>
   statuses(404, { superAdmin: 200, student: 403, ...ok });
 
 export const catalogRows: MatrixRow[] = [
@@ -42,8 +42,15 @@ export const catalogRows: MatrixRow[] = [
   },
   {
     route: "DELETE /api/catalog/tags/:id",
-    request: (w) => ({ path: `/api/catalog/tags/${w.tagCore.id}` }),
+    label: "a plain tag",
+    request: (w) => ({ path: `/api/catalog/tags/${w.tagSpare.id}` }),
     expect: superAdminOnly(204),
+  },
+  {
+    route: "DELETE /api/catalog/tags/:id",
+    label: "an access tag (used by instTag's grant): refused even for super admins",
+    request: (w) => ({ path: `/api/catalog/tags/${w.tagCore.id}` }),
+    expect: superAdminOnly(409),
   },
 
   // ── Exams ──
@@ -71,7 +78,7 @@ export const catalogRows: MatrixRow[] = [
     route: "GET /api/catalog/exams/:id",
     label: "E1 (Networking)",
     request: (w) => ({ path: `/api/catalog/exams/${w.e1.id}` }),
-    expect: scoped({ instExamA: 200, instSplit: 200 }),
+    expect: scoped({ instExamA: 200, instSplit: 200, instTag: 200 }),
   },
   {
     route: "GET /api/catalog/exams/:id",
@@ -89,12 +96,27 @@ export const catalogRows: MatrixRow[] = [
     route: "PATCH /api/catalog/exams/:id",
     label: "E1: visible to instExamA/instSplit but not editable",
     request: (w) => ({ path: `/api/catalog/exams/${w.e1.id}`, body: { title: "Network Fundamentals" } }),
-    expect: scoped({ instExamA: 403, instSplit: 403 }),
+    // instTag holds EXAM_EDIT on exams tagged "core".
+    expect: scoped({ instExamA: 403, instSplit: 403, instTag: 200 }),
   },
   {
     route: "PUT /api/catalog/exams/:id/tags",
-    request: (w) => ({ path: `/api/catalog/exams/${w.e3.id}/tags`, body: { tagIds: [w.tagCore.id] } }),
+    label: "a plain tag on E3",
+    request: (w) => ({ path: `/api/catalog/exams/${w.e3.id}/tags`, body: { tagIds: [w.tagSpare.id] } }),
     expect: scoped({ instCategory: 200 }),
+  },
+  {
+    route: "PUT /api/catalog/exams/:id/tags",
+    label: "an access tag on E3: super admins only",
+    request: (w) => ({ path: `/api/catalog/exams/${w.e3.id}/tags`, body: { tagIds: [w.tagCore.id] } }),
+    expect: scoped({ instCategory: 403 }),
+  },
+  {
+    route: "PUT /api/catalog/exams/:id/tags",
+    label: "removing the access tag from E1: super admins only",
+    request: (w) => ({ path: `/api/catalog/exams/${w.e1.id}/tags`, body: { tagIds: [] } }),
+    // instTag may edit E1 but not its access tag; instExamA/instSplit see E1 but can't edit it.
+    expect: scoped({ instTag: 403, instExamA: 403, instSplit: 403 }),
   },
 
   // ── Exam content (EXAM_EDIT on the exam). E3 is in Cloud: only instCategory (Cloud × all groups) edits it.
@@ -109,7 +131,7 @@ export const catalogRows: MatrixRow[] = [
     route: "GET /api/catalog/exams/:id/questions",
     label: "E1, visible without EXAM_EDIT",
     request: (w) => ({ path: `/api/catalog/exams/${w.e1.id}/questions` }),
-    expect: scoped({ instExamA: 403, instSplit: 403 }),
+    expect: scoped({ instExamA: 403, instSplit: 403, instTag: 200 }),
   },
   {
     route: "POST /api/catalog/exams/:id/questions",

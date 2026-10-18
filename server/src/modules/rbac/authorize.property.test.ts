@@ -10,6 +10,9 @@ const exams = ["e1", "e2", "e3", "e4"];
 const categories = ["c1", "c2"];
 const categoryOf: Record<string, string> = { e1: "c1", e2: "c1", e3: "c2", e4: "c2" };
 const groups = ["g1", "g2", "g3"];
+const tags = ["t1", "t2"];
+const tagsOf: Record<string, string[]> = { e1: ["t1"], e2: [], e3: ["t1", "t2"], e4: ["t2"] };
+const ref = (e: string) => ({ examId: e, categoryId: categoryOf[e] ?? "", tagIds: tagsOf[e] ?? [] });
 
 const permission = fc.constantFrom(...ALL_PERMISSIONS);
 const grantArb: fc.Arbitrary<GrantScope> = fc.record({
@@ -17,8 +20,10 @@ const grantArb: fc.Arbitrary<GrantScope> = fc.record({
   allExams: fc.boolean(),
   examIds: fc.subarray(exams),
   categoryIds: fc.subarray(categories),
+  tagIds: fc.subarray(tags),
   allGroups: fc.boolean(),
   groupIds: fc.subarray(groups),
+  studentsWhoSubmitted: fc.boolean(),
   expiresAt: fc.option(fc.constantFrom(new Date(NOW.getTime() - 1000), NOW, new Date(NOW.getTime() + 1000)), {
     nil: null,
   }),
@@ -29,15 +34,17 @@ const principalArb: fc.Arbitrary<Principal> = fc.record({
   grants: fc.array(grantArb, { maxLength: 4 }),
 });
 const instructorArb = principalArb.map((p) => ({ ...p, role: "INSTRUCTOR" as const }));
+/** Targets: none, a group (groups only), or a student (groups + the exams they submitted). */
+const targetArb = fc.oneof(
+  fc.constant({}),
+  fc.constantFrom(...groups).map((g) => ({ groupIds: [g] })),
+  fc
+    .record({ groupIds: fc.subarray(groups), submitted: fc.subarray(exams) })
+    .map(({ groupIds, submitted }) => ({ groupIds, submitted: submitted.map(ref) })),
+);
 const scopeArb: fc.Arbitrary<Scope> = fc
-  .record({
-    exam: fc.option(fc.constantFrom(...exams), { nil: undefined }),
-    groupIds: fc.option(fc.subarray(groups), { nil: undefined }),
-  })
-  .map(({ exam, groupIds }) => ({
-    ...(exam ? { examId: exam, categoryId: categoryOf[exam] } : {}),
-    ...(groupIds ? { groupIds } : {}),
-  }));
+  .record({ exam: fc.option(fc.constantFrom(...exams), { nil: undefined }), target: targetArb })
+  .map(({ exam, target }) => ({ ...(exam ? ref(exam) : {}), ...target }));
 
 const check = (prop: fc.IPropertyWithHooks<unknown[]> | fc.IAsyncPropertyWithHooks<unknown[]>) => {
   fc.assert(prop as fc.IProperty<unknown[]>, { numRuns: 2000 });
@@ -96,7 +103,8 @@ describe("authorize invariants", () => {
       fc.property(instructorArb, permission, scopeArb, (p, perm, scope) => {
         if (authorize(p, perm, scope, NOW)) {
           expect(authorize(p, perm, {}, NOW)).toBe(true);
-          if (scope.groupIds) expect(authorize(p, perm, { ...scope, groupIds: undefined }, NOW)).toBe(true);
+          // Dropping the whole target (groups and submitted exams) is a narrowing; dropping half isn't.
+          expect(authorize(p, perm, { ...scope, groupIds: undefined, submitted: undefined }, NOW)).toBe(true);
         }
       }),
     );
@@ -123,11 +131,71 @@ describe("list reach agrees with authorize", () => {
 
   it("reachForExam keeps exactly the grants covering that exam", () => {
     check(
-      fc.property(principalArb, permission, fc.constantFrom(...exams), fc.subarray(groups), (p, perm, exam, gs) => {
-        const scope = { examId: exam, categoryId: categoryOf[exam], groupIds: gs };
-        const forExam = reachForExam(reachOf(p, perm, NOW), { id: exam, categoryId: categoryOf[exam] ?? "" });
-        expect(reachAllows(forExam, { groupIds: gs })).toBe(authorize(p, perm, scope, NOW));
+      fc.property(principalArb, permission, fc.constantFrom(...exams), targetArb, (p, perm, exam, target) => {
+        const forExam = reachForExam(reachOf(p, perm, NOW), { id: exam, ...ref(exam) });
+        expect(reachAllows(forExam, target)).toBe(authorize(p, perm, { ...ref(exam), ...target }, NOW));
       }),
+    );
+  });
+});
+
+describe('tag grants and "students who submitted" grants', () => {
+  const strictGrant = fc.record({
+    permissions: fc.uniqueArray(permission, { minLength: 1, maxLength: 4 }),
+    tagIds: fc.subarray(tags, { minLength: 1 }),
+  });
+
+  it("a tag grant covers an exam exactly when the exam carries one of its tags", () => {
+    check(
+      fc.property(strictGrant, fc.constantFrom(...exams), (g, exam) => {
+        const p: Principal = {
+          userId: "u",
+          role: "INSTRUCTOR",
+          grants: [
+            {
+              ...g,
+              allExams: false,
+              examIds: [],
+              categoryIds: [],
+              allGroups: true,
+              groupIds: [],
+              studentsWhoSubmitted: false,
+              expiresAt: null,
+            },
+          ],
+        };
+        const carries = (tagsOf[exam] ?? []).some((t) => g.tagIds.includes(t));
+        expect(authorize(p, g.permissions[0] ?? "EXAM_EDIT", ref(exam), NOW)).toBe(carries);
+      }),
+    );
+  });
+
+  it("a submitted-only grant never reaches a group, and reaches a student only through a covered submitted exam", () => {
+    check(
+      fc.property(
+        strictGrant,
+        fc.constantFrom(...groups),
+        fc.subarray(groups),
+        fc.subarray(exams),
+        (g, group, gs, done) => {
+          const grant: GrantScope = {
+            ...g,
+            allExams: false,
+            examIds: [],
+            categoryIds: [],
+            allGroups: false,
+            groupIds: [],
+            studentsWhoSubmitted: true,
+            expiresAt: null,
+          };
+          const p: Principal = { userId: "u", role: "INSTRUCTOR", grants: [grant] };
+          const perm = g.permissions[0] ?? "EXAM_EDIT";
+          expect(authorize(p, perm, { groupIds: [group] }, NOW)).toBe(false);
+          const student = { groupIds: gs, submitted: done.map(ref) };
+          const throughCovered = done.some((e) => (tagsOf[e] ?? []).some((t) => g.tagIds.includes(t)));
+          expect(authorize(p, perm, student, NOW)).toBe(throughCovered);
+        },
+      ),
     );
   });
 });

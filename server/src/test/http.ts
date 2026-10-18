@@ -6,7 +6,8 @@ import type { TestUser } from "./factories.js";
 export async function loginAs(app: Express, user: Pick<TestUser, "username" | "password">) {
   const agent = request.agent(app);
   const res = await agent.post("/api/auth/login").send({ username: user.username, password: user.password });
-  if (res.status !== 200) throw new Error(`loginAs(${user.username}) failed: ${res.status} ${JSON.stringify(res.body)}`);
+  if (res.status !== 200)
+    throw new Error(`loginAs(${user.username}) failed: ${res.status} ${JSON.stringify(res.body)}`);
   return agent;
 }
 

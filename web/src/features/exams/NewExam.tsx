@@ -73,6 +73,7 @@ export function NewExam() {
             categories={editableCategories(perms, categories.data ?? [])}
             tags={tags.data ?? []}
             readOnly={false}
+            canChangeAccessTags={perms?.role === "SUPER_ADMIN"}
           />
           <div className="flex justify-end gap-2">
             <ButtonLink to="/exams" variant="secondary">

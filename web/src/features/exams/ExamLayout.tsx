@@ -25,7 +25,7 @@ interface Tab {
 
 // Tabs appear as their phase lands (docs/ADMIN_DASHBOARD_PLAN.md A5, A6).
 const on = (p: MyPermissions | undefined, e: Exam, ...perms: Permission[]) =>
-  perms.some((x) => can(p, x, { id: e.id, categoryId: e.category.id }));
+  perms.some((x) => can(p, x, { id: e.id, categoryId: e.category.id, tagIds: e.tags.map((t) => t.id) }));
 
 export const EXAM_TABS: Tab[] = [
   { to: "", label: "Settings", show: () => true },
@@ -46,7 +46,7 @@ export function ExamLayout() {
   if (exam.isPending) return <Loading />;
   if (exam.error) return <QueryErrorPage error={exam.error} />;
   const e = exam.data;
-  const ref = { id: e.id, categoryId: e.category.id };
+  const ref = { id: e.id, categoryId: e.category.id, tagIds: e.tags.map((t) => t.id) };
   const context: ExamContext = { exam: e, allowed: (p) => can(perms, p, ref) };
 
   return (

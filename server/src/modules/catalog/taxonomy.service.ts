@@ -35,11 +35,12 @@ export const categoryDto = (c: Category & { _count?: { exams: number } }) => ({
   archived: c.archived,
   ...(c._count ? { examCount: c._count.exams } : {}),
 });
-export const tagDto = (t: Tag & { _count?: { exams: number } }) => ({
+export const tagDto = (t: Tag & { _count?: { exams: number; grantScopes: number } }) => ({
   id: t.id,
   name: t.name,
   slug: t.slug,
-  ...(t._count ? { examCount: t._count.exams } : {}),
+  // grantCount > 0 makes it an access tag: only super admins put it on or take it off exams.
+  ...(t._count ? { examCount: t._count.exams, grantCount: t._count.grantScopes } : {}),
 });
 
 // ───────────────────────────── Categories ─────────────────────────────
@@ -123,7 +124,7 @@ export async function deleteCategory(ctx: Ctx, categoryId: string): Promise<void
 
 export async function listTags(ctx: Ctx) {
   const rows = await ctx.db.tag.findMany({
-    include: { _count: { select: { exams: true } } },
+    include: { _count: { select: { exams: true, grantScopes: true } } },
     orderBy: { name: "asc" },
   });
   return rows.map(tagDto);
@@ -174,8 +175,15 @@ export async function renameTag(ctx: Ctx, tagId: string, input: z.infer<typeof t
 /** Deleting a tag removes it from every exam; the audit entry records how many. */
 export async function deleteTag(ctx: Ctx, tagId: string): Promise<void> {
   await inTransaction(ctx.db, async (tx) => {
-    const tag = await tx.tag.findUnique({ where: { id: tagId }, include: { _count: { select: { exams: true } } } });
+    const tag = await tx.tag.findUnique({
+      where: { id: tagId },
+      include: { _count: { select: { exams: true, grantScopes: true } } },
+    });
     if (!tag) throw notFound("Tag not found.");
+    if (tag._count.grantScopes > 0)
+      throw conflict(
+        `“${tag.name}” gives instructors access (${tag._count.grantScopes} grant${tag._count.grantScopes === 1 ? "" : "s"}); remove it from those grants first.`,
+      );
     await tx.tag.delete({ where: { id: tagId } });
     await audit(tx, {
       action: "catalog.tag_deleted",

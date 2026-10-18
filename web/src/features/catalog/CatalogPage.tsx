@@ -247,7 +247,12 @@ function Tags() {
       header: "Tag",
       cell: (t) => (
         <span>
-          <span className="font-semibold">{t.name}</span>
+          <span className="font-semibold">{t.name}</span>{" "}
+          {(t.grantCount ?? 0) > 0 && (
+            <Badge tone="blue">
+              Access · {t.grantCount} grant{t.grantCount === 1 ? "" : "s"}
+            </Badge>
+          )}
           <span className="block font-mono text-xs text-slate-600">{t.slug}</span>
         </span>
       ),
@@ -303,7 +308,11 @@ function Tags() {
         open={deleting !== null}
         onOpenChange={(o) => !o && setDeleting(null)}
         title={`Delete the tag “${deleting?.name ?? ""}”?`}
-        description={`It is removed from ${deleting?.examCount ?? 0} exam(s). The exams themselves are not changed otherwise.`}
+        description={
+          (deleting?.grantCount ?? 0) > 0
+            ? `“${deleting?.name ?? ""}” gives instructors access (${deleting?.grantCount ?? 0} grant(s)), so it can't be deleted. Remove it from those grants first.`
+            : `It is removed from ${deleting?.examCount ?? 0} exam(s). The exams themselves are not changed otherwise.`
+        }
         confirmLabel="Delete tag"
         danger
         onConfirm={async () => {

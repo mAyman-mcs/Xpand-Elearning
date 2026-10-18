@@ -86,6 +86,8 @@ interface FieldsProps {
   categories: Category[];
   tags: Tag[];
   readOnly: boolean;
+  /** Super admins only: access tags (used by a grant) change who reaches the exam. */
+  canChangeAccessTags: boolean;
 }
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -98,7 +100,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 /** The exam settings fields (FRONTEND_GUIDE §4.4 "Exams"), shared by "New exam" and the Settings tab. */
-export function ExamFields({ form, mode, categories, tags, readOnly }: FieldsProps) {
+export function ExamFields({ form, mode, categories, tags, readOnly, canChangeAccessTags }: FieldsProps) {
   const { register, formState, watch, setValue } = form;
   const errors = formState.errors;
   const isExternal = watch("isExternal");
@@ -139,11 +141,15 @@ export function ExamFields({ form, mode, categories, tags, readOnly }: FieldsPro
             <div className="flex flex-wrap gap-2">
               {tags.map((t) => {
                 const on = tagIds.includes(t.id);
+                const access = (t.grantCount ?? 0) > 0;
+                const locked = access && !canChangeAccessTags;
                 return (
                   <button
                     key={t.id}
                     type="button"
                     aria-pressed={on}
+                    disabled={locked}
+                    title={locked ? "An access tag: only a super admin can add or remove it." : undefined}
                     onClick={() =>
                       setValue("tagIds", on ? tagIds.filter((x) => x !== t.id) : [...tagIds, t.id], {
                         shouldDirty: true,
@@ -157,10 +163,17 @@ export function ExamFields({ form, mode, categories, tags, readOnly }: FieldsPro
                     )}
                   >
                     {t.name}
+                    {access && <span className="ml-1 font-normal">· access</span>}
                   </button>
                 );
               })}
             </div>
+            {tags.some((t) => (t.grantCount ?? 0) > 0) && (
+              <p className="mt-1 text-xs text-slate-600">
+                Tags marked “access” give instructors access to the exams carrying them
+                {canChangeAccessTags ? "." : ": only a super admin can add or remove them."}
+              </p>
+            )}
           </div>
         )}
       </Section>

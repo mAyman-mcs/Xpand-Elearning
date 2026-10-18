@@ -7,13 +7,15 @@ const grant = (over: Partial<GrantScopeFields>): GrantScopeFields => ({
   allExams: false,
   examIds: [],
   categoryIds: [],
+  tagIds: [],
   allGroups: true,
   groupIds: [],
+  studentsWhoSubmitted: false,
   expiresAt: null,
   ...over,
 });
 const instructor = (...grants: GrantScopeFields[]): MyPermissions => ({ role: "INSTRUCTOR", grants });
-const exam = { id: "e1", categoryId: "c1" };
+const exam = { id: "e1", categoryId: "c1", tagIds: ["soc"] };
 
 describe("can (UI visibility only)", () => {
   it("super admins can do everything; students and unknown callers nothing", () => {
@@ -26,6 +28,8 @@ describe("can (UI visibility only)", () => {
     expect(can(instructor(grant({ examIds: ["e1"] })), "EXAM_ASSIGN", exam)).toBe(true);
     expect(can(instructor(grant({ categoryIds: ["c1"] })), "EXAM_ASSIGN", exam)).toBe(true);
     expect(can(instructor(grant({ allExams: true })), "EXAM_ASSIGN", exam)).toBe(true);
+    expect(can(instructor(grant({ tagIds: ["soc"] })), "EXAM_ASSIGN", exam)).toBe(true);
+    expect(can(instructor(grant({ tagIds: ["network"] })), "EXAM_ASSIGN", exam)).toBe(false);
     expect(can(instructor(grant({ examIds: ["other"] })), "EXAM_ASSIGN", exam)).toBe(false);
     expect(can(instructor(grant({ allExams: true })), "EXAM_EDIT", exam)).toBe(false);
   });

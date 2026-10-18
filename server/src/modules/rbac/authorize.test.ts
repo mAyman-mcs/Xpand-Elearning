@@ -8,8 +8,10 @@ const grant = (over: Partial<GrantScope>): GrantScope => ({
   allExams: false,
   examIds: [],
   categoryIds: [],
+  tagIds: [],
   allGroups: false,
   groupIds: [],
+  studentsWhoSubmitted: false,
   expiresAt: null,
   ...over,
 });

@@ -11,6 +11,7 @@ export const ACTORS = [
   "instCategory",
   "instSplit",
   "instExpired",
+  "instTag",
   "anonymous",
 ] as const;
 export type Actor = (typeof ACTORS)[number];
@@ -24,6 +25,8 @@ export type World = Awaited<ReturnType<typeof seedWorld>>;
  * - instCategory: EXAM_EDIT + EXAM_ASSIGN + EXAM_SCHEDULE on category Cloud × all groups
  * - instSplit:    RESULTS_VIEW on E1 × A, and RESULTS_VIEW on E2 × B (the combination trap)
  * - instExpired:  every permission on everything, expired
+ * - instTag:      every permission on exams tagged "core" (E1) × only students who submitted such an
+ *                 exam (student B has submitted E1; student A hasn't)
  */
 export async function seedWorld(db: Db, now = new Date()) {
   const groupA = await makeGroup(db, { name: "Group A" });
@@ -32,6 +35,7 @@ export async function seedWorld(db: Db, now = new Date()) {
   const cloud = await makeCategory(db, { name: "Cloud" });
   const unusedCategory = await makeCategory(db, { name: "Unused" });
   const tagCore = await makeTag(db, { name: "core" });
+  const tagSpare = await makeTag(db, { name: "spare" }); // used by no grant: a plain tag
   const e1 = await makeExam(db, networking, { title: "E1", tags: [tagCore] });
   const e2 = await makeExam(db, networking, { title: "E2" });
   const e3 = await makeExam(db, cloud, { title: "E3" });
@@ -44,6 +48,7 @@ export async function seedWorld(db: Db, now = new Date()) {
     instCategory: await makeUser(db, { role: "INSTRUCTOR", username: "inst.category" }),
     instSplit: await makeUser(db, { role: "INSTRUCTOR", username: "inst.split" }),
     instExpired: await makeUser(db, { role: "INSTRUCTOR", username: "inst.expired" }),
+    instTag: await makeUser(db, { role: "INSTRUCTOR", username: "inst.tag" }),
   };
   const studentB = await makeUser(db, { username: "student.b", groups: [groupB] });
 
@@ -65,6 +70,12 @@ export async function seedWorld(db: Db, now = new Date()) {
     allGroups: true,
     expiresAt: new Date(now.getTime() - 60_000),
   });
+  await makeGrant(db, users.instTag, {
+    permissions: [...ALL_PERMISSIONS],
+    tagIds: [tagCore.id],
+    studentsWhoSubmitted: true,
+  });
+  await db.attempt.create({ data: { examId: e1.id, userId: studentB.id, status: "SUBMITTED" } });
 
   // E1 → group A (fixed window, open now) and E3 → group B; an OPEN override on E1 for group A.
   const assignmentE1A = await db.assignment.create({
@@ -111,6 +122,7 @@ export async function seedWorld(db: Db, now = new Date()) {
     cloud,
     unusedCategory,
     tagCore,
+    tagSpare,
     e1,
     e2,
     e3,

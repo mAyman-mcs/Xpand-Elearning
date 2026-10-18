@@ -11,7 +11,8 @@ export function testDatabaseUrl(): string {
   if (!url) {
     const envFile = path.resolve(import.meta.dirname, "../../../.env");
     if (!process.env.DATABASE_URL && existsSync(envFile)) process.loadEnvFile(envFile);
-    if (!process.env.DATABASE_URL) throw new Error("Set TEST_DATABASE_URL (or DATABASE_URL in .env) for integration tests");
+    if (!process.env.DATABASE_URL)
+      throw new Error("Set TEST_DATABASE_URL (or DATABASE_URL in .env) for integration tests");
     const derived = new URL(process.env.DATABASE_URL);
     derived.pathname = "/xpand_test";
     url = derived.toString();

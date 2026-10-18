@@ -42,8 +42,11 @@ export function overrideDto(o: OverrideRow, now: Date) {
 }
 
 export async function listOverrides(ctx: Ctx, examId: string, includeEnded: boolean) {
-  const exam = await ctx.db.exam.findUniqueOrThrow({ where: { id: examId }, select: { id: true, categoryId: true } });
-  const reach = reachForExam(reachOf(actorOf(ctx), "any", ctx.now), exam);
+  const exam = await ctx.db.exam.findUniqueOrThrow({
+    where: { id: examId },
+    select: { id: true, categoryId: true, tags: { select: { tagId: true } } },
+  });
+  const reach = reachForExam(reachOf(actorOf(ctx), "any", ctx.now), { ...exam, tagIds: exam.tags.map((t) => t.tagId) });
   const rows = await ctx.db.accessOverride.findMany({
     where: {
       AND: [

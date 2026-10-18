@@ -21,8 +21,8 @@ const usernames = (res: request.Response) =>
 
 describe("listing users (isolation)", () => {
   it("super admins see everyone active", async () => {
-    // seedWorld: 7 actor accounts + student B.
-    expect(usernames(await admin.get("/api/users"))).toHaveLength(8);
+    // seedWorld: 8 actor accounts + student B.
+    expect(usernames(await admin.get("/api/users"))).toHaveLength(9);
   });
 
   it.each([
@@ -60,7 +60,7 @@ describe("listing users (isolation)", () => {
       nextCursor: string | null;
     };
     const ids = [...first.items, ...second.items, ...third.items].map((u) => u.id);
-    expect(new Set(ids).size).toBe(8); // 3 + 3 + 2, no duplicates
+    expect(new Set(ids).size).toBe(9); // 3 + 3 + 3, no duplicates
     expect(third.nextCursor).toBeNull();
   });
 });

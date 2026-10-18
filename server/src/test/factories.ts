@@ -65,9 +65,11 @@ export function makeGrant(
     permissions: Permission[];
     examIds?: string[];
     categoryIds?: string[];
+    tagIds?: string[];
     groupIds?: string[];
     allExams?: boolean;
     allGroups?: boolean;
+    studentsWhoSubmitted?: boolean;
     expiresAt?: Date | null;
   },
 ) {
@@ -77,9 +79,11 @@ export function makeGrant(
       permissions: opts.permissions,
       allExams: opts.allExams ?? false,
       allGroups: opts.allGroups ?? false,
+      studentsWhoSubmitted: opts.studentsWhoSubmitted ?? false,
       expiresAt: opts.expiresAt ?? null,
       exams: { create: (opts.examIds ?? []).map((examId) => ({ examId })) },
       categories: { create: (opts.categoryIds ?? []).map((categoryId) => ({ categoryId })) },
+      tags: { create: (opts.tagIds ?? []).map((tagId) => ({ tagId })) },
       groups: { create: (opts.groupIds ?? []).map((groupId) => ({ groupId })) },
     },
   });

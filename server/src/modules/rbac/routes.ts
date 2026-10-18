@@ -53,15 +53,29 @@ export function meRoutes(deps: AppDeps): ApiRouter {
         role: user.role,
         grants: grants
           .filter((g) => g.active)
-          .map(({ permissions, allExams, examIds, categoryIds, allGroups, groupIds, expiresAt }) => ({
-            permissions,
-            allExams,
-            examIds,
-            categoryIds,
-            allGroups,
-            groupIds,
-            expiresAt,
-          })),
+          .map(
+            ({
+              permissions,
+              allExams,
+              examIds,
+              categoryIds,
+              tagIds,
+              allGroups,
+              groupIds,
+              studentsWhoSubmitted,
+              expiresAt,
+            }) => ({
+              permissions,
+              allExams,
+              examIds,
+              categoryIds,
+              tagIds,
+              allGroups,
+              groupIds,
+              studentsWhoSubmitted,
+              expiresAt,
+            }),
+          ),
       };
     },
   });

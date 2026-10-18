@@ -20,7 +20,7 @@ describe("GET /api/admin/stats", () => {
     const res = await admin.get("/api/admin/stats");
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
-      users: { students: 2, instructors: 5, admins: 1, inactive: 0, locked: 0 },
+      users: { students: 2, instructors: 6, admins: 1, inactive: 0, locked: 0 },
       groups: 2,
       exams: { draft: 0, published: 3, archived: 0 },
       assignments: 2,
@@ -47,7 +47,7 @@ describe("GET /api/admin/stats", () => {
       activeOverrides: number;
       activeSessions: number;
     };
-    expect(body.users).toEqual({ students: 1, instructors: 5, admins: 1, inactive: 1, locked: 1 });
+    expect(body.users).toEqual({ students: 1, instructors: 6, admins: 1, inactive: 1, locked: 1 });
     expect(body.activeOverrides).toBe(0);
     expect(body.activeSessions).toBe(2);
 

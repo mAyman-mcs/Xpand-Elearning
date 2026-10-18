@@ -71,6 +71,6 @@ describe("locked exams", () => {
 });
 
 it("an import entry that isn't an object is reported as a whole", async () => {
-  const res = await importQuestions(ctx, w.e1.id, { questions: ["just text"], dryRun: true });
+  const res = await importQuestions(ctx, w.e2.id, { questions: ["just text"], dryRun: true });
   expect(res.errors).toEqual([{ index: 1, message: expect.stringMatching(/^question: /) as unknown }]);
 });

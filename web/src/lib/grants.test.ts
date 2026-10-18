@@ -8,6 +8,10 @@ const names = {
     ["e2", "Routing"],
   ]),
   categories: new Map([["c1", "Cloud"]]),
+  tags: new Map([
+    ["t1", "soc"],
+    ["t2", "network"],
+  ]),
   groups: new Map([
     ["g1", "Intake July 2026"],
     ["g2", "Intake Oct 2026"],
@@ -18,8 +22,10 @@ const grant = (over: Partial<GrantScopeFields>): GrantScopeFields => ({
   allExams: false,
   examIds: [],
   categoryIds: [],
+  tagIds: [],
   allGroups: false,
   groupIds: [],
+  studentsWhoSubmitted: false,
   expiresAt: null,
   ...over,
 });
@@ -55,6 +61,16 @@ describe("grantSentence", () => {
 
   it("names deleted records instead of failing", () => {
     expect(grantSentence(grant({ examIds: ["gone"], allGroups: true }), names)).toContain("“(deleted)”");
+  });
+});
+
+describe("grantSentence with tags and submitted students", () => {
+  it("names the tags (any of them) and the submitted-only student scope", () => {
+    expect(
+      grantSentence(grant({ permissions: ["RESULTS_VIEW"], tagIds: ["t1", "t2"], studentsWhoSubmitted: true }), names),
+    ).toBe(
+      "Can view results for exams tagged “soc” or “network”, for only students who have submitted one of these exams.",
+    );
   });
 });
 

@@ -76,6 +76,7 @@ test.describe("super admin", () => {
   });
 
   test("the main dialogs", async ({ page, apiAs }) => {
+    test.setTimeout(90_000); // five dialogs, an axe scan each
     const admin = await apiAs("admin");
     const exam = await examId(admin, "cloudGates");
     const instructor = (
@@ -102,6 +103,7 @@ test.describe("super admin", () => {
 test.describe("instructor", () => {
   test.use({ storageState: authFile("instCloud") });
   test("their pages", async ({ page, apiAs }) => {
+    test.setTimeout(90_000); // five pages, an axe scan and a phone-width check each
     const exam = await examId(await apiAs("admin"), "cloudGates");
     await checkPages(page, ["/exams", "/students", `/exams/${exam}`, `/exams/${exam}/assignments`, "/admin"]);
   });

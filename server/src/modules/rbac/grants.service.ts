@@ -15,8 +15,10 @@ const grantFields = {
   allExams: z.boolean(),
   examIds: uuidList,
   categoryIds: uuidList,
+  tagIds: uuidList,
   allGroups: z.boolean(),
   groupIds: uuidList,
+  studentsWhoSubmitted: z.boolean(),
   expiresAt: z.iso.datetime().pipe(z.coerce.date()).nullable(),
 };
 
@@ -26,8 +28,10 @@ export const grantBody = z.object({
   allExams: grantFields.allExams.default(false),
   examIds: grantFields.examIds.default([]),
   categoryIds: grantFields.categoryIds.default([]),
+  tagIds: grantFields.tagIds.default([]),
   allGroups: grantFields.allGroups.default(false),
   groupIds: grantFields.groupIds.default([]),
+  studentsWhoSubmitted: grantFields.studentsWhoSubmitted.default(false),
   expiresAt: grantFields.expiresAt.default(null),
 });
 export type GrantInput = z.infer<typeof grantBody>;
@@ -43,6 +47,7 @@ const withScopes = {
   user: { select: { username: true, fullName: true } },
   exams: { select: { examId: true } },
   categories: { select: { categoryId: true } },
+  tags: { select: { tagId: true } },
   groups: { select: { groupId: true } },
 } satisfies Prisma.InstructorGrantInclude;
 
@@ -57,8 +62,10 @@ export function grantDto(g: GrantRow, now: Date) {
     allExams: g.allExams,
     examIds: g.exams.map((e) => e.examId),
     categoryIds: g.categories.map((c) => c.categoryId),
+    tagIds: g.tags.map((t) => t.tagId),
     allGroups: g.allGroups,
     groupIds: g.groups.map((x) => x.groupId),
+    studentsWhoSubmitted: g.studentsWhoSubmitted,
     expiresAt: g.expiresAt,
     active: isActive(g, now),
     createdAt: g.createdAt,
@@ -69,28 +76,35 @@ export type GrantDto = ReturnType<typeof grantDto>;
 
 const invalid = (path: string, message: string) => new AppError("VALIDATION_FAILED", { details: [{ path, message }] });
 
-/** A grant must be meaningful: an instructor, an exam scope, a group scope, existing ids, a future expiry. */
+/** A grant must be meaningful: an instructor, an exam scope, a student scope, existing ids, a future expiry. */
 async function validateGrant(db: DbClient, now: Date, g: Omit<GrantInput, "userId">, userId: string): Promise<void> {
   const user = await db.user.findUnique({ where: { id: userId }, select: { role: true } });
   if (!user) throw invalid("userId", "User not found.");
   if (user.role !== "INSTRUCTOR") throw invalid("userId", "Grants can only be given to instructors.");
 
-  const listsExams = g.examIds.length > 0 || g.categoryIds.length > 0;
+  const listsExams = g.examIds.length > 0 || g.categoryIds.length > 0 || g.tagIds.length > 0;
   if (g.allExams === listsExams) {
-    throw invalid("allExams", "Choose either all exams, or a list of exams and/or categories.");
+    throw invalid("allExams", "Choose either all exams, or a list of exams, categories and/or tags.");
   }
-  if (g.allGroups === g.groupIds.length > 0) {
-    throw invalid("allGroups", "Choose either all groups, or a list of groups.");
+  // Exactly one student scope: all groups, listed groups, or students who submitted a covered exam.
+  const studentModes = [g.allGroups, g.groupIds.length > 0, g.studentsWhoSubmitted].filter(Boolean).length;
+  if (studentModes !== 1) {
+    throw invalid(
+      "allGroups",
+      "Choose exactly one: all groups, a list of groups, or students who submitted these exams.",
+    );
   }
   if (g.expiresAt && g.expiresAt <= now) throw invalid("expiresAt", "Expiry must be in the future.");
 
-  const [exams, categories, groups] = await Promise.all([
+  const [exams, categories, tags, groups] = await Promise.all([
     db.exam.count({ where: { id: { in: g.examIds } } }),
     db.category.count({ where: { id: { in: g.categoryIds } } }),
+    db.tag.count({ where: { id: { in: g.tagIds } } }),
     db.group.count({ where: { id: { in: g.groupIds } } }),
   ]);
   if (exams !== g.examIds.length) throw invalid("examIds", "Some exams do not exist.");
   if (categories !== g.categoryIds.length) throw invalid("categoryIds", "Some categories do not exist.");
+  if (tags !== g.tagIds.length) throw invalid("tagIds", "Some tags do not exist.");
   if (groups !== g.groupIds.length) throw invalid("groupIds", "Some groups do not exist.");
 }
 
@@ -98,6 +112,7 @@ function scopeRows(g: Omit<GrantInput, "userId">) {
   return {
     exams: { create: g.examIds.map((examId) => ({ examId })) },
     categories: { create: g.categoryIds.map((categoryId) => ({ categoryId })) },
+    tags: { create: g.tagIds.map((tagId) => ({ tagId })) },
     groups: { create: g.groupIds.map((groupId) => ({ groupId })) },
   };
 }
@@ -115,7 +130,7 @@ export async function createGrant(ctx: Ctx, input: GrantInput): Promise<GrantDto
   const actor = actorOf(ctx);
   return inTransaction(ctx.db, async (tx) => {
     await validateGrant(tx, ctx.now, input, input.userId);
-    const { examIds: _e, categoryIds: _c, groupIds: _g, ...fields } = input;
+    const { examIds: _e, categoryIds: _c, tagIds: _t, groupIds: _g, ...fields } = input;
     const created = await tx.instructorGrant.create({
       data: { ...fields, createdById: actor.userId, ...scopeRows(input) },
       include: withScopes,
@@ -144,8 +159,10 @@ export async function updateGrant(ctx: Ctx, grantId: string, patch: GrantPatch):
       allExams: patch.allExams ?? before.allExams,
       examIds: patch.examIds ?? before.examIds,
       categoryIds: patch.categoryIds ?? before.categoryIds,
+      tagIds: patch.tagIds ?? before.tagIds,
       allGroups: patch.allGroups ?? before.allGroups,
       groupIds: patch.groupIds ?? before.groupIds,
+      studentsWhoSubmitted: patch.studentsWhoSubmitted ?? before.studentsWhoSubmitted,
       expiresAt: patch.expiresAt === undefined ? before.expiresAt : patch.expiresAt,
     };
     await validateGrant(tx, ctx.now, merged, existing.userId);
@@ -153,8 +170,9 @@ export async function updateGrant(ctx: Ctx, grantId: string, patch: GrantPatch):
     // Scope lists are replaced wholesale; simpler and auditable.
     await tx.grantExam.deleteMany({ where: { grantId } });
     await tx.grantCategory.deleteMany({ where: { grantId } });
+    await tx.grantTag.deleteMany({ where: { grantId } });
     await tx.grantGroup.deleteMany({ where: { grantId } });
-    const { examIds: _e, categoryIds: _c, groupIds: _g, ...fields } = merged;
+    const { examIds: _e, categoryIds: _c, tagIds: _t, groupIds: _g, ...fields } = merged;
     const updated = await tx.instructorGrant.update({
       where: { id: grantId },
       data: { ...fields, ...scopeRows(merged) },
@@ -198,8 +216,10 @@ function snapshot(g: GrantDto): Prisma.InputJsonObject {
     allExams: g.allExams,
     examIds: g.examIds,
     categoryIds: g.categoryIds,
+    tagIds: g.tagIds,
     allGroups: g.allGroups,
     groupIds: g.groupIds,
+    studentsWhoSubmitted: g.studentsWhoSubmitted,
     expiresAt: g.expiresAt?.toISOString() ?? null,
   };
 }
