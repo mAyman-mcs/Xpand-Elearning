@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
-import { authFile, call, examId, expect, groupId, test, WORLD } from "./fixtures";
+import { authFile, call, createExam, examId, expect, groupId, test, WORLD } from "./fixtures";
 
 // Accessibility (docs/ADMIN_DASHBOARD_PLAN.md A-D10): axe on every page and the main dialogs, as each
 // role. Serious and critical violations fail; at phone width no page may scroll sideways.
@@ -135,5 +135,38 @@ test.describe("keyboard only", () => {
     await dialog.getByLabel("Intake date").fill("2026-11-01"); // date pickers vary by browser; the field itself is reached by Tab
     await page.keyboard.press("Enter"); // submits the form
     await expect(page.getByRole("heading", { name })).toBeVisible();
+  });
+});
+
+test.describe("student", () => {
+  test.use({ storageState: authFile("studentA1") });
+
+  test("dashboard, rules, the exam page and the done page", async ({ page, apiAs }) => {
+    test.setTimeout(120_000);
+    const admin = await apiAs("admin");
+    const exam = await createExam(admin, "cloud");
+    await call(admin, "patch", `/catalog/exams/${exam.id}`, { requireFullscreen: false });
+    await call(admin, "post", "/assignments", {
+      examId: exam.id,
+      target: { groupId: await groupId(admin, "a") },
+      schedule: { mode: "FIXED", opensAt: new Date(Date.now() - 3_600_000).toISOString(), closesAt: null },
+    });
+    await checkPages(page, ["/student", `/student/exams/${exam.id}`]);
+
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.getByRole("checkbox", { name: /I have read the rules/ }).check();
+    await page.getByRole("button", { name: "Start exam" }).click();
+    await expect(page.getByRole("timer", { name: "Time left" })).toBeVisible();
+    const session = new URL(page.url()).pathname;
+    await page.getByRole("radio").first().check();
+    await expect(page.getByRole("status").filter({ hasText: "Saved" })).toBeVisible();
+    await checkPages(page, [session]);
+
+    await page.getByRole("button", { name: "Submit exam" }).click();
+    const confirm = page.getByRole("dialog", { name: "Submit the exam?" });
+    await audit(page, "the submit dialog");
+    await confirm.getByRole("button", { name: "Submit", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Exam submitted" })).toBeVisible();
+    await checkPages(page, [`${session}/done`]);
   });
 });

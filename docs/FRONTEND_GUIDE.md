@@ -64,6 +64,11 @@ Every error body is `{ error: CODE, message?, details? }`. The full list lives i
 | 413 | `PAYLOAD_TOO_LARGE` | Request body over 100 KB |
 | 423 | `ACCOUNT_LOCKED` | Login form; `details.retryAfter` says when the lock ends |
 | 429 | `TOO_MANY_ATTEMPTS` | Login form: "Too many attempts, try later." |
+| 409 | `EXAM_NOT_OPEN` / `ALREADY_SUBMITTED` | Pre-check page: show `message` under the Start button |
+| 409 | `ATTEMPT_IN_PROGRESS_ELSEWHERE` | Exam page: replace everything with "This exam is open on another device"; never retry |
+| 409 | `ATTEMPT_SUBMITTED` | Exam page: go to the done page (`replace`, so Back can't return) |
+| 409 | `ATTEMPT_CLOSED` | Autosave: stop saving and go to the done page |
+| 409 | `QUESTION_CLOSED` | Without back navigation: show "Not saved" on that question |
 | 500 | `INTERNAL_ERROR` | Generic error with a retry button |
 
 The two **global** cases are handled once: `setSessionEndedHandler` in `lib/api/client.ts` (401 → Login on the same URL, with a notice), and the forced password change in the router's root.

@@ -33,6 +33,8 @@ export default defineConfig({
         "src/modules/rbac/**": { lines: 95, branches: 95, functions: 95, statements: 95 },
         "src/modules/assignments/availability.ts": { lines: 95, branches: 95, functions: 95, statements: 95 },
         "src/modules/catalog/**": { lines: 95, branches: 95, functions: 95, statements: 95 },
+        // Branches at 90: the rest are race-only recoveries (two starts at once) and null fallbacks.
+        "src/modules/attempts/**": { lines: 95, branches: 90, functions: 95, statements: 95 },
       },
     },
   },

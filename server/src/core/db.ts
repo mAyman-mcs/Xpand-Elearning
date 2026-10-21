@@ -5,8 +5,16 @@ export type Db = PrismaClient;
 /** Either the root client or an interactive-transaction client. Services accept both. */
 export type DbClient = PrismaClient | Prisma.TransactionClient;
 
-export function createPrisma(databaseUrl: string): PrismaClient {
-  return new PrismaClient({ adapter: new PrismaPg({ connectionString: databaseUrl }) });
+/**
+ * The pool is sized for an exam start, when a whole class saves, reports and heartbeats at once.
+ * A transaction waits up to 10 s for a free connection (Prisma's default is 2 s), so a burst queues
+ * instead of failing with a 500.
+ */
+export function createPrisma(databaseUrl: string, poolMax = 20): PrismaClient {
+  return new PrismaClient({
+    adapter: new PrismaPg({ connectionString: databaseUrl, max: poolMax }),
+    transactionOptions: { maxWait: 10_000, timeout: 10_000 },
+  });
 }
 
 /**

@@ -1,4 +1,5 @@
 import type { AppDeps } from "../../core/context.js";
+import { examBrief } from "../attempts/service.js";
 import { access, ApiRouter, created, noContent } from "../../core/route.js";
 import { idParams, queryBoolean } from "../../core/schemas.js";
 import { examScope } from "../rbac/resolvers.js";
@@ -115,5 +116,11 @@ export function overridesRoutes(deps: AppDeps): ApiRouter {
 export function studentRoutes(deps: AppDeps): ApiRouter {
   const api = new ApiRouter(deps);
   api.get("/exams", { access: access.roles("STUDENT"), handler: (ctx) => studentExams(ctx) });
+  // The pre-check page of one exam (rules, duration, whether it can start now).
+  api.get("/exams/:id", {
+    access: access.roles("STUDENT"),
+    params: idParams,
+    handler: (ctx, { params }) => examBrief(ctx, params.id),
+  });
   return api;
 }

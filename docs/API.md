@@ -45,6 +45,12 @@ Every error body is `{ "error": CODE, "message"?: string, "details"?: … }`.
 | 415 | `UNSUPPORTED_MEDIA_TYPE` | A write without a JSON body |
 | 423 | `ACCOUNT_LOCKED` | 5 failed logins; `details.retryAfter` is when the lock ends (15 minutes) |
 | 429 | `TOO_MANY_ATTEMPTS` | More than 20 login requests per IP in 15 minutes |
+| 409 | `EXAM_NOT_OPEN` | Starting an exam that isn't open now (or has no questions, or is external); `message` says why |
+| 409 | `ALREADY_SUBMITTED` | Starting an exam whose attempts are used up |
+| 409 | `ATTEMPT_IN_PROGRESS_ELSEWHERE` | The attempt belongs to another login session (device/browser); nothing is returned and a `DEVICE_CHANGE` violation is recorded |
+| 409 | `ATTEMPT_SUBMITTED` | Opening an attempt that has ended; `details` = `{ status, submittedAt, submitReason }` |
+| 409 | `ATTEMPT_CLOSED` | Saving or moving after the attempt ended (or past the deadline plus 5 s) |
+| 409 | `QUESTION_CLOSED` | Without back navigation: answering or moving to a question before the furthest one |
 | 500 | `INTERNAL_ERROR` | A server bug; it's logged |
 
 ---
@@ -103,8 +109,10 @@ Only active (unexpired) grants are listed. Super admins and students get `grants
 | Method | Path | Access |
 |---|---|---|
 | GET | `/api/student/exams` | Students only |
+| GET | `/api/student/exams/:id` | Students only (assigned exams) |
+| POST, GET, PUT | `/api/attempts…` | Students only (their own attempts) |
 
-Students also use everything in section 2. **`GET /api/student/exams`** is described with the exam endpoints in §6.5.
+Students also use everything in section 2. **`GET /api/student/exams`** is described with the exam endpoints in §6.5, and the exam session in §6.7.
 
 Students get `403 FORBIDDEN` on every staff endpoint.
 
@@ -537,9 +545,11 @@ Returns the exams assigned to the calling student. **Draft and unassigned exams 
             "materials": [{ "title": "Slides", "url": "https://…" }] },
   "status": "SCHEDULED", "progress": "NOT_STARTED",
   "opensAt": "2026-07-19T07:00:00.000Z", "closesAt": "2026-07-19T09:00:00.000Z",
-  "reason": "Opens at the scheduled time."
+  "reason": "Opens at the scheduled time.",
+  "result": null
 }]
 ```
+`result` is `{ score, maxScore }` of the latest finished attempt, only once staff have released the exam's results; otherwise `null`.
 
 ### 6.6 Exam statuses for one student
 
@@ -566,6 +576,60 @@ The server decides both values; the UI only displays them.
 | `ANSWERED` | Submitted, waiting for review |
 | `UNDER_REVIEW` | Staff are reviewing it |
 | `REVIEWED` | Review finished |
+
+### 6.7 The exam session (students)
+
+The server owns the questions, the clock, the answers, the strikes and the grade; the browser only
+displays and reports (NEXT_PLAN §3–4). Every route is for students only (staff `403`), and another
+student's attempt is `404`. An attempt belongs to the **login session that started it**: any other
+session gets `409 ATTEMPT_IN_PROGRESS_ELSEWHERE` and nothing else, and a `DEVICE_CHANGE` violation is
+recorded. There is no "allow resume".
+
+| Method | Path | What |
+|---|---|---|
+| GET | `/api/student/exams/:id` | The pre-check page: rules, status, `inProgressAttemptId` |
+| POST | `/api/attempts` | `{ examId }` → starts (`201`), or continues from the same session (`200`) |
+| GET | `/api/attempts/:id` | The attempt after a reload; `409 ATTEMPT_SUBMITTED` once it ended |
+| PUT | `/api/attempts/:id/answers/:questionId` | `{ selectedOptionIds }` → `{ questionId, savedAt }`. Idempotent. |
+| POST | `/api/attempts/:id/position` | `{ index }`: without back navigation, moves forward (skip). Never backwards. |
+| POST | `/api/attempts/:id/events` | `{ type, detail?, clientTime? }`: a cheating signal → `{ strikes, strikeLimit, action, status }` |
+| POST | `/api/attempts/:id/heartbeat` | Every ~10 s → `{ active, status, deadlineAt, serverNow, strikes }` |
+| POST | `/api/attempts/:id/submit` | Ends and grades it → `{ status, submittedAt }`. Idempotent. |
+| GET | `/api/attempts/:id/outcome` | How it ended, and `result` once results are released |
+
+**Starting** needs the exam to be `OPEN` for the student (`409 EXAM_NOT_OPEN` otherwise, `409
+ALREADY_SUBMITTED` when the attempts are used up). Questions and options are shuffled once (if the exam
+says so) and fixed on the attempt. Two starts at once create one attempt.
+
+**The attempt** (`POST /api/attempts`, `GET /api/attempts/:id`):
+```json
+{
+  "attemptId": "…", "status": "IN_PROGRESS",
+  "exam": { "id": "…", "code": "CLOUD-1", "title": "Cloud Gates",
+            "allowBackNavigation": true, "requireFullscreen": true, "strikeLimit": 3 },
+  "student": { "fullName": "Sara Ali", "username": "sara" },
+  "startedAt": "…", "deadlineAt": "…", "serverNow": "…",
+  "strikes": 0, "furthestIndex": 0, "questionCount": 20,
+  "questions": [{ "index": 0, "id": "…", "type": "SINGLE_CHOICE", "text": "…", "imageUrl": null,
+                  "points": 1, "options": [{ "id": "…", "text": "…" }] }],
+  "answers": { "<questionId>": ["<optionId>"] }
+}
+```
+Never the answer key. Without back navigation, questions before `furthestIndex` are not sent at all.
+
+**Time.** `deadlineAt` = start + duration, but never after the window closes. The timer never pauses.
+Saves are accepted until 5 s after the deadline; after that the attempt is submitted automatically
+(`AUTO_SUBMITTED`, reason `time`) by the next request touching it or by the sweeper (every 15 s).
+Show the time as `deadlineAt − (Date.now() + (serverNow − local time when received))`.
+
+**Grading** is all or nothing per question: full points only for exactly the correct options.
+
+**Events.** `type` is one of `FULLSCREEN_EXIT`, `TAB_HIDDEN`, `WINDOW_BLUR`, `RESIZE` (strikes) or
+`CLIPBOARD`, `CONTEXT_MENU`, `BLOCKED_SHORTCUT`, `DEVTOOLS` (logged only). Strike signals within 3 s
+count once (one Alt+Tab fires several). `action`: `WARN` (a new strike: show the warning), `LOGGED`,
+`AUTO_SUBMITTED` (the limit was reached: the exam is over) or `ENDED` (it already was). More than 60
+events a minute per attempt are dropped. A heartbeat gap over 30 s is logged once as `HEARTBEAT_MISSED`
+(not a strike).
 
 ---
 

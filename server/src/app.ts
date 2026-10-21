@@ -8,6 +8,7 @@ import { AppError, createErrorHandler } from "./core/errors.js";
 import { createHttpLogger } from "./core/logger.js";
 import { publicHandler, type ApiRouter } from "./core/route.js";
 import { adminRoutes, auditRoutes } from "./modules/admin/routes.js";
+import { attemptsRoutes } from "./modules/attempts/routes.js";
 import { assignmentsRoutes, overridesRoutes, studentRoutes } from "./modules/assignments/routes.js";
 import { authRoutes, sessionLoader } from "./modules/auth/routes.js";
 import { catalogRoutes } from "./modules/catalog/routes.js";
@@ -29,6 +30,7 @@ function modules(deps: AppDeps): [string, ApiRouter][] {
     ["/assignments", assignmentsRoutes(deps)],
     ["/overrides", overridesRoutes(deps)],
     ["/student", studentRoutes(deps)],
+    ["/attempts", attemptsRoutes(deps)],
     ["/admin", adminRoutes(deps)],
     ["/audit", auditRoutes(deps)],
   ];

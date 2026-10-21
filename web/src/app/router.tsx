@@ -18,6 +18,9 @@ import { Dashboard } from "../features/dashboard/Dashboard";
 import { InstructorDetail, InstructorsList } from "../features/grants/Instructors";
 import { GroupDetail } from "../features/groups/GroupDetail";
 import { GroupsList } from "../features/groups/GroupsList";
+import { ExamDone } from "../features/session/ExamDone";
+import { ExamSession } from "../features/session/ExamSession";
+import { ExamBrief } from "../features/student/ExamBrief";
 import { StudentHome } from "../features/student/StudentHome";
 import { ImportUsers } from "../features/users/ImportUsers";
 import { NewUser } from "../features/users/NewUser";
@@ -87,9 +90,21 @@ export const router = createBrowserRouter([
           {
             path: "student",
             element: <RequireRole roles={["STUDENT"]} />,
-            children: [{ index: true, element: <StudentHome /> }],
+            children: [
+              { index: true, element: <StudentHome /> },
+              { path: "exams/:id", element: <ExamBrief /> },
+            ],
           },
           { path: "*", element: <NotFound /> },
+        ],
+      },
+      // The exam itself runs outside the layout: no sidebar, no links out.
+      {
+        path: "exam/:attemptId",
+        element: <RequireRole roles={["STUDENT"]} />,
+        children: [
+          { index: true, element: <ExamSession /> },
+          { path: "done", element: <ExamDone /> },
         ],
       },
     ],

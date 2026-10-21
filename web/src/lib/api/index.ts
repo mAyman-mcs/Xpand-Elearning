@@ -2,6 +2,13 @@
 // TanStack Query hooks; nothing else calls fetch.
 import type {
   AdminStats,
+  AttemptOutcome,
+  AttemptStatus,
+  EventResult,
+  HeartbeatResult,
+  StudentAttempt,
+  StudentExamBrief,
+  StudentExamRow,
   Assignment,
   AuditEntry,
   AvailabilityRow,
@@ -215,6 +222,26 @@ export const api = {
     list: (filter: AuditFilter, cursor?: string) =>
       http.get<Page<AuditEntry>>("/audit", { ...filter, cursor, limit: 50 }),
     actions: () => http.get<string[]>("/audit/actions"),
+  },
+  student: {
+    exams: () => http.get<StudentExamRow[]>("/student/exams"),
+    exam: (id: string) => http.get<StudentExamBrief>(`/student/exams/${id}`),
+  },
+  attempts: {
+    start: (examId: string) => http.post<StudentAttempt>("/attempts", { examId }),
+    get: (id: string) => http.get<StudentAttempt>(`/attempts/${id}`),
+    outcome: (id: string) => http.get<AttemptOutcome>(`/attempts/${id}/outcome`),
+    save: (id: string, questionId: string, selectedOptionIds: string[]) =>
+      http.put<{ questionId: string; savedAt: string }>(`/attempts/${id}/answers/${questionId}`, {
+        selectedOptionIds,
+      }),
+    moveTo: (id: string, index: number) => http.post<{ furthestIndex: number }>(`/attempts/${id}/position`, { index }),
+    event: (
+      id: string,
+      input: { type: string; detail?: Record<string, string | number | boolean>; clientTime: string },
+    ) => http.post<EventResult>(`/attempts/${id}/events`, input),
+    heartbeat: (id: string) => http.post<HeartbeatResult>(`/attempts/${id}/heartbeat`),
+    submit: (id: string) => http.post<{ status: AttemptStatus; submittedAt: string | null }>(`/attempts/${id}/submit`),
   },
   overrides: {
     list: (examId: string, includeEnded: boolean) => http.get<Override[]>("/overrides", { examId, includeEnded }),

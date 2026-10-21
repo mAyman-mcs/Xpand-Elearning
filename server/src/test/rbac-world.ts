@@ -75,7 +75,7 @@ export async function seedWorld(db: Db, now = new Date()) {
     tagIds: [tagCore.id],
     studentsWhoSubmitted: true,
   });
-  await db.attempt.create({ data: { examId: e1.id, userId: studentB.id, status: "SUBMITTED" } });
+  const attemptE1B = await db.attempt.create({ data: { examId: e1.id, userId: studentB.id, status: "SUBMITTED" } });
 
   // E1 → group A (fixed window, open now) and E3 → group B; an OPEN override on E1 for group A.
   const assignmentE1A = await db.assignment.create({
@@ -113,6 +113,7 @@ export async function seedWorld(db: Db, now = new Date()) {
 
   return {
     users,
+    attemptE1B,
     questionE3,
     materialE3,
     studentB,

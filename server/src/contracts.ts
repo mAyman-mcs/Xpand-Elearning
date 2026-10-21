@@ -231,6 +231,97 @@ export interface StudentExamRow {
   opensAt: string | null;
   closesAt: string | null;
   reason: string;
+  /** Only once staff have released this exam's results. */
+  result: { score: number; maxScore: number } | null;
+}
+
+// ─────────────────────────────── Exam session (students) ───────────────────────────────
+
+export type AttemptStatus = "IN_PROGRESS" | "SUBMITTED" | "AUTO_SUBMITTED" | "FORCE_SUBMITTED" | "VOIDED";
+
+/** The pre-check page of one exam. */
+export interface StudentExamBrief {
+  exam: {
+    id: string;
+    code: string;
+    title: string;
+    durationMinutes: number;
+    questionCount: number;
+    strikeLimit: number;
+    requireFullscreen: boolean;
+    allowBackNavigation: boolean;
+    isExternal: boolean;
+    materials: { title: string; url: string }[];
+  };
+  status: AvailabilityStatus;
+  progress: Progress;
+  opensAt: string | null;
+  closesAt: string | null;
+  reason: string;
+  inProgressAttemptId: string | null;
+}
+
+/** A question as a student receives it: never the answer key. */
+export interface StudentQuestion {
+  /** Position in this attempt (0-based); without back navigation, earlier ones aren't sent. */
+  index: number;
+  id: string;
+  type: QuestionType;
+  text: string;
+  imageUrl: string | null;
+  points: number;
+  options: { id: string; text: string }[];
+}
+
+export interface StudentAttempt {
+  attemptId: string;
+  status: AttemptStatus;
+  exam: {
+    id: string;
+    code: string;
+    title: string;
+    allowBackNavigation: boolean;
+    requireFullscreen: boolean;
+    strikeLimit: number;
+  };
+  /** For the watermark. */
+  student: { fullName: string; username: string };
+  startedAt: string;
+  /** The server's deadline; the browser timer only displays it. */
+  deadlineAt: string | null;
+  /** The server's clock when answering, to correct the browser's clock. */
+  serverNow: string;
+  strikes: number;
+  furthestIndex: number;
+  questionCount: number;
+  questions: StudentQuestion[];
+  /** questionId → selected option ids, as saved on the server. */
+  answers: Record<string, string[]>;
+}
+
+export interface AttemptOutcome {
+  attemptId: string;
+  examTitle: string;
+  status: AttemptStatus;
+  submittedAt: string | null;
+  submitReason: string | null;
+  result: { score: number; maxScore: number } | null;
+}
+
+export interface EventResult {
+  strikes: number;
+  strikeLimit: number;
+  /** WARN: a strike (show the warning); AUTO_SUBMITTED: the limit was reached; LOGGED: recorded only; ENDED: the attempt is over. */
+  action: "WARN" | "AUTO_SUBMITTED" | "LOGGED" | "ENDED";
+  status: AttemptStatus;
+}
+
+export interface HeartbeatResult {
+  active: boolean;
+  status: AttemptStatus;
+  deadlineAt: string | null;
+  serverNow: string;
+  strikes: number;
 }
 
 // ─────────────────────────────── Admin ───────────────────────────────

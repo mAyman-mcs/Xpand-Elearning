@@ -394,6 +394,12 @@ model Attempt {
   deviceFingerprint String?
   lastHeartbeatAt   DateTime?
   strikes           Int           @default(0)
+  // The login session that started the attempt: only it may continue (one device; no "allow resume").
+  sessionId         String?       @db.Uuid
+  // Signals until this instant count as the same action (one Alt+Tab = one strike).
+  strikeMergedUntil DateTime?
+  // Without back navigation: questions before this index are closed.
+  furthestIndex     Int           @default(0)
   reviewStatus      ReviewStatus  @default(PENDING)
   reviewedById      String?       @db.Uuid
   reviewedAt        DateTime?
@@ -440,6 +446,8 @@ model Violation {
   type           ViolationType
   countsAsStrike Boolean       @default(true)
   detail         Json?
+  clientTime     DateTime?
+  ip             String?
   occurredAt     DateTime      @default(now())
 
   @@index([attemptId])

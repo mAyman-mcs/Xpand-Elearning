@@ -6,6 +6,8 @@ const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(8080),
   DATABASE_URL: z.string().min(1),
+  // Database connections per app container (Postgres allows 100 by default).
+  DB_POOL_MAX: z.coerce.number().int().min(2).max(90).default(20),
   TRUST_PROXY: z.coerce.number().int().min(0).default(0),
   COOKIE_SECURE: bool.default(true),
   SESSION_IDLE_MINUTES: z.coerce.number().int().positive().default(20),

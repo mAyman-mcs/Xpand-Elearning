@@ -34,4 +34,8 @@ export const qk = {
   availability: (examId: string) => ["availability", examId] as const,
   questions: (examId: string) => ["questions", examId] as const,
   materials: (examId: string) => ["materials", examId] as const,
+  studentExams: ["student", "exams"] as const,
+  studentExam: (id: string) => ["student", "exams", id] as const,
+  attempt: (id: string) => ["attempts", id] as const,
+  outcome: (id: string) => ["attempts", id, "outcome"] as const,
 };

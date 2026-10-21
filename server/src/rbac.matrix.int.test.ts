@@ -3,6 +3,7 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { apiRouteTable } from "./app.js";
 import { adminRows } from "./modules/admin/admin.matrix.js";
+import { attemptsRows } from "./modules/attempts/attempts.matrix.js";
 import { assignmentsRows } from "./modules/assignments/assignments.matrix.js";
 import { catalogRows } from "./modules/catalog/catalog.matrix.js";
 import { authAndRbacRows, groupsRows, usersRows } from "./modules/rbac/rbac.matrix.js";
@@ -17,6 +18,7 @@ const ROWS: MatrixRow[] = [
   ...catalogRows,
   ...assignmentsRows,
   ...adminRows,
+  ...attemptsRows,
 ];
 
 const { app, db, deps } = createTestApp();

@@ -29,6 +29,22 @@ export async function studentExams(ctx: Ctx) {
     [student],
   );
 
+  // Scores only for exams whose results staff have released (RES-3); the latest finished attempt counts.
+  const graded = await ctx.db.attempt.findMany({
+    where: {
+      userId,
+      examId: { in: exams.filter((e) => e.resultsReleased).map((e) => e.id) },
+      status: { in: ["SUBMITTED", "AUTO_SUBMITTED", "FORCE_SUBMITTED"] },
+      score: { not: null },
+    },
+    orderBy: { attemptNo: "desc" },
+    select: { examId: true, score: true, maxScore: true },
+  });
+  const resultOf = (examId: string) => {
+    const a = graded.find((g) => g.examId === examId);
+    return a?.score && a.maxScore ? { score: a.score.toNumber(), maxScore: a.maxScore.toNumber() } : null;
+  };
+
   return exams.map((exam) => {
     const availability = resolveAvailability({ exam, student, now: ctx.now, ...rulesFor(rules, exam.id, userId) });
     return {
@@ -48,6 +64,7 @@ export async function studentExams(ctx: Ctx) {
       opensAt: availability.opensAt,
       closesAt: availability.closesAt,
       reason: availability.reason,
+      result: resultOf(exam.id),
     };
   });
 }
