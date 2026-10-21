@@ -13,6 +13,7 @@
     "db:deploy": "prisma migrate deploy",
     "create-super-admin": "tsx --env-file=../.env scripts/create-super-admin.ts",
     "import-users": "tsx --env-file=../.env scripts/import-users.ts",
+    "seed-demo": "tsx --env-file=../.env scripts/seed-demo.ts",
     "test:int": "vitest run --project integration",
     "test:coverage": "vitest run --coverage"
   },
