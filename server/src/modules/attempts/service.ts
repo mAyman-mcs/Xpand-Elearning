@@ -7,6 +7,7 @@ import { AppError, notFound } from "../../core/errors.js";
 import { uuid } from "../../core/schemas.js";
 import type { Attempt, AttemptStatus, Prisma, ViolationType } from "../../generated/prisma/client.js";
 import { resolveAvailability } from "../assignments/availability.js";
+import { ESSAY_MAX_CHARS, isChoice } from "../catalog/exam-types.js";
 import { loadExamRules, loadStudents, rulesFor } from "../assignments/inputs.js";
 import {
   acceptsAnswers,
@@ -28,7 +29,12 @@ const cryptoRandom = () => randomInt(0, 2 ** 32) / 2 ** 32;
 // ─────────────────────────────── Schemas ───────────────────────────────
 
 export const startBody = z.object({ examId: uuid });
-export const answerBody = z.object({ selectedOptionIds: z.array(uuid).max(10) });
+/** Choice questions send the selected options; essays send their text (docs/EXAM_TYPES_PLAN.md T6). */
+export const answerBody = z.union([
+  z.strictObject({ selectedOptionIds: z.array(uuid).max(10) }),
+  z.strictObject({ text: z.string().max(ESSAY_MAX_CHARS, `At most ${ESSAY_MAX_CHARS} characters.`) }),
+]);
+export type AnswerInput = z.infer<typeof answerBody>;
 export const positionBody = z.object({ index: z.number().int().min(0).max(500) });
 export const eventBody = z.object({
   type: z.enum(CLIENT_EVENT_TYPES),
@@ -52,6 +58,7 @@ const examFields = {
   allowBackNavigation: true,
   shuffleQuestions: true,
   shuffleOptions: true,
+  scoringMode: true,
 } as const;
 
 /** The student's availability for one exam, by the same resolver as their exam list. */
@@ -76,14 +83,17 @@ async function loadOwn(ctx: Ctx, attemptId: string): Promise<Attempt> {
   return attempt;
 }
 
-const order = (a: Pick<Attempt, "questionOrder">) => (a.questionOrder ?? []) as string[];
-const optionOrder = (a: Pick<Attempt, "optionOrder">) => (a.optionOrder ?? {}) as Record<string, string[]>;
+export const order = (a: Pick<Attempt, "questionOrder">) => (a.questionOrder ?? []) as string[];
+export const optionOrder = (a: Pick<Attempt, "optionOrder">) => (a.optionOrder ?? {}) as Record<string, string[]>;
 
 // ─────────────────────────────── Finalizing ───────────────────────────────
 
 /**
  * Ends an in-progress attempt and grades it, in the caller's transaction. Compare-and-set: of
  * several racing finishers (submit, deadline, strike limit) exactly one wins; the rest see false.
+ *
+ * Choice questions are always graded here (each answer keeps its autoPoints). An AUTO exam gets its
+ * score now; a MANUAL_APPROVAL exam keeps score null until a grader approves it (grading module).
  */
 export async function finalize(
   tx: Prisma.TransactionClient,
@@ -99,18 +109,34 @@ export async function finalize(
   });
   if (done.count === 0) return false;
 
-  const attempt = await tx.attempt.findUniqueOrThrow({ where: { id: attemptId } });
+  const attempt = await tx.attempt.findUniqueOrThrow({
+    where: { id: attemptId },
+    include: { exam: { select: { scoringMode: true } } },
+  });
   const ids = order(attempt);
   const questions = await tx.question.findMany({
     where: { id: { in: ids } },
     include: { options: { where: { isCorrect: true } } },
   });
   const answers = await tx.attemptAnswer.findMany({ where: { attemptId } });
-  const result = grade(
-    questions.map((q) => ({ id: q.id, points: q.points.toNumber(), correctOptionIds: q.options.map((o) => o.id) })),
+  const choices = grade(
+    questions
+      .filter((q) => isChoice(q.type))
+      .map((q) => ({ id: q.id, points: q.points.toNumber(), correctOptionIds: q.options.map((o) => o.id) })),
     new Map(answers.map((a) => [a.questionId, a.selectedOptionIds])),
   );
-  await tx.attempt.update({ where: { id: attemptId }, data: { score: result.score, maxScore: result.maxScore } });
+  // Points per answered choice question, written in one update per distinct value.
+  const answered = new Set(answers.map((a) => a.questionId));
+  const byPoints = new Map<number, string[]>();
+  for (const q of choices.perQuestion)
+    if (answered.has(q.questionId)) byPoints.set(q.points, [...(byPoints.get(q.points) ?? []), q.questionId]);
+  for (const [autoPoints, questionIds] of byPoints)
+    await tx.attemptAnswer.updateMany({ where: { attemptId, questionId: { in: questionIds } }, data: { autoPoints } });
+
+  const maxScore = Math.round(questions.reduce((sum, q) => sum + q.points.toNumber(), 0) * 100) / 100;
+  const manual = attempt.exam.scoringMode === "MANUAL_APPROVAL";
+  const result = { score: manual ? null : choices.score, maxScore };
+  await tx.attempt.update({ where: { id: attemptId }, data: result });
   await audit(tx, {
     action: "attempts.submitted",
     actorId,
@@ -123,6 +149,7 @@ export async function finalize(
       reason,
       score: result.score,
       maxScore: result.maxScore,
+      ...(manual ? { awaitingGrading: true } : {}),
     },
   });
   return true;
@@ -258,7 +285,8 @@ async function studentView(ctx: Ctx, attempt: Attempt) {
         },
       ];
     }),
-    answers: Object.fromEntries(answers.map((a) => [a.questionId, a.selectedOptionIds])),
+    answers: Object.fromEntries(answers.filter((a) => a.text === null).map((a) => [a.questionId, a.selectedOptionIds])),
+    essays: Object.fromEntries(answers.flatMap((a) => (a.text === null ? [] : [[a.questionId, a.text] as const]))),
   };
 }
 export type StudentAttemptView = Awaited<ReturnType<typeof studentView>>;
@@ -381,15 +409,17 @@ export async function attemptOutcome(ctx: Ctx, attemptId: string) {
   const attempt = await finalizeIfOverdue(ctx.db, await loadOwn(ctx, attemptId), ctx.now);
   const exam = await ctx.db.exam.findUniqueOrThrow({
     where: { id: attempt.examId },
-    select: { title: true, resultsReleased: true },
+    select: { title: true, resultsReleased: true, scoringMode: true },
   });
-  const released = exam.resultsReleased && attempt.status !== "IN_PROGRESS" && attempt.status !== "VOIDED";
+  const finished = attempt.status !== "IN_PROGRESS" && attempt.status !== "VOIDED";
+  const released = exam.resultsReleased && finished;
   return {
     attemptId: attempt.id,
     examTitle: exam.title,
     status: attempt.status,
     submittedAt: attempt.submittedAt,
     submitReason: attempt.submitReason,
+    awaitingGrading: finished && exam.scoringMode === "MANUAL_APPROVAL" && attempt.reviewStatus !== "REVIEWED",
     result:
       released && attempt.score && attempt.maxScore
         ? { score: attempt.score.toNumber(), maxScore: attempt.maxScore.toNumber() }
@@ -403,7 +433,7 @@ export async function saveAnswer(
   attemptId: string,
   questionId: string,
   sessionId: string,
-  selected: string[],
+  input: AnswerInput,
 ) {
   const attempt = await finalizeIfOverdue(ctx.db, await loadOwn(ctx, attemptId), ctx.now);
   if (attempt.status !== "IN_PROGRESS") throw new AppError("ATTEMPT_CLOSED", { message: "This attempt has ended." });
@@ -418,7 +448,21 @@ export async function saveAnswer(
   if (!exam.allowBackNavigation && index < attempt.furthestIndex)
     throw new AppError("QUESTION_CLOSED", { message: "You can't go back to earlier questions in this exam." });
   const question = await ctx.db.question.findUniqueOrThrow({ where: { id: questionId }, select: { type: true } });
-  if (!validSelection(question.type, optionOrder(attempt)[questionId] ?? [], selected))
+  // The answer's shape must match the question: text for essays, options for the rest.
+  const essay = question.type === "ESSAY";
+  if (essay !== "text" in input)
+    throw new AppError("VALIDATION_FAILED", {
+      details: [
+        essay
+          ? { path: "text", message: "Answer this essay question with text." }
+          : { path: "selectedOptionIds", message: "Answer this question by choosing options." },
+      ],
+    });
+  const answer =
+    "text" in input
+      ? { text: input.text, selectedOptionIds: [] }
+      : { text: null, selectedOptionIds: input.selectedOptionIds };
+  if (!validSelection(question.type, optionOrder(attempt)[questionId] ?? [], answer.selectedOptionIds))
     throw new AppError("VALIDATION_FAILED", {
       details: [{ path: "selectedOptionIds", message: "Not a valid choice." }],
     });
@@ -432,8 +476,8 @@ export async function saveAnswer(
       throw new AppError("ATTEMPT_CLOSED", { message: "This attempt has ended." });
     await tx.attemptAnswer.upsert({
       where: { attemptId_questionId: { attemptId, questionId } },
-      create: { attemptId, questionId, selectedOptionIds: selected, answeredAt: ctx.now },
-      update: { selectedOptionIds: selected, answeredAt: ctx.now },
+      create: { attemptId, questionId, ...answer, answeredAt: ctx.now },
+      update: { ...answer, answeredAt: ctx.now },
     });
     if (!exam.allowBackNavigation && index > attempt.furthestIndex)
       await tx.attempt.update({ where: { id: attemptId }, data: { furthestIndex: index } });

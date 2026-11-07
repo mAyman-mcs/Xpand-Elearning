@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { changeType, NEW_QUESTION, questionProblems } from "./questions";
+import { changeType, NEW_QUESTION, questionProblems, questionTypesFor } from "./questions";
 
 const filled = {
   ...NEW_QUESTION,
@@ -43,5 +43,23 @@ describe("changeType", () => {
 
   it("multiple choice keeps everything", () => {
     expect(changeType(filled, "MULTI_CHOICE").options).toEqual(filled.options);
+  });
+});
+
+describe("essay questions", () => {
+  it("have no options, and switching back to a choice type starts from blank options", () => {
+    const essay = changeType(filled, "ESSAY");
+    expect(essay.options).toEqual([]);
+    expect(questionProblems(essay)).toEqual([]);
+    expect(questionProblems({ ...essay, options: filled.options })).toEqual(["Essay questions have no options."]);
+
+    const back = changeType({ ...essay, guidance: "notes" }, "SINGLE_CHOICE");
+    expect(back.guidance).toBeNull();
+    expect(back.options).toHaveLength(NEW_QUESTION.options.length);
+  });
+
+  it("are offered only in MCQ + essay exams", () => {
+    expect(questionTypesFor("MCQ")).not.toContain("ESSAY");
+    expect(questionTypesFor("MCQ_ESSAY")).toContain("ESSAY");
   });
 });

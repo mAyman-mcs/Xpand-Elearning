@@ -72,3 +72,56 @@ describe("autosave", () => {
     expect(save).toHaveBeenCalledWith("q2", ["b", "c"]);
   });
 });
+
+describe("typing (essays)", () => {
+  const textSaver = (sent: [string, string][]) =>
+    new AnswerSaver<{ text: string }>({
+      save: (q, v) => {
+        sent.push([q, v.text]);
+        return Promise.resolve();
+      },
+      onState: () => undefined,
+      onStop: vi.fn(),
+      wait: () => Promise.resolve(),
+    });
+
+  it("sends one save per pause in typing", async () => {
+    vi.useFakeTimers();
+    try {
+      const sent: [string, string][] = [];
+      const saver = textSaver(sent);
+      saver.setLater("e1", { text: "T" }, 1500);
+      saver.setLater("e1", { text: "TL" }, 1500);
+      saver.setLater("e1", { text: "TLS" }, 1500);
+      vi.advanceTimersByTime(1499);
+      expect(sent).toEqual([]);
+      vi.advanceTimersByTime(1);
+      await vi.runAllTimersAsync();
+      expect(sent).toEqual([["e1", "TLS"]]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("flush sends typing that hasn't been sent yet (submit, time up)", async () => {
+    const sent: [string, string][] = [];
+    const saver = textSaver(sent);
+    saver.setLater("e1", { text: "draft" }, 60_000);
+    await saver.flush();
+    expect(sent).toEqual([["e1", "draft"]]);
+  });
+
+  it("a direct save replaces waiting typing; stop drops it", async () => {
+    const sent: [string, string][] = [];
+    const saver = textSaver(sent);
+    saver.setLater("e1", { text: "old" }, 60_000);
+    saver.set("e1", { text: "new" });
+    await saver.flush();
+    expect(sent).toEqual([["e1", "new"]]);
+
+    saver.setLater("e2", { text: "never" }, 60_000);
+    saver.stop();
+    await saver.flush();
+    expect(sent).toEqual([["e1", "new"]]);
+  });
+});

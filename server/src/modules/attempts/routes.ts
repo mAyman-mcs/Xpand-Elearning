@@ -48,8 +48,7 @@ export function attemptsRoutes(deps: AppDeps): ApiRouter {
     access: student,
     params: answerParams,
     body: answerBody,
-    handler: (ctx, { params, body }) =>
-      saveAnswer(ctx, params.id, params.questionId, sessionOf(ctx), body.selectedOptionIds),
+    handler: (ctx, { params, body }) => saveAnswer(ctx, params.id, params.questionId, sessionOf(ctx), body),
   });
   api.post("/:id/position", {
     access: student,

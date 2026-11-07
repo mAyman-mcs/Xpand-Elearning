@@ -117,8 +117,23 @@ describe("questionProblems", () => {
   });
 });
 
+describe("essay questions", () => {
+  const essay = (over: Partial<QuestionShape> = {}) => q({ type: "ESSAY", options: [], ...over });
+
+  it("need text and points, and no options", () => {
+    expect(questionProblems(essay())).toEqual([]);
+    expect(questionProblems(essay({ text: " ", points: 0 }))).toEqual([
+      "The question has no text.",
+      "Points must be more than 0.",
+    ]);
+    expect(questionProblems(essay({ options: [{ text: "x", isCorrect: true }] }))).toEqual([
+      "Essay questions have no options.",
+    ]);
+  });
+});
+
 describe("publishProblems", () => {
-  const exam = { isExternal: false, questionsPerAttempt: null };
+  const exam = { isExternal: false, questionsPerAttempt: null, type: "MCQ" as const };
 
   it("needs at least one valid question", () => {
     expect(publishProblems(exam, [])).toEqual(["Add at least one question."]);
@@ -134,5 +149,20 @@ describe("publishProblems", () => {
     expect(publishProblems({ ...exam, questionsPerAttempt: 5 }, [q({})])).toEqual([
       "“Questions per attempt” must be empty until question pools arrive.",
     ]);
+  });
+
+  it("refuses essays in an MCQ exam", () => {
+    expect(publishProblems(exam, [q({ type: "ESSAY", options: [] })])).toEqual([
+      "Question 1: Essay questions need the “Multiple choice + essay” exam type.",
+    ]);
+  });
+
+  it("needs at least one essay in an MCQ + essay exam (T2)", () => {
+    const essayExam = { ...exam, type: "MCQ_ESSAY" as const };
+    expect(publishProblems(essayExam, [q({})])).toEqual([
+      "Add at least one essay question, or change the exam type to “Multiple choice only”.",
+    ]);
+    expect(publishProblems(essayExam, [q({}), q({ type: "ESSAY", options: [] })])).toEqual([]);
+    expect(publishProblems(essayExam, [q({ type: "ESSAY", options: [] })])).toEqual([]);
   });
 });

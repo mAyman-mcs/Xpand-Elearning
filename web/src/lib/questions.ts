@@ -1,4 +1,4 @@
-import type { QuestionType } from "@contracts";
+import type { ExamType, QuestionType } from "@contracts";
 import type { QuestionInput } from "./api";
 
 // The server's question rules (catalog/content.service.ts questionProblems), for instant feedback
@@ -8,13 +8,24 @@ export const QUESTION_TYPE_LABEL: Record<QuestionType, string> = {
   SINGLE_CHOICE: "Single choice",
   MULTI_CHOICE: "Multiple choice",
   TRUE_FALSE: "True / false",
+  ESSAY: "Essay",
 };
+
+/** The question types an exam of this type may contain. */
+export const questionTypesFor = (examType: ExamType): QuestionType[] =>
+  examType === "MCQ_ESSAY"
+    ? ["SINGLE_CHOICE", "MULTI_CHOICE", "TRUE_FALSE", "ESSAY"]
+    : ["SINGLE_CHOICE", "MULTI_CHOICE", "TRUE_FALSE"];
 
 export function questionProblems(q: Pick<QuestionInput, "type" | "text" | "points" | "options">): string[] {
   const problems: string[] = [];
   const correct = q.options.filter((o) => o.isCorrect).length;
   if (!q.text.trim()) problems.push("The question has no text.");
   if (!(q.points > 0)) problems.push("Points must be more than 0.");
+  if (q.type === "ESSAY") {
+    if (q.options.length) problems.push("Essay questions have no options.");
+    return problems;
+  }
   if (q.options.some((o) => !o.text.trim())) problems.push("An option has no text.");
   if (q.type === "TRUE_FALSE") {
     if (q.options.length !== 2) problems.push("True/false questions have exactly 2 options.");
@@ -29,6 +40,9 @@ export function questionProblems(q: Pick<QuestionInput, "type" | "text" | "point
 
 /** Switching type keeps what still fits: true/false gets its two fixed options; single keeps one correct. */
 export function changeType(q: QuestionInput, type: QuestionType): QuestionInput {
+  if (type === "ESSAY") return { ...q, type, options: [] };
+  // From an essay: start again from blank options (and drop the grader guidance).
+  if (q.type === "ESSAY") q = { ...q, guidance: null, options: NEW_QUESTION.options };
   if (type === "TRUE_FALSE") {
     const trueCorrect = q.type === "TRUE_FALSE" ? (q.options[0]?.isCorrect ?? true) : true;
     return {
@@ -52,6 +66,7 @@ export const NEW_QUESTION: QuestionInput = {
   text: "",
   imageUrl: null,
   points: 1,
+  guidance: null,
   options: [
     { text: "", isCorrect: true },
     { text: "", isCorrect: false },

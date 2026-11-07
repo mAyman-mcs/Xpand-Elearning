@@ -6,6 +6,7 @@ import { adminRows } from "./modules/admin/admin.matrix.js";
 import { attemptsRows } from "./modules/attempts/attempts.matrix.js";
 import { assignmentsRows } from "./modules/assignments/assignments.matrix.js";
 import { catalogRows } from "./modules/catalog/catalog.matrix.js";
+import { gradingRows } from "./modules/grading/grading.matrix.js";
 import { authAndRbacRows, groupsRows, usersRows } from "./modules/rbac/rbac.matrix.js";
 import { createTestApp, resetDb } from "./test/app.js";
 import { runCell, type MatrixRow } from "./test/matrix.js";
@@ -19,6 +20,7 @@ const ROWS: MatrixRow[] = [
   ...assignmentsRows,
   ...adminRows,
   ...attemptsRows,
+  ...gradingRows,
 ];
 
 const { app, db, deps } = createTestApp();

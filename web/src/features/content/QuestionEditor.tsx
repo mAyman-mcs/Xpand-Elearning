@@ -1,14 +1,16 @@
-import type { QuestionType, StaffQuestion } from "@contracts";
+import type { ExamType, QuestionType, StaffQuestion } from "@contracts";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { Dialog } from "../../components/Dialog";
 import { FormError, SelectInput, TextArea, TextInput } from "../../components/form";
 import { Button, cx } from "../../components/ui";
 import { api, errorMessage, type QuestionInput } from "../../lib/api";
-import { changeType, NEW_QUESTION, QUESTION_TYPE_LABEL, questionProblems } from "../../lib/questions";
+import { changeType, NEW_QUESTION, QUESTION_TYPE_LABEL, questionProblems, questionTypesFor } from "../../lib/questions";
 
 interface Props {
   examId: string;
+  /** Essays are offered only in MCQ + essay exams. */
+  examType: ExamType;
   /** Editing an existing question; adding when absent. */
   question?: StaffQuestion;
   /** Students have taken the exam: wording only. */
@@ -22,10 +24,11 @@ const fromQuestion = (q: StaffQuestion): QuestionInput => ({
   text: q.text,
   imageUrl: q.imageUrl,
   points: q.points,
+  guidance: q.guidance,
   options: q.options.map((o) => ({ id: o.id, text: o.text, isCorrect: o.isCorrect })),
 });
 
-export function QuestionEditor({ examId, question, locked, onClose, onSaved }: Props) {
+export function QuestionEditor({ examId, examType, question, locked, onClose, onSaved }: Props) {
   const [draft, setDraft] = useState<QuestionInput>(() => (question ? fromQuestion(question) : NEW_QUESTION));
   const set = (patch: Partial<QuestionInput>) => setDraft((d) => ({ ...d, ...patch }));
   const setOption = (i: number, patch: Partial<QuestionInput["options"][number]>) =>
@@ -46,7 +49,11 @@ export function QuestionEditor({ examId, question, locked, onClose, onSaved }: P
     draft.imageUrl && !/^https:\/\/\S+$/.test(draft.imageUrl) ? "The image link must start with https://" : null;
   const save = useMutation({
     mutationFn: () => {
-      const body = { ...draft, imageUrl: draft.imageUrl?.trim() || null };
+      const body = {
+        ...draft,
+        imageUrl: draft.imageUrl?.trim() || null,
+        guidance: draft.type === "ESSAY" ? draft.guidance?.trim() || null : null,
+      };
       // New options carry no id; the server replaces the option list as a whole (or, locked, rewords by id).
       return question ? api.questions.update(question.id, body) : api.questions.create(examId, body);
     },
@@ -56,7 +63,11 @@ export function QuestionEditor({ examId, question, locked, onClose, onSaved }: P
     },
   });
 
+  const essay = draft.type === "ESSAY";
   const fixedOptions = draft.type === "TRUE_FALSE" || locked;
+  const types = questionTypesFor(examType);
+  // An existing question keeps its own type in the list (e.g. after the exam type changed).
+  if (!types.includes(draft.type)) types.push(draft.type);
   const inputType = draft.type === "MULTI_CHOICE" ? "checkbox" : "radio";
 
   return (
@@ -86,7 +97,7 @@ export function QuestionEditor({ examId, question, locked, onClose, onSaved }: P
           disabled={locked}
           onChange={(e) => setDraft(changeType(draft, e.target.value as QuestionType))}
         >
-          {(Object.keys(QUESTION_TYPE_LABEL) as QuestionType[]).map((t) => (
+          {types.map((t) => (
             <option key={t} value={t}>
               {QUESTION_TYPE_LABEL[t]}
             </option>
@@ -113,60 +124,71 @@ export function QuestionEditor({ examId, question, locked, onClose, onSaved }: P
         onChange={(e) => set({ imageUrl: e.target.value || null })}
       />
 
-      <fieldset>
-        <legend className="mb-2 text-sm font-bold text-slate-800">
-          Options{" "}
-          <span className="font-normal text-slate-600">
-            — mark the correct {draft.type === "MULTI_CHOICE" ? "ones" : "one"}
-          </span>
-        </legend>
-        <ul className="space-y-2">
-          {draft.options.map((o, i) => (
-            <li key={i} className="flex items-center gap-2">
-              <input
-                type={inputType}
-                name="correct"
-                checked={o.isCorrect}
-                disabled={locked}
-                onChange={() => markCorrect(i)}
-                aria-label={`Option ${i + 1} is correct`}
-                className="h-4 w-4 accent-emerald-600"
-              />
-              <input
-                value={o.text}
-                readOnly={draft.type === "TRUE_FALSE"}
-                onChange={(e) => setOption(i, { text: e.target.value })}
-                aria-label={`Option ${i + 1}`}
-                placeholder={`Option ${i + 1}`}
-                className={cx(
-                  "flex-1 rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-500",
-                  o.isCorrect ? "border-emerald-400 bg-emerald-50" : "border-slate-300",
+      {essay ? (
+        <TextArea
+          label="Guidance for graders (optional)"
+          hint="A model answer or what to look for. Students never see this."
+          rows={4}
+          maxLength={5000}
+          value={draft.guidance ?? ""}
+          onChange={(e) => set({ guidance: e.target.value || null })}
+        />
+      ) : (
+        <fieldset>
+          <legend className="mb-2 text-sm font-bold text-slate-800">
+            Options{" "}
+            <span className="font-normal text-slate-600">
+              — mark the correct {draft.type === "MULTI_CHOICE" ? "ones" : "one"}
+            </span>
+          </legend>
+          <ul className="space-y-2">
+            {draft.options.map((o, i) => (
+              <li key={i} className="flex items-center gap-2">
+                <input
+                  type={inputType}
+                  name="correct"
+                  checked={o.isCorrect}
+                  disabled={locked}
+                  onChange={() => markCorrect(i)}
+                  aria-label={`Option ${i + 1} is correct`}
+                  className="h-4 w-4 accent-emerald-600"
+                />
+                <input
+                  value={o.text}
+                  readOnly={draft.type === "TRUE_FALSE"}
+                  onChange={(e) => setOption(i, { text: e.target.value })}
+                  aria-label={`Option ${i + 1}`}
+                  placeholder={`Option ${i + 1}`}
+                  className={cx(
+                    "flex-1 rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-500",
+                    o.isCorrect ? "border-emerald-400 bg-emerald-50" : "border-slate-300",
+                  )}
+                />
+                {!fixedOptions && draft.options.length > 2 && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-label={`Remove option ${i + 1}`}
+                    onClick={() => set({ options: draft.options.filter((_, j) => j !== i) })}
+                  >
+                    ×
+                  </Button>
                 )}
-              />
-              {!fixedOptions && draft.options.length > 2 && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  aria-label={`Remove option ${i + 1}`}
-                  onClick={() => set({ options: draft.options.filter((_, j) => j !== i) })}
-                >
-                  ×
-                </Button>
-              )}
-            </li>
-          ))}
-        </ul>
-        {!fixedOptions && draft.options.length < 10 && (
-          <Button
-            size="sm"
-            variant="secondary"
-            className="mt-2"
-            onClick={() => set({ options: [...draft.options, { text: "", isCorrect: false }] })}
-          >
-            Add option
-          </Button>
-        )}
-      </fieldset>
+              </li>
+            ))}
+          </ul>
+          {!fixedOptions && draft.options.length < 10 && (
+            <Button
+              size="sm"
+              variant="secondary"
+              className="mt-2"
+              onClick={() => set({ options: [...draft.options, { text: "", isCorrect: false }] })}
+            >
+              Add option
+            </Button>
+          )}
+        </fieldset>
+      )}
 
       {problems.length > 0 && (
         <ul className="list-disc pl-5 text-sm text-amber-800" aria-live="polite">
@@ -181,6 +203,11 @@ export function QuestionEditor({ examId, question, locked, onClose, onSaved }: P
         <p className="mb-2 text-xs font-semibold text-slate-600 uppercase">What the student sees (answers hidden)</p>
         <p className="font-semibold whitespace-pre-wrap text-slate-800">{draft.text || "…"}</p>
         {draft.imageUrl && !imageProblem && <img src={draft.imageUrl} alt="" className="mt-2 max-h-40 rounded" />}
+        {essay && (
+          <div className="mt-2 h-20 rounded-lg border border-slate-300 bg-slate-50 p-2 text-sm text-slate-500">
+            The student types the answer here.
+          </div>
+        )}
         <ul className="mt-2 space-y-1">
           {draft.options.map((o, i) => (
             <li key={i} className="flex items-center gap-2 text-sm">

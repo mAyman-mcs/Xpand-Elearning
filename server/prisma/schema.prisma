@@ -207,31 +207,45 @@ enum ExamStatus {
   ARCHIVED
 }
 
+// What kinds of questions the exam may contain (docs/EXAM_TYPES_PLAN.md).
+enum ExamType {
+  MCQ // single choice, multi choice and true/false only
+  MCQ_ESSAY // may also contain ESSAY questions
+}
+
+// How a finished attempt gets its score. MCQ_ESSAY exams are always MANUAL_APPROVAL (CHECK constraint).
+enum ScoringMode {
+  AUTO // graded on submit
+  MANUAL_APPROVAL // graded by staff; the score is set when the attempt is approved
+}
+
 model Exam {
-  id                  String     @id @default(uuid()) @db.Uuid
-  code                String     @unique // e.g. "NET-FUND"
+  id                  String      @id @default(uuid()) @db.Uuid
+  code                String      @unique // e.g. "NET-FUND"
   title               String
-  categoryId          String     @db.Uuid
-  category            Category   @relation(fields: [categoryId], references: [id])
-  status              ExamStatus @default(DRAFT)
+  categoryId          String      @db.Uuid
+  category            Category    @relation(fields: [categoryId], references: [id])
+  status              ExamStatus  @default(DRAFT)
   durationMinutes     Int
-  passMark            Decimal    @default(80) @db.Decimal(5, 2) // percent
-  weight              Decimal    @default(15) @db.Decimal(5, 2) // share of the overall total
-  maxAttempts         Int        @default(1)
+  passMark            Decimal     @default(80) @db.Decimal(5, 2) // percent
+  weight              Decimal     @default(15) @db.Decimal(5, 2) // share of the overall total
+  maxAttempts         Int         @default(1)
   // Taken outside the platform (e.g. CTF): scores are entered manually, no online session.
-  isExternal          Boolean    @default(false)
-  allowBackNavigation Boolean    @default(true)
-  shuffleQuestions    Boolean    @default(true)
-  shuffleOptions      Boolean    @default(true)
+  isExternal          Boolean     @default(false)
+  allowBackNavigation Boolean     @default(true)
+  shuffleQuestions    Boolean     @default(true)
+  shuffleOptions      Boolean     @default(true)
   questionsPerAttempt Int? // null = all questions
-  strikeLimit         Int        @default(3) // violations before auto-submit
-  requireFullscreen   Boolean    @default(true)
-  requireSafeBrowser  Boolean    @default(false) // M2: Safe Exam Browser
+  strikeLimit         Int         @default(3) // violations before auto-submit
+  requireFullscreen   Boolean     @default(true)
+  requireSafeBrowser  Boolean     @default(false) // M2: Safe Exam Browser
   sebConfigKeyHash    String?
   accessCodeHash      String? // optional proctor PIN to start
-  resultsReleased     Boolean    @default(false)
-  createdAt           DateTime   @default(now())
-  updatedAt           DateTime   @updatedAt
+  resultsReleased     Boolean     @default(false)
+  type                ExamType    @default(MCQ)
+  scoringMode         ScoringMode @default(AUTO)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
 
   questions   Question[]
   materials   Material[]
@@ -248,6 +262,7 @@ enum QuestionType {
   SINGLE_CHOICE
   MULTI_CHOICE
   TRUE_FALSE
+  ESSAY // free text, no options; graded by staff (MCQ_ESSAY exams only)
 }
 
 model Question {
@@ -259,6 +274,8 @@ model Question {
   imageUrl String?
   points   Decimal      @default(1) @db.Decimal(6, 2)
   position Int
+  // ESSAY only: notes for graders (model answer, rubric). Staff only, never serialized to students.
+  guidance String?
 
   options Option[]
   answers AttemptAnswer[]
@@ -405,6 +422,8 @@ model Attempt {
   reviewedAt        DateTime?
   voidedById        String?       @db.Uuid
   voidReason        String?
+  // Optimistic locking for grading: incremented on every grading change (two graders can't overwrite).
+  gradingVersion    Int           @default(0)
   createdAt         DateTime      @default(now())
 
   answers    AttemptAnswer[]
@@ -412,15 +431,26 @@ model Attempt {
 
   @@unique([examId, userId, attemptNo])
   @@index([userId])
+  @@index([examId, reviewStatus])
 }
 
 model AttemptAnswer {
-  attemptId         String   @db.Uuid
-  questionId        String   @db.Uuid
-  attempt           Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
-  question          Question @relation(fields: [questionId], references: [id])
-  selectedOptionIds String[] @db.Uuid
-  answeredAt        DateTime @default(now())
+  attemptId         String    @db.Uuid
+  questionId        String    @db.Uuid
+  attempt           Attempt   @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question          Question  @relation(fields: [questionId], references: [id])
+  selectedOptionIds String[]  @default([]) @db.Uuid
+  // ESSAY answer (plain text, at most 10,000 characters).
+  text              String?
+  answeredAt        DateTime  @default(now())
+  // Choice questions: points computed on submit.
+  autoPoints        Decimal?  @db.Decimal(6, 2)
+  // Points given by a grader: essays, or an override of autoPoints (then overrideReason is set).
+  awardedPoints     Decimal?  @db.Decimal(6, 2)
+  overrideReason    String?
+  feedback          String?
+  gradedById        String?   @db.Uuid
+  gradedAt          DateTime?
 
   @@id([attemptId, questionId])
 }

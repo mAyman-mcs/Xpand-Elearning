@@ -12,6 +12,7 @@ import { attemptsRoutes } from "./modules/attempts/routes.js";
 import { assignmentsRoutes, overridesRoutes, studentRoutes } from "./modules/assignments/routes.js";
 import { authRoutes, sessionLoader } from "./modules/auth/routes.js";
 import { catalogRoutes } from "./modules/catalog/routes.js";
+import { gradingRoutes } from "./modules/grading/routes.js";
 import { groupsRoutes } from "./modules/groups/routes.js";
 import { healthRoutes } from "./modules/health/routes.js";
 import { meRoutes, rbacRoutes } from "./modules/rbac/routes.js";
@@ -31,6 +32,7 @@ function modules(deps: AppDeps): [string, ApiRouter][] {
     ["/overrides", overridesRoutes(deps)],
     ["/student", studentRoutes(deps)],
     ["/attempts", attemptsRoutes(deps)],
+    ["/grading", gradingRoutes(deps)],
     ["/admin", adminRoutes(deps)],
     ["/audit", auditRoutes(deps)],
   ];

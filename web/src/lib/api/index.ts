@@ -15,7 +15,10 @@ import type {
   Category,
   Exam,
   ExamStatus,
+  ExamType,
   Grant,
+  GradingAttempt,
+  GradingQueue,
   GrantScopeFields,
   Group,
   GroupDetail,
@@ -29,6 +32,8 @@ import type {
   QuestionImportResult,
   QuestionList,
   QuestionType,
+  ReviewStatus,
+  ScoringMode,
   StaffQuestion,
   Role,
   SessionUser,
@@ -75,6 +80,8 @@ export interface ExamSettings {
   questionsPerAttempt: number | null;
   strikeLimit: number;
   requireFullscreen: boolean;
+  type: ExamType;
+  scoringMode: ScoringMode;
 }
 export type ExamInput = ExamSettings & { code: string; tagIds: string[] };
 export type ExamPatch = Partial<ExamSettings> & { status?: ExamStatus };
@@ -96,7 +103,19 @@ export interface QuestionInput {
   text: string;
   imageUrl: string | null;
   points: number;
+  /** ESSAY only: notes for graders, never shown to students. */
+  guidance: string | null;
   options: { id?: string; text: string; isCorrect: boolean }[];
+}
+
+/** Choice questions send the selected options; essays send their text. */
+export type AnswerInput = { selectedOptionIds: string[] } | { text: string };
+
+export interface GradeInput {
+  questionId: string;
+  points: number;
+  feedback?: string | null;
+  reason?: string;
 }
 
 export interface UserListFilter {
@@ -231,10 +250,8 @@ export const api = {
     start: (examId: string) => http.post<StudentAttempt>("/attempts", { examId }),
     get: (id: string) => http.get<StudentAttempt>(`/attempts/${id}`),
     outcome: (id: string) => http.get<AttemptOutcome>(`/attempts/${id}/outcome`),
-    save: (id: string, questionId: string, selectedOptionIds: string[]) =>
-      http.put<{ questionId: string; savedAt: string }>(`/attempts/${id}/answers/${questionId}`, {
-        selectedOptionIds,
-      }),
+    save: (id: string, questionId: string, answer: AnswerInput) =>
+      http.put<{ questionId: string; savedAt: string }>(`/attempts/${id}/answers/${questionId}`, answer),
     moveTo: (id: string, index: number) => http.post<{ furthestIndex: number }>(`/attempts/${id}/position`, { index }),
     event: (
       id: string,
@@ -242,6 +259,17 @@ export const api = {
     ) => http.post<EventResult>(`/attempts/${id}/events`, input),
     heartbeat: (id: string) => http.post<HeartbeatResult>(`/attempts/${id}/heartbeat`),
     submit: (id: string) => http.post<{ status: AttemptStatus; submittedAt: string | null }>(`/attempts/${id}/submit`),
+  },
+  grading: {
+    queue: (examId: string, reviewStatus: ReviewStatus | "NOT_REVIEWED" | undefined, cursor?: string) =>
+      http.get<GradingQueue>(`/grading/exams/${examId}`, { reviewStatus, cursor, limit: 50 }),
+    get: (attemptId: string) => http.get<GradingAttempt>(`/grading/attempts/${attemptId}`),
+    save: (attemptId: string, version: number, grades: GradeInput[]) =>
+      http.put<GradingAttempt>(`/grading/attempts/${attemptId}/grades`, { version, grades }),
+    approve: (attemptId: string, version: number) =>
+      http.post<GradingAttempt>(`/grading/attempts/${attemptId}/approve`, { version }),
+    reopen: (attemptId: string, reason: string) =>
+      http.post<GradingAttempt>(`/grading/attempts/${attemptId}/reopen`, { reason }),
   },
   overrides: {
     list: (examId: string, includeEnded: boolean) => http.get<Override[]>("/overrides", { examId, includeEnded }),

@@ -37,11 +37,13 @@ type Key = Pick<KeyboardEvent, "key" | "ctrlKey" | "metaKey" | "shiftKey" | "alt
 
 /**
  * Keys blocked during the exam, and how they are reported: developer tools, copy/paste, print, save,
- * view source, select all, screenshots. Typing and navigation keys pass.
+ * view source, select all, screenshots. Typing and navigation keys pass. In an essay box (`editing`),
+ * select all only selects the student's own text, so it passes too; copy and paste stay blocked.
  */
-export function blockedShortcut(e: Key): ClientEvent | null {
+export function blockedShortcut(e: Key, editing = false): ClientEvent | null {
   const key = e.key.toLowerCase();
   const mod = e.ctrlKey || e.metaKey;
+  if (editing && mod && key === "a" && !e.shiftKey && !e.altKey) return null;
   if (key === "f12") return "DEVTOOLS";
   if (mod && (e.shiftKey || e.altKey) && ["i", "j", "c", "k"].includes(key)) return "DEVTOOLS";
   if (key === "printscreen") return "BLOCKED_SHORTCUT";

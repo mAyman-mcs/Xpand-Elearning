@@ -16,6 +16,8 @@ import { ChangePassword } from "../features/auth/ChangePassword";
 import { Login } from "../features/auth/Login";
 import { Dashboard } from "../features/dashboard/Dashboard";
 import { InstructorDetail, InstructorsList } from "../features/grants/Instructors";
+import { GradeAttempt } from "../features/grading/GradeAttempt";
+import { GradingQueue } from "../features/grading/GradingQueue";
 import { GroupDetail } from "../features/groups/GroupDetail";
 import { GroupsList } from "../features/groups/GroupsList";
 import { ExamDone } from "../features/session/ExamDone";
@@ -82,8 +84,10 @@ export const router = createBrowserRouter([
                   { path: "assignments", element: <ExamAssignments /> },
                   { path: "overrides", element: <ExamOverrides /> },
                   { path: "availability", element: <ExamAvailability /> },
+                  { path: "grading", element: <GradingQueue /> },
                 ],
               },
+              { path: "grading/:attemptId", element: <GradeAttempt /> },
               { path: "students/:id", element: <UserDetail mode="instructor" /> },
             ],
           },

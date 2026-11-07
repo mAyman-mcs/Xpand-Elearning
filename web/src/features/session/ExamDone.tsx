@@ -38,7 +38,11 @@ export function ExamDone() {
         </p>
       ) : (
         ended && (
-          <p className="mt-4 text-sm text-slate-600">Your result appears on your exams page once it is released.</p>
+          <p className="mt-4 text-sm text-slate-600">
+            {o.awaitingGrading
+              ? "Your score will be available after your answers are graded. It appears on your exams page once it is released."
+              : "Your result appears on your exams page once it is released."}
+          </p>
         )
       )}
       <Link to="/student" replace className="mt-6 inline-block text-sm font-semibold text-teal-700 hover:underline">

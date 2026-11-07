@@ -5,11 +5,12 @@ import { inTransaction, isUniqueViolation, type DbClient } from "../../core/db.j
 import { AppError, conflict, notFound } from "../../core/errors.js";
 import { pageArgs, toPage, type Page, type PageQuery } from "../../core/pagination.js";
 import { nonBlank, uuid, uuidList } from "../../core/schemas.js";
-import { ExamStatus, type Prisma } from "../../generated/prisma/client.js";
+import { ExamStatus, ExamType, ScoringMode, type Prisma } from "../../generated/prisma/client.js";
 import { authorize } from "../rbac/authorize.js";
 import { examWhere, reachOf } from "../rbac/scope.js";
 import { assertMayChangeAccessTags } from "./access-tags.js";
 import { assertPublishable } from "./content.service.js";
+import { defaultScoringMode, scoringProblem } from "./exam-types.js";
 
 // ─────────────────────────────── Schemas ───────────────────────────────
 
@@ -26,6 +27,8 @@ const settings = {
   questionsPerAttempt: z.number().int().min(1).max(500).nullable(),
   strikeLimit: z.number().int().min(1).max(20),
   requireFullscreen: z.boolean(),
+  type: z.enum(ExamType),
+  scoringMode: z.enum(ScoringMode),
 };
 
 export const createExamBody = z.object({
@@ -48,6 +51,9 @@ export const createExamBody = z.object({
   questionsPerAttempt: settings.questionsPerAttempt.default(null),
   strikeLimit: settings.strikeLimit.default(3),
   requireFullscreen: settings.requireFullscreen.default(true),
+  type: settings.type.default("MCQ"),
+  // Omitted: AUTO for MCQ, MANUAL_APPROVAL for MCQ_ESSAY (the only option there).
+  scoringMode: settings.scoringMode.optional(),
 });
 
 /** No defaults here: omitted fields keep their value (Zod's .partial() would keep defaults). */
@@ -94,6 +100,8 @@ export function examDto(e: ExamRow) {
     questionsPerAttempt: e.questionsPerAttempt,
     strikeLimit: e.strikeLimit,
     requireFullscreen: e.requireFullscreen,
+    type: e.type,
+    scoringMode: e.scoringMode,
     createdAt: e.createdAt,
     updatedAt: e.updatedAt,
   };
@@ -158,8 +166,19 @@ async function assertTagsExist(db: DbClient, tagIds: string[]) {
   }
 }
 
+/** Type and scoring mode as they will be stored; refuses an essay exam that would be auto scored. */
+function resolveScoring(type: ExamType, scoringMode: ScoringMode) {
+  const problem = scoringProblem(type, scoringMode);
+  if (problem) throw invalid("scoringMode", problem);
+  return { type, scoringMode };
+}
+
 export async function createExam(ctx: Ctx, input: z.infer<typeof createExamBody>): Promise<ExamDto> {
   const actor = actorOf(ctx);
+  // External exams (CTF) have no online questions: type and scoring don't apply (T15).
+  const scoring = input.isExternal
+    ? { type: "MCQ" as const, scoringMode: "AUTO" as const }
+    : resolveScoring(input.type, input.scoringMode ?? defaultScoringMode(input.type));
   try {
     return await inTransaction(ctx.db, async (tx) => {
       await assertUsableCategory(tx, input.categoryId);
@@ -167,7 +186,7 @@ export async function createExam(ctx: Ctx, input: z.infer<typeof createExamBody>
       await assertMayChangeAccessTags(tx, actor, input.tagIds);
       const { tagIds, ...fields } = input;
       const exam = await tx.exam.create({
-        data: { ...fields, tags: { create: tagIds.map((tagId) => ({ tagId })) } },
+        data: { ...fields, ...scoring, tags: { create: tagIds.map((tagId) => ({ tagId })) } },
         include: examInclude,
       });
       await audit(tx, {
@@ -203,25 +222,50 @@ export async function updateExam(ctx: Ctx, examId: string, patch: z.infer<typeof
       }
     }
 
+    // Switching to essays without naming a scoring mode moves to the only one allowed.
+    const type = patch.type ?? before.type;
+    const scoringMode =
+      patch.scoringMode ??
+      (type === "MCQ_ESSAY" && before.type !== "MCQ_ESSAY" ? "MANUAL_APPROVAL" : before.scoringMode);
+    const data = { ...patch, ...resolveScoring(type, scoringMode) };
+    if (type !== before.type || scoringMode !== before.scoringMode) await assertScoringChangeable(tx, examId, type);
+
     if (patch.status === "PUBLISHED" && before.status !== "PUBLISHED") {
       await assertPublishable(tx, examId, {
         isExternal: patch.isExternal ?? before.isExternal,
         questionsPerAttempt:
           patch.questionsPerAttempt !== undefined ? patch.questionsPerAttempt : before.questionsPerAttempt,
+        type,
       });
     }
 
-    const exam = await tx.exam.update({ where: { id: examId }, data: patch, include: examInclude });
+    const exam = await tx.exam.update({ where: { id: examId }, data, include: examInclude });
     await audit(tx, {
       action: "catalog.exam_updated",
       actorId: actor.userId,
       entityType: "Exam",
       entityId: examId,
-      detail: { changes: changedFields(examDto(before), examDto(exam), Object.keys(patch)) },
+      detail: { changes: changedFields(examDto(before), examDto(exam), Object.keys(data)) },
       ip: ctx.ip,
     });
     return examDto(exam);
   });
+}
+
+/**
+ * Type and scoring are fixed once students have taken the exam (T3): scores already given would
+ * change meaning. Moving back to MCQ only needs the essay questions removed first (T4).
+ */
+async function assertScoringChangeable(db: DbClient, examId: string, type: ExamType) {
+  if ((await db.attempt.count({ where: { examId } })) > 0)
+    throw conflict(
+      "Students have already taken this exam: its type and scoring can't change. Duplicate the exam to change them.",
+    );
+  if (type === "MCQ") {
+    const essays = await db.question.count({ where: { examId, type: "ESSAY" } });
+    if (essays > 0)
+      throw conflict(`Remove the ${essays} essay question${essays > 1 ? "s" : ""} first, or keep the essay type.`);
+  }
 }
 
 /** Replaces the exam's tag set (idempotent). */

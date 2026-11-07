@@ -43,6 +43,12 @@ describe("blocked keys", () => {
     for (const k of ["a", "c", "Tab", "ArrowDown", "Enter", " ", "Escape"]) expect(blockedShortcut(key(k))).toBeNull();
     expect(blockedShortcut(key("Tab", { shiftKey: true }))).toBeNull();
   });
+
+  it("lets select all work inside an essay box, but never copy or paste", () => {
+    expect(blockedShortcut(key("a", { ctrlKey: true }), true)).toBeNull();
+    expect(blockedShortcut(key("a", { ctrlKey: true }))).toBe("BLOCKED_SHORTCUT");
+    for (const k of ["c", "v", "x"]) expect(blockedShortcut(key(k, { ctrlKey: true }), true)).toBe("BLOCKED_SHORTCUT");
+  });
 });
 
 describe("window size", () => {

@@ -5,7 +5,7 @@ import { Navigate, useBlocker, useNavigate, useParams } from "react-router";
 import { NotFound, usePageTitle } from "../../app/pages";
 import { Dialog } from "../../components/Dialog";
 import { Button, cx, ErrorBanner, Loading } from "../../components/ui";
-import { api, ApiError } from "../../lib/api";
+import { api, ApiError, type AnswerInput } from "../../lib/api";
 import { qk } from "../../lib/query";
 import { clockOffset, formatCountdown, LOW_TIME_MS, remainingMs } from "../../lib/session";
 import { enterFullscreen } from "../student/ExamBrief";
@@ -13,6 +13,10 @@ import { AnswerSaver, type SaveState } from "./saver";
 import { useProctoring } from "./useProctoring";
 
 const HEARTBEAT_MS = 10_000;
+/** Essays are saved after this pause in typing (and always before submitting). */
+const TYPING_SAVE_MS = 1_500;
+/** The server's limit for one essay answer. */
+const ESSAY_MAX_CHARS = 10_000;
 
 // The exam page (NEXT_PLAN F3), outside the app layout: one question at a time, autosave, the
 // server's timer, and the anti-cheating listeners. Everything it shows comes from the server.
@@ -68,6 +72,7 @@ function Session({ initial }: { initial: StudentAttempt }) {
   const { exam } = initial;
 
   const [answers, setAnswers] = useState<Record<string, string[]>>(initial.answers);
+  const [essays, setEssays] = useState<Record<string, string>>(initial.essays);
   const [saveState, setSaveState] = useState<Record<string, { state: SaveState; message?: string }>>({});
   const [index, setIndex] = useState(exam.allowBackNavigation ? 0 : initial.furthestIndex);
   const [furthest, setFurthest] = useState(initial.furthestIndex);
@@ -93,8 +98,8 @@ function Session({ initial }: { initial: StudentAttempt }) {
 
   const saver = useMemo(
     () =>
-      new AnswerSaver({
-        save: (questionId, selected) => api.attempts.save(id, questionId, selected),
+      new AnswerSaver<AnswerInput>({
+        save: (questionId, answer) => api.attempts.save(id, questionId, answer),
         onState: (questionId, state, message) => setSaveState((s) => ({ ...s, [questionId]: { state, message } })),
         onStop: (reason) => (reason === "elsewhere" ? setElsewhere(true) : finish()),
       }),
@@ -171,8 +176,15 @@ function Session({ initial }: { initial: StudentAttempt }) {
   // ─── Questions ───
   const questions = initial.questions;
   const current = questions.find((q) => q.index === index) ?? questions[0];
-  const answeredCount = Object.values(answers).filter((a) => a.length > 0).length;
+  const answeredCount =
+    Object.values(answers).filter((a) => a.length > 0).length +
+    Object.values(essays).filter((t) => t.trim().length > 0).length;
   const unanswered = initial.questionCount - answeredCount;
+  const unansweredEssays = questions.filter((q) => q.type === "ESSAY" && !essays[q.id]?.trim()).length;
+  const isAnswered = (q: StudentQuestion) =>
+    q.type === "ESSAY" ? (essays[q.id]?.trim().length ?? 0) > 0 : (answers[q.id]?.length ?? 0) > 0;
+  const answerOf = (q: StudentQuestion): AnswerInput =>
+    q.type === "ESSAY" ? { text: essays[q.id] ?? "" } : { selectedOptionIds: answers[q.id] ?? [] };
   const isLast = index >= initial.questionCount - 1;
 
   const choose = (q: StudentQuestion, optionId: string, checked: boolean) => {
@@ -185,7 +197,14 @@ function Session({ initial }: { initial: StudentAttempt }) {
           : before.filter((o) => o !== optionId)
         : [optionId];
     setAnswers((a) => ({ ...a, [q.id]: next }));
-    saver.set(q.id, next);
+    saver.set(q.id, { selectedOptionIds: next });
+    if (!exam.allowBackNavigation && q.index > furthest) setFurthest(q.index);
+  };
+
+  const write = (q: StudentQuestion, text: string) => {
+    if (!live) return;
+    setEssays((e) => ({ ...e, [q.id]: text }));
+    saver.setLater(q.id, { text }, TYPING_SAVE_MS);
     if (!exam.allowBackNavigation && q.index > furthest) setFurthest(q.index);
   };
 
@@ -264,7 +283,7 @@ function Session({ initial }: { initial: StudentAttempt }) {
           <nav aria-label="Questions" className="mb-4 flex flex-wrap gap-1.5">
             {Array.from({ length: initial.questionCount }, (_, i) => {
               const q = questions.find((x) => x.index === i);
-              const done = q ? (answers[q.id]?.length ?? 0) > 0 : false;
+              const done = q ? isAnswered(q) : false;
               return (
                 <button
                   key={i}
@@ -294,11 +313,12 @@ function Session({ initial }: { initial: StudentAttempt }) {
               Question {current.index + 1} of {initial.questionCount} · {current.points}{" "}
               {current.points === 1 ? "point" : "points"}
               {current.type === "MULTI_CHOICE" && " · choose all that apply"}
+              {current.type === "ESSAY" && " · written answer, graded by staff"}
             </span>
             <SaveIndicator
               state={state?.state}
               message={state?.message}
-              onRetry={() => saver.set(current.id, answers[current.id] ?? [])}
+              onRetry={() => saver.set(current.id, answerOf(current))}
             />
           </div>
           <h2 id="question-title" className="text-lg font-semibold whitespace-pre-wrap text-slate-800">
@@ -312,7 +332,30 @@ function Session({ initial }: { initial: StudentAttempt }) {
               draggable={false}
             />
           )}
-          <fieldset className="mt-5 space-y-2">
+          {current.type === "ESSAY" && (
+            <div className="mt-5">
+              <label htmlFor={`essay-${current.id}`} className="sr-only">
+                Your answer
+              </label>
+              <textarea
+                id={`essay-${current.id}`}
+                rows={12}
+                maxLength={ESSAY_MAX_CHARS}
+                value={essays[current.id] ?? ""}
+                disabled={!live}
+                onChange={(e) => write(current, e.target.value)}
+                aria-describedby={`essay-count-${current.id}`}
+                spellCheck={false}
+                autoComplete="off"
+                className="w-full rounded-lg border border-slate-300 p-3 text-sm text-slate-800 outline-none select-text focus:ring-2 focus:ring-teal-500"
+              />
+              <p id={`essay-count-${current.id}`} className="mt-1 text-right text-xs text-slate-600">
+                {(essays[current.id] ?? "").length.toLocaleString()} / {ESSAY_MAX_CHARS.toLocaleString()} characters ·
+                pasting is not allowed
+              </p>
+            </div>
+          )}
+          <fieldset className="mt-5 space-y-2" hidden={current.type === "ESSAY"}>
             <legend className="sr-only">Options</legend>
             {current.options.map((o) => {
               const checked = (answers[current.id] ?? []).includes(o.id);
@@ -374,7 +417,9 @@ function Session({ initial }: { initial: StudentAttempt }) {
         title="Submit the exam?"
         description={
           unanswered > 0
-            ? `${unanswered} of ${initial.questionCount} questions are not answered. You can't change your answers after submitting.`
+            ? `${unanswered} of ${initial.questionCount} questions are not answered${
+                unansweredEssays > 0 ? `, including ${unansweredEssays} essay${unansweredEssays > 1 ? "s" : ""}` : ""
+              }. You can't change your answers after submitting.`
             : "You can't change your answers after submitting."
         }
         footer={

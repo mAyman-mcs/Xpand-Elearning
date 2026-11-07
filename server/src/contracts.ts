@@ -19,6 +19,11 @@ export type Permission =
   | "AUDIT_VIEW";
 
 export type ExamStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED";
+/** MCQ: choice questions only. MCQ_ESSAY: may also contain essays (always MANUAL_APPROVAL). */
+export type ExamType = "MCQ" | "MCQ_ESSAY";
+/** AUTO: scored on submit. MANUAL_APPROVAL: scored when a grader approves the attempt. */
+export type ScoringMode = "AUTO" | "MANUAL_APPROVAL";
+export type ReviewStatus = "PENDING" | "UNDER_REVIEW" | "REVIEWED";
 export type ScheduleMode = "FIXED" | "RELATIVE" | "MANUAL";
 export type OverrideAction = "OPEN" | "CLOSE";
 export type AvailabilityStatus = "NOT_ASSIGNED" | "SCHEDULED" | "OPEN" | "CLOSED" | "MISSED" | "SUBMITTED" | "EXTERNAL";
@@ -149,6 +154,8 @@ export interface Exam {
   questionsPerAttempt: number | null;
   strikeLimit: number;
   requireFullscreen: boolean;
+  type: ExamType;
+  scoringMode: ScoringMode;
   createdAt: string;
   updatedAt: string;
 }
@@ -224,6 +231,8 @@ export interface StudentExamRow {
     tags: { id: string; name: string; slug: string }[];
     durationMinutes: number;
     isExternal: boolean;
+    /** MANUAL_APPROVAL: a submitted attempt waits for grading before it has a score. */
+    scoringMode: ScoringMode;
     materials: { title: string; url: string }[];
   };
   status: AvailabilityStatus;
@@ -231,7 +240,7 @@ export interface StudentExamRow {
   opensAt: string | null;
   closesAt: string | null;
   reason: string;
-  /** Only once staff have released this exam's results. */
+  /** Only once staff have released this exam's results (and, for MANUAL_APPROVAL, approved the attempt). */
   result: { score: number; maxScore: number } | null;
 }
 
@@ -295,8 +304,10 @@ export interface StudentAttempt {
   furthestIndex: number;
   questionCount: number;
   questions: StudentQuestion[];
-  /** questionId → selected option ids, as saved on the server. */
+  /** questionId → selected option ids, as saved on the server (choice questions). */
   answers: Record<string, string[]>;
+  /** questionId → essay text, as saved on the server (essay questions). */
+  essays: Record<string, string>;
 }
 
 export interface AttemptOutcome {
@@ -305,6 +316,8 @@ export interface AttemptOutcome {
   status: AttemptStatus;
   submittedAt: string | null;
   submitReason: string | null;
+  /** Submitted, but the score is set only when a grader approves it. */
+  awaitingGrading: boolean;
   result: { score: number; maxScore: number } | null;
 }
 
@@ -361,7 +374,7 @@ export interface ImportResult {
 
 // ─────────────────────────────── Exam content (staff only) ───────────────────────────────
 
-export type QuestionType = "SINGLE_CHOICE" | "MULTI_CHOICE" | "TRUE_FALSE";
+export type QuestionType = "SINGLE_CHOICE" | "MULTI_CHOICE" | "TRUE_FALSE" | "ESSAY";
 
 /** A question WITH its answer key: staff screens only. */
 export interface StaffQuestion {
@@ -371,6 +384,8 @@ export interface StaffQuestion {
   imageUrl: string | null;
   points: number;
   position: number;
+  /** ESSAY only: notes for graders. */
+  guidance: string | null;
   options: { id: string; text: string; isCorrect: boolean; position: number }[];
 }
 
@@ -395,4 +410,73 @@ export interface Material {
   title: string;
   url: string;
   position: number;
+}
+
+// ─────────────────────────────── Grading (staff only) ───────────────────────────────
+
+/** One finished attempt of a MANUAL_APPROVAL exam in the grading queue. */
+export interface GradingQueueRow {
+  attemptId: string;
+  attemptNo: number;
+  student: PersonRef;
+  status: AttemptStatus;
+  submittedAt: string | null;
+  reviewStatus: ReviewStatus;
+  /** Answered essays, and how many of them have points. */
+  essays: { answered: number; graded: number };
+  /** Set only once approved. */
+  score: number | null;
+  maxScore: number | null;
+  lastGradedBy: PersonRef | null;
+  lastGradedAt: string | null;
+}
+
+export interface GradingQueue extends Page<GradingQueueRow> {
+  /** Over every attempt in the caller's scope (not only this page or filter). */
+  counts: { pending: number; underReview: number; reviewed: number };
+}
+
+/** One delivered question with the student's answer and its grading. */
+export interface GradingQuestion {
+  /** Position in the attempt (0-based). */
+  index: number;
+  id: string;
+  type: QuestionType;
+  text: string;
+  imageUrl: string | null;
+  points: number;
+  guidance: string | null;
+  /** Choice questions: in the order the student saw them. */
+  options: { id: string; text: string; isCorrect: boolean; selected: boolean }[];
+  /** Essays: the student's text (null = not answered). */
+  answerText: string | null;
+  answered: boolean;
+  autoPoints: number | null;
+  awardedPoints: number | null;
+  overrideReason: string | null;
+  feedback: string | null;
+  gradedBy: PersonRef | null;
+  gradedAt: string | null;
+}
+
+export interface GradingAttempt {
+  attemptId: string;
+  attemptNo: number;
+  status: AttemptStatus;
+  submittedAt: string | null;
+  submitReason: string | null;
+  reviewStatus: ReviewStatus;
+  reviewedBy: PersonRef | null;
+  reviewedAt: string | null;
+  /** Send back with every grading change (optimistic locking). */
+  gradingVersion: number;
+  score: number | null;
+  maxScore: number | null;
+  exam: { id: string; code: string; title: string; scoringMode: ScoringMode };
+  student: PersonRef;
+  questions: GradingQuestion[];
+  /** What still blocks approval (empty = it can be approved). */
+  approvalProblems: string[];
+  /** The next attempt of this exam, in scope, that isn't approved yet. */
+  nextUngradedId: string | null;
 }

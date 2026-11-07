@@ -13,8 +13,8 @@ export const uid = (prefix: string) => `${prefix}-${Date.now().toString(36)}${Ma
 
 /** Response fields that must never reach a browser. */
 const FORBIDDEN_FIELDS = ["passwordHash", "sessionTokenHash", "tokenHash"];
-/** The answer key: allowed only on the staff question routes (permission-checked by the server). */
-const STAFF_ANSWER_KEY = /\/api\/catalog\/(exams\/[^/]+\/questions|questions\/)/;
+/** The answer key: allowed only on the staff question and grading routes (permission-checked by the server). */
+const STAFF_ANSWER_KEY = /\/api\/(catalog\/(exams\/[^/]+\/questions|questions\/)|grading\/attempts\/)/;
 
 /**
  * Every test fails if the page logs a JavaScript error, the server answers 5xx, or a response

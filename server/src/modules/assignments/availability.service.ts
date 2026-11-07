@@ -56,6 +56,7 @@ export async function studentExams(ctx: Ctx) {
         tags: exam.tags.map((t) => t.tag),
         durationMinutes: exam.durationMinutes,
         isExternal: exam.isExternal,
+        scoringMode: exam.scoringMode,
         materials: exam.materials,
       },
       // Students see status, progress, window and a readable reason — not internal sources.

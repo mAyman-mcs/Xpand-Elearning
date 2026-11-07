@@ -30,6 +30,8 @@ const SETTINGS = [
   "shuffleQuestions",
   "shuffleOptions",
   "requireFullscreen",
+  "type",
+  "scoringMode",
 ] as const;
 
 /** The changed settings only (omitted fields keep their value on the server). */
@@ -54,11 +56,19 @@ export function ExamSettings() {
   const form = useExamForm(before);
   const [formError, setFormError] = useState<string | null>(null);
   const [pendingMove, setPendingMove] = useState<ExamValues | null>(null);
+  // Type and scoring lock once students have taken the exam (the question list knows).
+  const content = useQuery({
+    queryKey: qk.questions(exam.id),
+    queryFn: () => api.questions.list(exam.id),
+    enabled: !exam.isExternal,
+  });
 
   const updated = async (next: Exam) => {
     queryClient.setQueryData(qk.exam(exam.id), next);
     await queryClient.invalidateQueries({ queryKey: qk.exams });
     await queryClient.invalidateQueries({ queryKey: qk.categories });
+    // The exam type changes what blocks publishing.
+    await queryClient.invalidateQueries({ queryKey: qk.questions(exam.id) });
   };
 
   const save = useMutation({
@@ -117,6 +127,7 @@ export function ExamSettings() {
             tags={tags.data ?? []}
             readOnly={!canEdit}
             canChangeAccessTags={perms?.role === "SUPER_ADMIN"}
+            scoringLocked={content.data?.locked ?? false}
           />
           {canEdit && (
             <div className="flex justify-end">

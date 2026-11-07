@@ -4,13 +4,16 @@ import { actorOf, type Ctx } from "../../core/context.js";
 import { inTransaction, isUniqueViolation, type DbClient } from "../../core/db.js";
 import { AppError, conflict, notFound } from "../../core/errors.js";
 import { nonBlank, uuid } from "../../core/schemas.js";
-import { QuestionType, type Prisma } from "../../generated/prisma/client.js";
+import { QuestionType, type ExamType, type Prisma } from "../../generated/prisma/client.js";
 import { authorize } from "../rbac/authorize.js";
 import { assertMayChangeAccessTags } from "./access-tags.js";
+import { questionAllowed } from "./exam-types.js";
 
 // Exam content: questions, options, materials, duplication and the publish check
 // (docs/NEXT_PLAN.md §2, B5). Staff-only: these DTOs include the answer key (isCorrect) and must
 // never be served to students.
+
+const ESSAY_NEEDS_TYPE = "Essay questions need the “Multiple choice + essay” exam type.";
 
 // ─────────────────────────────── Pure rules ───────────────────────────────
 
@@ -27,6 +30,10 @@ export function questionProblems(q: QuestionShape): string[] {
   const correct = q.options.filter((o) => o.isCorrect).length;
   if (!q.text.trim()) problems.push("The question has no text.");
   if (!(q.points > 0)) problems.push("Points must be more than 0.");
+  if (q.type === "ESSAY") {
+    if (q.options.length) problems.push("Essay questions have no options.");
+    return problems;
+  }
   if (q.options.some((o) => !o.text.trim())) problems.push("An option has no text.");
   if (q.type === "TRUE_FALSE") {
     if (q.options.length !== 2) problems.push("True/false questions have exactly 2 options.");
@@ -41,7 +48,7 @@ export function questionProblems(q: QuestionShape): string[] {
 
 /** Why an exam can't be published yet (empty = it can). External exams have no questions. */
 export function publishProblems(
-  exam: { isExternal: boolean; questionsPerAttempt: number | null },
+  exam: { isExternal: boolean; questionsPerAttempt: number | null; type: ExamType },
   questions: QuestionShape[],
 ): string[] {
   if (exam.isExternal) return [];
@@ -49,7 +56,11 @@ export function publishProblems(
   if (questions.length === 0) problems.push("Add at least one question.");
   questions.forEach((q, i) => {
     for (const p of questionProblems(q)) problems.push(`Question ${i + 1}: ${p}`);
+    if (!questionAllowed(exam.type, q.type)) problems.push(`Question ${i + 1}: ${ESSAY_NEEDS_TYPE}`);
   });
+  // An essay exam without essays would need grading for nothing (T2).
+  if (exam.type === "MCQ_ESSAY" && questions.length > 0 && !questions.some((q) => q.type === "ESSAY"))
+    problems.push("Add at least one essay question, or change the exam type to “Multiple choice only”.");
   // Random draws come with question pools (NEXT_PLAN E3, B12); until then the setting would be ignored.
   if (exam.questionsPerAttempt !== null)
     problems.push("“Questions per attempt” must be empty until question pools arrive.");
@@ -65,13 +76,16 @@ const questionFields = {
   text: nonBlank(5000),
   imageUrl: httpsUrl.nullable(),
   points: z.number().positive().max(100),
+  /** ESSAY only: notes for graders, never shown to students. */
+  guidance: z.string().trim().max(5000).nullable(),
 };
 
 export const questionBody = z.object({
   ...questionFields,
   imageUrl: questionFields.imageUrl.default(null),
   points: questionFields.points.default(1),
-  options: z.array(optionInput).max(10),
+  guidance: questionFields.guidance.default(null),
+  options: z.array(optionInput).max(10).default([]),
 });
 export type QuestionInput = z.infer<typeof questionBody>;
 
@@ -109,6 +123,7 @@ export function questionDto(q: QuestionRow) {
     imageUrl: q.imageUrl,
     points: q.points.toNumber(),
     position: q.position,
+    guidance: q.guidance,
     options: q.options.map((o) => ({ id: o.id, text: o.text, isCorrect: o.isCorrect, position: o.position })),
   };
 }
@@ -133,6 +148,18 @@ const lockedError = () =>
   conflict(
     "Students have already taken this exam: only the wording of questions and options can change. Duplicate the exam to change more.",
   );
+
+const notAllowed = () => invalid([`${ESSAY_NEEDS_TYPE} Change it in the exam settings.`], "type");
+
+/** Grader notes belong to essays only; other types store none. */
+const guidanceFor = (type: QuestionType, guidance: string | null | undefined) =>
+  type === "ESSAY" ? guidance || null : null;
+
+async function examTypeOf(db: DbClient, examId: string): Promise<ExamType> {
+  const exam = await db.exam.findUnique({ where: { id: examId }, select: { type: true } });
+  if (!exam) throw notFound("Exam not found.");
+  return exam.type;
+}
 
 /** An exam with attempts is locked: grades must stay explainable (NEXT_PLAN E1). */
 async function isLocked(db: DbClient, examId: string): Promise<boolean> {
@@ -165,7 +192,7 @@ async function auditContent(
 export async function listQuestions(ctx: Ctx, examId: string) {
   const exam = await ctx.db.exam.findUnique({
     where: { id: examId },
-    select: { isExternal: true, questionsPerAttempt: true },
+    select: { isExternal: true, questionsPerAttempt: true, type: true },
   });
   if (!exam) throw notFound("Exam not found.");
   const questions = await loadQuestions(ctx.db, examId);
@@ -176,6 +203,7 @@ export async function createQuestion(ctx: Ctx, examId: string, input: QuestionIn
   const problems = questionProblems(input);
   if (problems.length) throw invalid(problems);
   return inTransaction(ctx.db, async (tx) => {
+    if (!questionAllowed(await examTypeOf(tx, examId), input.type)) throw notAllowed();
     if (await isLocked(tx, examId)) throw lockedError();
     const last = await tx.question.aggregate({ where: { examId }, _max: { position: true } });
     const q = await tx.question.create({
@@ -185,6 +213,7 @@ export async function createQuestion(ctx: Ctx, examId: string, input: QuestionIn
         text: input.text,
         imageUrl: input.imageUrl,
         points: input.points,
+        guidance: guidanceFor(input.type, input.guidance),
         position: (last._max.position ?? -1) + 1,
         options: { create: input.options.map((o, position) => ({ ...o, position })) },
       },
@@ -216,9 +245,14 @@ export async function updateQuestion(
         (patch.points !== undefined && patch.points !== current.points) ||
         !sameOptions;
       if (structural) throw lockedError();
+      // Grader guidance is wording too: it never changes a score.
       await tx.question.update({
         where: { id: questionId },
-        data: { text: patch.text, imageUrl: patch.imageUrl },
+        data: {
+          text: patch.text,
+          imageUrl: patch.imageUrl,
+          guidance: patch.guidance !== undefined ? guidanceFor(current.type, patch.guidance) : undefined,
+        },
       });
       // sameOptions guaranteed every sent option matches an existing one by id: reword the changed ones.
       for (const existing of current.options) {
@@ -235,9 +269,16 @@ export async function updateQuestion(
       };
       const problems = questionProblems(merged);
       if (problems.length) throw invalid(problems);
+      if (!questionAllowed(await examTypeOf(tx, before.examId), merged.type)) throw notAllowed();
       await tx.question.update({
         where: { id: questionId },
-        data: { type: patch.type, text: patch.text, imageUrl: patch.imageUrl, points: patch.points },
+        data: {
+          type: patch.type,
+          text: patch.text,
+          imageUrl: patch.imageUrl,
+          points: patch.points,
+          guidance: guidanceFor(merged.type, patch.guidance !== undefined ? patch.guidance : current.guidance),
+        },
       });
       if (patch.options) {
         await tx.option.deleteMany({ where: { questionId } });
@@ -294,6 +335,7 @@ export async function reorderQuestions(ctx: Ctx, examId: string, questionIds: st
 export async function importQuestions(ctx: Ctx, examId: string, input: z.infer<typeof importQuestionsBody>) {
   const errors: { index: number; message: string }[] = [];
   const valid: QuestionInput[] = [];
+  const examType = await examTypeOf(ctx.db, examId);
   input.questions.forEach((raw, index) => {
     const parsed = questionBody.safeParse(raw);
     if (!parsed.success) {
@@ -302,6 +344,7 @@ export async function importQuestions(ctx: Ctx, examId: string, input: z.infer<t
       return;
     }
     const problems = questionProblems(parsed.data);
+    if (!questionAllowed(examType, parsed.data.type)) problems.push(ESSAY_NEEDS_TYPE);
     if (problems.length) for (const message of problems) errors.push({ index: index + 1, message });
     else valid.push(parsed.data);
   });
@@ -321,6 +364,7 @@ export async function importQuestions(ctx: Ctx, examId: string, input: z.infer<t
           text: q.text,
           imageUrl: q.imageUrl,
           points: q.points,
+          guidance: guidanceFor(q.type, q.guidance),
           position: position++,
           options: { create: q.options.map((o, i) => ({ ...o, position: i })) },
         },
@@ -421,6 +465,7 @@ export async function duplicateExam(ctx: Ctx, examId: string, input: z.infer<typ
             text: q.text,
             imageUrl: q.imageUrl,
             points: q.points,
+            guidance: q.guidance,
             position: q.position,
             options: { create: q.options.map((o) => ({ text: o.text, isCorrect: o.isCorrect, position: o.position })) },
           },
@@ -450,7 +495,7 @@ export async function duplicateExam(ctx: Ctx, examId: string, input: z.infer<typ
 export async function assertPublishable(
   db: DbClient,
   examId: string,
-  settings: { isExternal: boolean; questionsPerAttempt: number | null },
+  settings: { isExternal: boolean; questionsPerAttempt: number | null; type: ExamType },
 ) {
   const problems = publishProblems(settings, await loadQuestions(db, examId));
   if (problems.length) throw conflict("This exam isn't ready to publish.", problems);

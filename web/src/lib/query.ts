@@ -38,4 +38,6 @@ export const qk = {
   studentExam: (id: string) => ["student", "exams", id] as const,
   attempt: (id: string) => ["attempts", id] as const,
   outcome: (id: string) => ["attempts", id, "outcome"] as const,
+  gradingQueue: (examId: string) => ["grading", "exams", examId] as const,
+  grading: (attemptId: string) => ["grading", "attempts", attemptId] as const,
 };

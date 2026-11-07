@@ -24,6 +24,8 @@ export const ERROR_STATUS = {
   ATTEMPT_SUBMITTED: 409,
   ATTEMPT_CLOSED: 409,
   QUESTION_CLOSED: 409,
+  // Grading (modules/grading): another grader saved first; reload.
+  GRADING_CONFLICT: 409,
   PAYLOAD_TOO_LARGE: 413,
   UNSUPPORTED_MEDIA_TYPE: 415,
   ACCOUNT_LOCKED: 423,

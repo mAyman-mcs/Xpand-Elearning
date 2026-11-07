@@ -364,9 +364,15 @@ All endpoints that create, find, assign, schedule or open exams. The "Who" colum
 { "code": "cloud-1", "title": "Cloud Gates", "categoryId": "…", "durationMinutes": 45,
   "tagIds": ["…"], "passMark": 80, "weight": 15, "maxAttempts": 1, "isExternal": false,
   "allowBackNavigation": true, "shuffleQuestions": true, "shuffleOptions": true,
-  "questionsPerAttempt": null, "strikeLimit": 3, "requireFullscreen": true }
+  "questionsPerAttempt": null, "strikeLimit": 3, "requireFullscreen": true,
+  "type": "MCQ", "scoringMode": "AUTO" }
 ```
 - Required: `code`, `title`, `categoryId`, `durationMinutes` (1–600). The other values shown are the defaults.
+- **Type and scoring** ([EXAM_TYPES_PLAN.md](EXAM_TYPES_PLAN.md)):
+  - `type` is `MCQ` (choice questions only) or `MCQ_ESSAY` (may also contain essays).
+  - `scoringMode` is `AUTO` (scored on submit) or `MANUAL_APPROVAL` (scored when a grader approves the attempt).
+  - `MCQ_ESSAY` is always `MANUAL_APPROVAL`: when `scoringMode` is omitted it is chosen automatically; `AUTO` → `400 VALIDATION_FAILED`.
+  - External exams are stored as `MCQ` / `AUTO` (neither applies to them).
 - `code` is uppercased and must be 2–31 characters (`A-Z 0-9 -`); `409` if it's already taken.
 - Every new exam starts as `DRAFT`.
 - `400` if the category is archived or a tag doesn't exist.
@@ -376,10 +382,11 @@ All endpoints that create, find, assign, schedule or open exams. The "Who" colum
 **`PATCH /api/catalog/exams/:id`** → `Exam`. Send any setting from the create body (except `code` and `tagIds`), plus `categoryId` and `status`:
 - **Status:** `DRAFT` (hidden from students), `PUBLISHED`, `ARCHIVED` (shown to students as closed; can't be assigned).
 - **Moving to another category** also requires `EXAM_EDIT` on the *destination* category (`403` otherwise), because it changes who reaches the exam. `400` if the destination is archived.
+- **Type and scoring:** changing `type` to `MCQ_ESSAY` without a `scoringMode` moves to `MANUAL_APPROVAL`. Both are locked once any student has an attempt (`409`; duplicate the exam). Changing back to `MCQ` while essay questions exist → `409` ("Remove the N essay questions first").
 
 **`PUT /api/catalog/exams/:id/tags`** `{ tagIds: [..] }` → `Exam`. Replaces the exam's whole tag set; sending the same set again changes nothing.
 
-**Publishing** (`PATCH … { status: "PUBLISHED" }`) is refused with `409 CONFLICT` until the exam is ready; `details` lists the problems in words. An exam is ready when it is external, or when it has at least one question, every question is valid, and `questionsPerAttempt` is empty (random draws come with question pools). The check uses the settings sent in the same request.
+**Publishing** (`PATCH … { status: "PUBLISHED" }`) is refused with `409 CONFLICT` until the exam is ready; `details` lists the problems in words. An exam is ready when it is external, or when it has at least one question, every question is valid and allowed by the exam type, an `MCQ_ESSAY` exam has at least one essay, and `questionsPerAttempt` is empty (random draws come with question pools). The check uses the settings sent in the same request.
 
 ### 6.1a Exam content: questions, materials, duplicate
 
@@ -404,12 +411,13 @@ All need **Perm `EXAM_EDIT`** on the exam (SA always). These responses **include
 { "type": "SINGLE_CHOICE", "text": "Which port does HTTPS use?", "imageUrl": null, "points": 1,
   "options": [{ "text": "443", "isCorrect": true }, { "text": "80", "isCorrect": false }] }
 ```
-- `type`: `SINGLE_CHOICE` (2–10 options, exactly 1 correct), `MULTI_CHOICE` (2–10 options, at least 1 correct) or `TRUE_FALSE` (exactly 2 options, 1 correct).
+- `type`: `SINGLE_CHOICE` (2–10 options, exactly 1 correct), `MULTI_CHOICE` (2–10 options, at least 1 correct), `TRUE_FALSE` (exactly 2 options, 1 correct) or `ESSAY` (no options; only in `MCQ_ESSAY` exams, otherwise `400` on `type`).
+- `guidance` (essays only, ≤ 5,000 characters): notes for graders. Staff only, never sent to students; ignored on other types.
 - `points` defaults to 1 (more than 0, at most 100); `imageUrl` is optional and must be https.
 - A violation → `400 VALIDATION_FAILED` with a readable `message`.
 - **PATCH** sends any of the fields; `options` replaces the whole list (each may carry its `id`). The result is validated as a whole.
 
-**Locked exams.** Once any student has an attempt, only **wording** can change: the question `text`/`imageUrl` and option `text` (options identified by `id`, same correct answers). Changing the type, points, options or correct answers, adding, deleting or importing → `409 CONFLICT`. Duplicate the exam to change more.
+**Locked exams.** Once any student has an attempt, only **wording** can change: the question `text`/`imageUrl`/`guidance` and option `text` (options identified by `id`, same correct answers). Changing the type, points, options or correct answers, adding, deleting or importing → `409 CONFLICT`. Duplicate the exam to change more.
 
 ### 6.2 Assigning and scheduling
 
@@ -590,12 +598,12 @@ recorded. There is no "allow resume".
 | GET | `/api/student/exams/:id` | The pre-check page: rules, status, `inProgressAttemptId` |
 | POST | `/api/attempts` | `{ examId }` → starts (`201`), or continues from the same session (`200`) |
 | GET | `/api/attempts/:id` | The attempt after a reload; `409 ATTEMPT_SUBMITTED` once it ended |
-| PUT | `/api/attempts/:id/answers/:questionId` | `{ selectedOptionIds }` → `{ questionId, savedAt }`. Idempotent. |
+| PUT | `/api/attempts/:id/answers/:questionId` | `{ selectedOptionIds }` (choice questions) or `{ text }` (essays, ≤ 10,000 characters) → `{ questionId, savedAt }`. The wrong shape for the question → `400`. Idempotent. |
 | POST | `/api/attempts/:id/position` | `{ index }`: without back navigation, moves forward (skip). Never backwards. |
 | POST | `/api/attempts/:id/events` | `{ type, detail?, clientTime? }`: a cheating signal → `{ strikes, strikeLimit, action, status }` |
 | POST | `/api/attempts/:id/heartbeat` | Every ~10 s → `{ active, status, deadlineAt, serverNow, strikes }` |
 | POST | `/api/attempts/:id/submit` | Ends and grades it → `{ status, submittedAt }`. Idempotent. |
-| GET | `/api/attempts/:id/outcome` | How it ended, and `result` once results are released |
+| GET | `/api/attempts/:id/outcome` | How it ended, `awaitingGrading` (a `MANUAL_APPROVAL` exam not yet approved), and `result` once results are released and the attempt has a score |
 
 **Starting** needs the exam to be `OPEN` for the student (`409 EXAM_NOT_OPEN` otherwise, `409
 ALREADY_SUBMITTED` when the attempts are used up). Questions and options are shuffled once (if the exam
@@ -612,9 +620,11 @@ says so) and fixed on the attempt. Two starts at once create one attempt.
   "strikes": 0, "furthestIndex": 0, "questionCount": 20,
   "questions": [{ "index": 0, "id": "…", "type": "SINGLE_CHOICE", "text": "…", "imageUrl": null,
                   "points": 1, "options": [{ "id": "…", "text": "…" }] }],
-  "answers": { "<questionId>": ["<optionId>"] }
+  "answers": { "<questionId>": ["<optionId>"] },
+  "essays": { "<questionId>": "the saved essay text" }
 }
 ```
+Essay questions have `"type": "ESSAY"` and `"options": []`.
 Never the answer key. Without back navigation, questions before `furthestIndex` are not sent at all.
 
 **Time.** `deadlineAt` = start + duration, but never after the window closes. The timer never pauses.
@@ -622,7 +632,35 @@ Saves are accepted until 5 s after the deadline; after that the attempt is submi
 (`AUTO_SUBMITTED`, reason `time`) by the next request touching it or by the sweeper (every 15 s).
 Show the time as `deadlineAt − (Date.now() + (serverNow − local time when received))`.
 
-**Grading** is all or nothing per question: full points only for exactly the correct options.
+**Grading** is all or nothing per question: full points only for exactly the correct options. On submit,
+each answered choice question keeps its `autoPoints`. An `AUTO` exam gets its score now. A
+`MANUAL_APPROVAL` exam keeps `score` empty (only `maxScore` is set) until a grader approves it (§6.8).
+
+### 6.8 Grading (`MANUAL_APPROVAL` exams)
+
+**Perm `ATTEMPT_REVIEW`** (SA always): on the exam for the queue, and on the exam **and** the student
+for one attempt. These responses include the answer key and grader guidance: staff only.
+
+| Method | Path | What |
+|---|---|---|
+| GET | `/api/grading/exams/:examId` | *Paginated* queue of finished attempts, oldest first → `GradingQueue` (`items` + `counts: { pending, underReview, reviewed }`). Filter `reviewStatus` = `PENDING` / `UNDER_REVIEW` / `REVIEWED` / `NOT_REVIEWED`. Rows and counts cover only students in the caller's scope. `409` on an `AUTO` exam. |
+| GET | `/api/grading/attempts/:id` | `GradingAttempt`: every delivered question with the student's answer, `autoPoints`, `awardedPoints`, feedback, `approvalProblems`, `gradingVersion` and `nextUngradedId` |
+| PUT | `/api/grading/attempts/:id/grades` | `{ version, grades: [{ questionId, points, feedback?, reason? }] }` → `GradingAttempt`. A draft: the attempt becomes `UNDER_REVIEW`. |
+| POST | `/api/grading/attempts/:id/approve` | `{ version }` → `GradingAttempt`: `score` = the sum of grader points (else automatic points, else 0); `REVIEWED` |
+| POST | `/api/grading/attempts/:id/reopen` | `{ reason }` → `GradingAttempt`: back to `UNDER_REVIEW`, `score` cleared |
+
+- **Points** run from 0 to the question's points in steps of 0.5. An unanswered essay can only get 0.
+  Giving a choice question other than its automatic points needs a `reason` (an override); grading it
+  at its automatic points removes the override.
+- **Approval** needs points for every answered essay (`409` with `details` otherwise); unanswered
+  essays count as 0.
+- **Two graders:** every change sends the `version` it read. A stale one → `409 GRADING_CONFLICT`:
+  reload and redo.
+- An approved attempt can't be graded (`409`): reopen it first. In-progress and voided attempts, and
+  `AUTO` exams, are `409`.
+- Audited: `attempts.graded` (old → new points per question), `attempts.approved` (score),
+  `attempts.reopened` (reason, old score).
+- Students see the score only once results are released **and** the attempt is approved.
 
 **Events.** `type` is one of `FULLSCREEN_EXIT`, `TAB_HIDDEN`, `WINDOW_BLUR`, `RESIZE` (strikes) or
 `CLIPBOARD`, `CONTEXT_MENU`, `BLOCKED_SHORTCUT`, `DEVTOOLS` (logged only). Strike signals within 3 s
@@ -659,6 +697,7 @@ Legend: ✅ allowed · 🔑 instructors with the named permission on the exam/ta
 | `POST /api/assignments/bulk`, `…/preview` | — | ❌ | 🔑 `EXAM_ASSIGN` on every pair | ✅ |
 | `PATCH /api/assignments/:id`, `POST /api/overrides`, `POST /api/overrides/:id/end` | — | ❌ | 🔑 `EXAM_SCHEDULE` | ✅ |
 | `GET /api/assignments/availability` | — | ❌ | 🔑 any | ✅ |
+| `/api/grading/…` (§6.8) | — | ❌ | 🔑 `ATTEMPT_REVIEW` (exam, and student for one attempt) | ✅ |
 | `GET /api/admin/stats`, `GET /api/audit`, `GET /api/audit/actions` | — | ❌ | ❌ | ✅ |
 
 The authoritative version, with every endpoint × 8 test users, is the RBAC matrix in the code: `server/src/modules/*/*.matrix.ts`, run by `server/src/rbac.matrix.int.test.ts`.

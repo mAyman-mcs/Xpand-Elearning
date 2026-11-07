@@ -42,7 +42,7 @@ Stack: React 19, TypeScript (strict), Vite, Tailwind 4, React Router 8, TanStack
 | `web/src/components/` | The kit: `Button`/`ButtonLink`, `Card`, `Badge`, form fields with labels and errors, `Table` (loading / error / empty / load more), `Dialog`, `ConfirmDialog` (with an optional required reason), `SecretDialog` (shown once), `Toast`, `PersonPicker` |
 | `web/src/app/` | Router, layout (sidebar by role and grants), guards (`RequireRole`, `RequireStaff`), not-found and no-access pages, `AuthProvider` (a 401 anywhere shows Login on the same URL, with a "session expired" notice) |
 | `web/src/features/<area>/` | One folder per area; one component per route |
-| `e2e/` | Playwright specs. Every test fails on a JavaScript error, a 5xx response, or a secret field in any response (the answer key is allowed only on the staff question routes). `a11y.spec.ts` runs axe on every page and checks phone width. |
+| `e2e/` | Playwright specs. Every test fails on a JavaScript error, a 5xx response, or a secret field in any response (the answer key is allowed only on the staff question and grading routes). `a11y.spec.ts` runs axe on every page and checks phone width. |
 
 ### Error codes
 
@@ -69,6 +69,7 @@ Every error body is `{ error: CODE, message?, details? }`. The full list lives i
 | 409 | `ATTEMPT_SUBMITTED` | Exam page: go to the done page (`replace`, so Back can't return) |
 | 409 | `ATTEMPT_CLOSED` | Autosave: stop saving and go to the done page |
 | 409 | `QUESTION_CLOSED` | Without back navigation: show "Not saved" on that question |
+| 409 | `GRADING_CONFLICT` | Grade attempt page: another grader saved first; offer "Reload" (unsaved grading is lost) |
 | 500 | `INTERNAL_ERROR` | Generic error with a retry button |
 
 The two **global** cases are handled once: `setSessionEndedHandler` in `lib/api/client.ts` (401 → Login on the same URL, with a notice), and the forced password change in the router's root.

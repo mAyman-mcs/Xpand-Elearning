@@ -10,6 +10,7 @@ import type { attemptOutcome, examBrief, getAttempt, heartbeat, reportEvent } fr
 import type { publicUser } from "./modules/auth/service.js";
 import type { importQuestions, listMaterials, listQuestions, questionDto } from "./modules/catalog/content.service.js";
 import type { examDto } from "./modules/catalog/exams.service.js";
+import type { getGrading, gradingQueue } from "./modules/grading/service.js";
 import type { categoryDto, tagDto } from "./modules/catalog/taxonomy.service.js";
 import type { getGroup, groupDto } from "./modules/groups/service.js";
 import type { grantDto } from "./modules/rbac/grants.service.js";
@@ -59,4 +60,6 @@ export type Checks = [
   Assert<Same<Out<typeof attemptOutcome>, C.AttemptOutcome>>,
   Assert<Same<Out<typeof reportEvent>, C.EventResult>>,
   Assert<Same<Out<typeof heartbeat>, C.HeartbeatResult>>,
+  Assert<Same<Out<typeof gradingQueue>, C.GradingQueue>>,
+  Assert<Same<Out<typeof getGrading>, C.GradingAttempt>>,
 ];

@@ -131,6 +131,18 @@ export function ExamQuestions() {
                     </p>
                     <p className="font-medium whitespace-pre-wrap text-slate-800">{q.text}</p>
                     {q.imageUrl && <img src={q.imageUrl} alt="" className="mt-2 max-h-32 rounded" />}
+                    {q.type === "ESSAY" && (
+                      <p className="mt-2 text-sm text-slate-600">
+                        {q.guidance ? (
+                          <>
+                            <span className="font-semibold">Guidance for graders:</span>{" "}
+                            <span className="whitespace-pre-wrap">{q.guidance}</span>
+                          </>
+                        ) : (
+                          "Free-text answer, graded by staff."
+                        )}
+                      </p>
+                    )}
                     <ul className="mt-2 space-y-1 text-sm">
                       {q.options.map((o) => (
                         <li key={o.id} className={o.isCorrect ? "font-semibold text-emerald-700" : "text-slate-600"}>
@@ -193,6 +205,7 @@ export function ExamQuestions() {
       {editing && (
         <QuestionEditor
           examId={exam.id}
+          examType={exam.type}
           question={editing === "new" ? undefined : editing}
           locked={locked}
           onClose={() => setEditing(null)}

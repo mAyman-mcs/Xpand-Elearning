@@ -129,7 +129,7 @@ export function useProctoring({ attemptId, active, onResult, onElsewhere }: Opti
       report("CONTEXT_MENU");
     };
     const onKey = (e: KeyboardEvent) => {
-      const type = blockedShortcut(e);
+      const type = blockedShortcut(e, e.target instanceof HTMLTextAreaElement);
       if (!type) return;
       e.preventDefault();
       report(type, {

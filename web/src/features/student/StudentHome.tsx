@@ -104,6 +104,11 @@ function ExamCard({ row, now }: { row: StudentExamRow; now: number }) {
   const tone = AVAILABILITY[status];
   const opensIn = status === "SCHEDULED" && row.opensAt ? Date.parse(row.opensAt) - now : null;
   const inProgress = progress === "IN_PROGRESS";
+  // Needs approval: submitted but not yet approved by a grader.
+  const awaitingGrading =
+    exam.scoringMode === "MANUAL_APPROVAL" &&
+    status === "SUBMITTED" &&
+    (progress === "ANSWERED" || progress === "UNDER_REVIEW");
 
   return (
     <Card className="h-full">
@@ -114,7 +119,10 @@ function ExamCard({ row, now }: { row: StudentExamRow; now: number }) {
             {exam.code} · {exam.category.name} · {formatMinutes(exam.durationMinutes)}
           </p>
         </div>
-        <Badge tone={inProgress ? "amber" : tone.tone}>{inProgress ? PROGRESS.IN_PROGRESS : tone.label}</Badge>
+        <div className="flex flex-wrap gap-1">
+          <Badge tone={inProgress ? "amber" : tone.tone}>{inProgress ? PROGRESS.IN_PROGRESS : tone.label}</Badge>
+          {awaitingGrading && <Badge tone="amber">Awaiting grading</Badge>}
+        </div>
       </div>
 
       <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
@@ -143,6 +151,8 @@ function ExamCard({ row, now }: { row: StudentExamRow; now: number }) {
             <>
               Score: <span className="font-semibold">{row.result.score}</span> / {row.result.maxScore}
             </>
+          ) : awaitingGrading ? (
+            "Submitted. Your answers are being graded; your result appears here once it is released."
           ) : (
             "Submitted. Your result appears here once it is released."
           )}

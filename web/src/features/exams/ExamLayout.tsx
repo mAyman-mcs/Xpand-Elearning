@@ -34,6 +34,11 @@ export const EXAM_TABS: Tab[] = [
   { to: "assignments", label: "Assignments", show: (p, e) => on(p, e, "EXAM_ASSIGN", "EXAM_SCHEDULE") },
   { to: "overrides", label: "Open / close", show: (p, e) => on(p, e, "EXAM_ASSIGN", "EXAM_SCHEDULE") },
   { to: "availability", label: "Availability", show: () => true },
+  {
+    to: "grading",
+    label: "Grading",
+    show: (p, e) => !e.isExternal && e.scoringMode === "MANUAL_APPROVAL" && on(p, e, "ATTEMPT_REVIEW"),
+  },
 ];
 
 /** /exams/:id: the exam's header and tabs; each tab is a child route. */
@@ -59,6 +64,8 @@ export function ExamLayout() {
             <span>· {e.category.name}</span>
             <Badge tone={EXAM_STATUS[e.status].tone}>{EXAM_STATUS[e.status].label}</Badge>
             {e.isExternal && <Badge tone="amber">External</Badge>}
+            {!e.isExternal && e.type === "MCQ_ESSAY" && <Badge tone="blue">MCQ + essay</Badge>}
+            {!e.isExternal && e.scoringMode === "MANUAL_APPROVAL" && <Badge tone="teal">Needs approval</Badge>}
           </span>
         }
       />

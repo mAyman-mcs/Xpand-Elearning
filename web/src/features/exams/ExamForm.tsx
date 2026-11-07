@@ -3,7 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import type { ReactNode } from "react";
 import { useForm, type UseFormReturn } from "react-hook-form";
 import { z } from "zod";
-import { Checkbox, SelectInput, TextInput } from "../../components/form";
+import { Checkbox, Radio, SelectInput, TextInput } from "../../components/form";
 import { cx } from "../../components/ui";
 
 // Mirrors the server's createExamBody / updateExamBody for instant feedback; the server decides.
@@ -35,6 +35,8 @@ export const examSchema = z.object({
   shuffleQuestions: z.boolean(),
   shuffleOptions: z.boolean(),
   requireFullscreen: z.boolean(),
+  type: z.enum(["MCQ", "MCQ_ESSAY"]),
+  scoringMode: z.enum(["AUTO", "MANUAL_APPROVAL"]),
 });
 export type ExamValues = z.infer<typeof examSchema>;
 
@@ -54,6 +56,8 @@ export const NEW_EXAM: ExamValues = {
   shuffleQuestions: true,
   shuffleOptions: true,
   requireFullscreen: true,
+  type: "MCQ",
+  scoringMode: "AUTO",
 };
 
 export function valuesOf(e: Exam): ExamValues {
@@ -73,6 +77,8 @@ export function valuesOf(e: Exam): ExamValues {
     shuffleQuestions: e.shuffleQuestions,
     shuffleOptions: e.shuffleOptions,
     requireFullscreen: e.requireFullscreen,
+    type: e.type,
+    scoringMode: e.scoringMode,
   };
 }
 
@@ -88,6 +94,8 @@ interface FieldsProps {
   readOnly: boolean;
   /** Super admins only: access tags (used by a grant) change who reaches the exam. */
   canChangeAccessTags: boolean;
+  /** Students have taken the exam: type and scoring can't change (T3). */
+  scoringLocked?: boolean;
 }
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -100,10 +108,25 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 /** The exam settings fields (FRONTEND_GUIDE §4.4 "Exams"), shared by "New exam" and the Settings tab. */
-export function ExamFields({ form, mode, categories, tags, readOnly, canChangeAccessTags }: FieldsProps) {
+export function ExamFields({
+  form,
+  mode,
+  categories,
+  tags,
+  readOnly,
+  canChangeAccessTags,
+  scoringLocked = false,
+}: FieldsProps) {
   const { register, formState, watch, setValue } = form;
   const errors = formState.errors;
   const isExternal = watch("isExternal");
+  const essays = watch("type") === "MCQ_ESSAY";
+  // Essays always need approval: choosing them selects the only scoring mode allowed.
+  const typeField = register("type", {
+    onChange: (e: { target: { value: string } }) => {
+      if (e.target.value === "MCQ_ESSAY") setValue("scoringMode", "MANUAL_APPROVAL", { shouldDirty: true });
+    },
+  });
   const tagIds = watch("tagIds");
   const num = { valueAsNumber: true } as const;
 
@@ -234,6 +257,58 @@ export function ExamFields({ form, mode, categories, tags, readOnly, canChangeAc
           />
         </div>
       </Section>
+
+      {!isExternal && (
+        <Section title="Type and scoring">
+          {scoringLocked && (
+            <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
+              Students have taken this exam, so its type and scoring can't change. Duplicate the exam to change them.
+            </p>
+          )}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <fieldset disabled={scoringLocked} className="space-y-2">
+              <legend className="mb-1 text-sm font-semibold text-slate-700">Exam type</legend>
+              <Radio
+                label="Multiple choice only"
+                hint="Single choice, multiple choice and true/false questions."
+                value="MCQ"
+                {...typeField}
+              />
+              <Radio
+                label="Multiple choice + essay"
+                hint="Can also contain essay questions, which staff grade."
+                value="MCQ_ESSAY"
+                {...typeField}
+              />
+            </fieldset>
+            <fieldset disabled={scoringLocked} className="space-y-2">
+              <legend className="mb-1 text-sm font-semibold text-slate-700">Scoring</legend>
+              <Radio
+                label="Auto scored"
+                hint={
+                  essays
+                    ? "Not available: essay answers need a grader."
+                    : "The score is calculated when the student submits."
+                }
+                value="AUTO"
+                disabled={essays}
+                {...register("scoringMode")}
+              />
+              <Radio
+                label="Needs approval"
+                hint="A grader reviews each attempt; the score is calculated when it is approved."
+                value="MANUAL_APPROVAL"
+                {...register("scoringMode")}
+              />
+              {errors.scoringMode?.message && (
+                <p className="text-sm text-red-700" role="alert">
+                  {errors.scoringMode.message}
+                </p>
+              )}
+            </fieldset>
+          </div>
+        </Section>
+      )}
 
       {!isExternal && (
         <Section title="Exam session rules">

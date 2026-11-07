@@ -140,6 +140,23 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
   );
 });
 
+/** One choice of a radio group (group them in a fieldset with a legend). */
+export const Radio = forwardRef<HTMLInputElement, CheckboxProps>(function Radio(
+  { label, hint, className, ...rest },
+  ref,
+) {
+  const id = useId();
+  return (
+    <div className={cx("flex items-start gap-2", className)}>
+      <input ref={ref} id={id} type="radio" {...rest} className="mt-0.5 h-4 w-4 border-slate-300 accent-teal-600" />
+      <label htmlFor={id} className={cx("text-sm text-slate-700", rest.disabled && "opacity-60")}>
+        {label}
+        {hint && <span className="block text-xs text-slate-600">{hint}</span>}
+      </label>
+    </div>
+  );
+});
+
 /** A form-level error (not tied to one field). */
 export function FormError({ message }: { message?: string | null }) {
   if (!message) return null;
