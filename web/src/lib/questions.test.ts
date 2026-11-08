@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { changeType, NEW_QUESTION, questionProblems, questionTypesFor } from "./questions";
+import {
+  blocksOf,
+  changeType,
+  contentBlocks,
+  moveBlock,
+  NEW_QUESTION,
+  optionLetter,
+  questionProblems,
+  questionTypesFor,
+} from "./questions";
 
 const filled = {
   ...NEW_QUESTION,
@@ -13,7 +22,7 @@ const filled = {
 describe("questionProblems (mirrors the server)", () => {
   it("accepts a valid question and lists every problem of an invalid one", () => {
     expect(questionProblems(filled)).toEqual([]);
-    expect(questionProblems(NEW_QUESTION)).toEqual(["The question has no text.", "An option has no text."]);
+    expect(questionProblems(NEW_QUESTION)).toEqual(["The question has no text.", "An option has no text or picture."]);
     expect(
       questionProblems({
         ...filled,
@@ -61,5 +70,56 @@ describe("essay questions", () => {
   it("are offered only in MCQ + essay exams", () => {
     expect(questionTypesFor("MCQ")).not.toContain("ESSAY");
     expect(questionTypesFor("MCQ_ESSAY")).toContain("ESSAY");
+  });
+});
+
+describe("pictures", () => {
+  it("an option may be a picture, with alt text", () => {
+    const pic = {
+      ...filled,
+      options: [{ text: "", imageId: "p", imageAlt: "Diagram", isCorrect: true }, filled.options[1]!],
+    };
+    expect(questionProblems(pic)).toEqual([]);
+    expect(
+      questionProblems({ ...pic, options: [{ text: "", imageId: "p", isCorrect: true }, filled.options[1]!] }),
+    ).toEqual(["Describe every option picture (alt text)."]);
+  });
+  it("letters options A, B, C", () => {
+    expect([0, 1, 2, 25].map(optionLetter)).toEqual(["A", "B", "C", "Z"]);
+  });
+});
+
+describe("case blocks", () => {
+  const q = (id: string, caseId: string | null) =>
+    ({
+      ...NEW_QUESTION,
+      id,
+      caseId,
+      position: 0,
+      imageId: null,
+      imageAlt: null,
+      answerSize: "LONG",
+      options: [],
+    }) as never;
+  const caseA = { id: "A", label: null, title: "A", situation: "s", hint: null, imageId: null, imageAlt: null };
+  const caseB = { ...caseA, id: "B", title: "B" };
+  const questions = [q("1", null), q("2", "A"), q("3", "A"), q("4", null)];
+
+  it("groups a case's consecutive questions and lists empty cases last", () => {
+    expect(blocksOf(questions as { caseId: string | null }[]).map((b) => b.length)).toEqual([1, 2, 1]);
+    const blocks = contentBlocks(questions, [caseA, caseB]);
+    expect(blocks.map((b) => [b.case?.id ?? null, b.questions.length])).toEqual([
+      [null, 1],
+      ["A", 2],
+      [null, 1],
+      ["B", 0],
+    ]);
+  });
+
+  it("moves a whole case", () => {
+    const blocks = contentBlocks(questions, [caseA, caseB]);
+    expect(moveBlock(blocks, 1, -1)).toEqual(["2", "3", "1", "4"]);
+    expect(moveBlock(blocks, 1, 1)).toEqual(["1", "4", "2", "3"]);
+    expect(moveBlock(blocks, 0, -1)).toBeNull();
   });
 });

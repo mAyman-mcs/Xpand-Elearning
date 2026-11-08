@@ -88,10 +88,10 @@ These rules are why the platform is being rebuilt. A PR that breaks one is not d
 4. **No raw HTML.** Never use `dangerouslySetInnerHTML` or `innerHTML`, and never build HTML strings (the legacy app did, and that made it open to cross-site scripting). Render user-supplied text, such as names and question text, as normal React text.
 5. **Content Security Policy** (sent by the server in production): `script-src 'self'`.
    - No CDN `<script>` tags and no inline scripts. Install libraries from npm and let Vite bundle them; for example `html2canvas` for the scorecard must come from npm.
-   - Images may come from `https:` URLs.
+   - Images may come from `https:` URLs; uploaded pictures are same-origin (`/api/uploads/…`).
    - iframes may only load `docs.google.com` and `drive.google.com` (training material viewer).
    - Test production behaviour with the Docker build, because the Vite dev server sends no CSP.
-6. **Every write is JSON.** Always send a body, even `{}`, with `Content-Type: application/json` (`call()` already does this).
+6. **Every write is JSON.** Always send a body, even `{}`, with `Content-Type: application/json` (`call()` already does this). The one exception is a picture upload (`http.upload`), which sends the file itself with its image type.
 7. **Every data view handles four states:** loading, empty, error, and data.
 8. **Layout and accessibility:**
    - Usable at 400 px wide (students will open the dashboard on phones; exams run on classroom PCs).
@@ -144,7 +144,7 @@ The most important screen. The server enforces the attempt; the browser **detect
 **Flow**
 1. **Pre-check page:** exam name, duration, number of questions, strike limit, and the anti-cheat rules (from the legacy instructions screen). A checkbox "I agree" enables Start.
 2. *(M2)* An access-code (proctor PIN) field, if the exam requires one.
-3. **Start:** call **DRAFT** `POST /api/attempts { examId }` → `{ attemptId, deadlineAt, serverNow, strikeLimit, strikes, questions: [{ id, type, text, imageUrl, options: [{ id, text }] }], answers }`.
+3. **Start:** call **DRAFT** `POST /api/attempts { examId }` → `{ attemptId, deadlineAt, serverNow, strikeLimit, strikes, cases, questions: [{ id, type, caseId, text, imageUrl, imageAlt, answerSize, options: [{ id, text, detail, imageUrl, imageAlt }] }], answers }`. Show one screen per case (consecutive questions with the same `caseId`), with the situation on top and options lettered A, B, C.
    - Questions and options arrive already shuffled. **The response never says which answer is correct;** if you ever see that field, report it as a security bug.
    - Errors to handle: `EXAM_NOT_OPEN`, `ALREADY_SUBMITTED`, `ATTEMPT_IN_PROGRESS_ELSEWHERE`.
 4. **Fullscreen:** request it from the Start click (browsers require a user gesture). If it's refused, show a blocking screen with a "Enter fullscreen" button. No questions are shown outside fullscreen.
@@ -202,7 +202,7 @@ Shared pattern:
 | **Users** | Super admin | List and search; create, edit, deactivate; reset password (shows a one-time temporary password); CSV import (upload → shows row errors → shows the credentials once) |
 | **Groups** | Super admin | Create a group with an intake date; manage members; set a per-member join date for late joiners |
 | **Instructors and grants** | Super admin | Make a user an instructor. **Grant editor:** permission checkboxes (§4.6), exam picker ("All exams" or a list), group picker ("All groups" or a list), optional expiry. Shows each grant as a readable sentence, e.g. "Can view results and schedule *Cloud Gates* for *Intake July 2026* until 31 Dec 2026". |
-| **Exams** | Super admin, or instructors with `EXAM_EDIT` | Settings (duration, pass mark, weight, attempts, shuffle, back navigation, strike limit, fullscreen required, external); question editor (single choice, multiple choice, true/false, image URL, mark correct options); materials |
+| **Exams** | Super admin, or instructors with `EXAM_EDIT` | Settings (duration, pass mark, weight, attempts, shuffle, back navigation, strike limit, fullscreen required, external); question editor (single choice, multiple choice, true/false, essays with short or long answers, uploaded pictures for questions and options, mark correct options, staff-only explanations); cases (a situation with its questions, shown on one screen); exam introduction and hints; materials |
 | **Assign and schedule** | `EXAM_ASSIGN` / `EXAM_SCHEDULE` | Pick the target (users and/or groups, limited to scope). Pick the mode: **Fixed** (open and close date/time), **Relative to join date** (day offset + time + window length), or **Manual**. **Preview table:** for each affected student, show the resolved opening and closing time, so a relative schedule is clear before saving. |
 | **Open or close now** | `EXAM_SCHEDULE` | Override for a user or group, with an optional end time and reason; list active overrides with a "remove" action; show the precedence (user > group > schedule) |
 | **Results** | `RESULTS_VIEW` | Choose an exam (only exams in scope) → table of students (only groups in scope): status, score, submitted at, violation count; drill down into an attempt (M2) |

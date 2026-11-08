@@ -32,14 +32,15 @@ export function withQuery(path: string, query?: Query): string {
   return qs ? `${path}?${qs}` : path;
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  // Writes always send a JSON body: the server refuses writes without one (CSRF rule).
+async function request<T>(method: string, path: string, body?: unknown, file?: Blob): Promise<T> {
+  // Writes always send a JSON body (the server refuses writes without one: CSRF rule), except a
+  // picture upload, which sends the file itself with its image type.
   const hasBody = method !== "GET";
   const res = await fetch(`/api${path}`, {
     method,
     credentials: "same-origin",
-    headers: hasBody ? { "Content-Type": "application/json" } : {},
-    body: hasBody ? JSON.stringify(body ?? {}) : undefined,
+    headers: file ? { "Content-Type": file.type } : hasBody ? { "Content-Type": "application/json" } : {},
+    body: file ?? (hasBody ? JSON.stringify(body ?? {}) : undefined),
   });
   if (res.status === 204) return undefined as T;
   const data = (await res.json().catch(() => ({}))) as unknown;
@@ -58,4 +59,6 @@ export const http = {
   put: <T>(path: string, body?: unknown) => request<T>("PUT", path, body),
   patch: <T>(path: string, body?: unknown) => request<T>("PATCH", path, body),
   del: <T = void>(path: string) => request<T>("DELETE", path),
+  /** POST a file as the raw body (png, jpeg or webp pictures). */
+  upload: <T>(path: string, file: Blob) => request<T>("POST", path, undefined, file),
 };

@@ -3,10 +3,14 @@ import type { AppDeps } from "../../core/context.js";
 import { pageQuery } from "../../core/pagination.js";
 import { access, ApiRouter, created, noContent } from "../../core/route.js";
 import { idParams, queryBoolean } from "../../core/schemas.js";
-import { categoryScope, examScope, materialScope, questionScope } from "../rbac/resolvers.js";
+import { caseScope, categoryScope, examScope, materialScope, questionScope } from "../rbac/resolvers.js";
 import {
+  caseBody,
+  casePatchBody,
+  createCase,
   createMaterial,
   createQuestion,
+  deleteCase,
   deleteMaterial,
   deleteQuestion,
   duplicateBody,
@@ -21,6 +25,7 @@ import {
   questionPatchBody,
   reorderBody,
   reorderQuestions,
+  updateCase,
   updateMaterial,
   updateQuestion,
 } from "./content.service.js";
@@ -183,6 +188,31 @@ export function catalogRoutes(deps: AppDeps): ApiRouter {
     scope: (ctx, { params }) => questionScope(ctx.db, params.id),
     handler: async (ctx, { params }) => {
       await deleteQuestion(ctx, params.id);
+      return noContent();
+    },
+  });
+
+  // Cases: a situation shared by a choice question and its written follow-ups (CASE_QUESTIONS_PLAN).
+  api.post("/exams/:id/cases", {
+    access: edit,
+    params: idParams,
+    body: caseBody,
+    scope: onExam,
+    handler: async (ctx, { params, body }) => created(await createCase(ctx, params.id, body)),
+  });
+  api.patch("/cases/:id", {
+    access: edit,
+    params: idParams,
+    body: casePatchBody,
+    scope: (ctx, { params }) => caseScope(ctx.db, params.id),
+    handler: (ctx, { params, body }) => updateCase(ctx, params.id, body),
+  });
+  api.delete("/cases/:id", {
+    access: edit,
+    params: idParams,
+    scope: (ctx, { params }) => caseScope(ctx.db, params.id),
+    handler: async (ctx, { params }) => {
+      await deleteCase(ctx, params.id);
       return noContent();
     },
   });

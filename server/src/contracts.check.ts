@@ -8,7 +8,14 @@ import type { examAvailability, studentExams } from "./modules/assignments/avail
 import type { overrideDto } from "./modules/assignments/overrides.service.js";
 import type { attemptOutcome, examBrief, getAttempt, heartbeat, reportEvent } from "./modules/attempts/service.js";
 import type { publicUser } from "./modules/auth/service.js";
-import type { importQuestions, listMaterials, listQuestions, questionDto } from "./modules/catalog/content.service.js";
+import type { uploadImage } from "./modules/uploads/service.js";
+import type {
+  caseDto,
+  importQuestions,
+  listMaterials,
+  listQuestions,
+  questionDto,
+} from "./modules/catalog/content.service.js";
 import type { examDto } from "./modules/catalog/exams.service.js";
 import type { getGrading, gradingQueue } from "./modules/grading/service.js";
 import type { categoryDto, tagDto } from "./modules/catalog/taxonomy.service.js";
@@ -53,6 +60,8 @@ export type Checks = [
   Assert<Same<Out<typeof importUsers>, C.ImportResult>>,
   Assert<Same<Out<typeof questionDto>, C.StaffQuestion>>,
   Assert<Same<Out<typeof listQuestions>, C.QuestionList>>,
+  Assert<Same<Out<typeof caseDto>, C.StaffCase>>,
+  Assert<Same<Out<typeof uploadImage>, C.UploadResult>>,
   Assert<Same<Out<typeof importQuestions>, C.QuestionImportResult>>,
   Assert<Same<Item<typeof listMaterials>, C.Material>>,
   Assert<Same<Out<typeof examBrief>, C.StudentExamBrief>>,

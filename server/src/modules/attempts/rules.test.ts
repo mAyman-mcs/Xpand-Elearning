@@ -4,6 +4,8 @@ import type { ViolationType } from "../../generated/prisma/enums.js";
 import {
   acceptsAnswers,
   applyEvent,
+  blocksOf,
+  blockStarts,
   CLIENT_EVENT_TYPES,
   deadlineFor,
   deliveryOrder,
@@ -54,14 +56,65 @@ describe("delivery order", () => {
   });
   it("shuffling is a permutation (nothing lost or duplicated)", () => {
     fc.assert(
-      fc.property(fc.array(fc.integer(), { maxLength: 30 }), fc.double({ min: 0, max: 0.999, noNaN: true }), (items, seed) => {
-        let x = seed;
-        const random = () => (x = (x * 9301 + 0.49297) % 1);
-        expect([...shuffled(items, random)].sort()).toEqual([...items].sort());
-      }),
+      fc.property(
+        fc.array(fc.integer(), { maxLength: 30 }),
+        fc.double({ min: 0, max: 0.999, noNaN: true }),
+        (items, seed) => {
+          let x = seed;
+          const random = () => (x = (x * 9301 + 0.49297) % 1);
+          expect([...shuffled(items, random)].sort()).toEqual([...items].sort());
+        },
+      ),
     );
     // A broken random source still loses nothing.
     for (const bad of [1, -0.5, Number.NaN]) expect(shuffled([1, 2, 3], () => bad).sort()).toEqual([1, 2, 3]);
+  });
+});
+
+describe("delivery order with cases (CASE_QUESTIONS_PLAN C3–C4)", () => {
+  const withCases = [
+    { id: "q1", caseId: null, options: [{ id: "a" }, { id: "b" }] },
+    { id: "c1", caseId: "A", options: [{ id: "c" }, { id: "d" }, { id: "e" }] },
+    { id: "c2", caseId: "A", options: [] },
+    { id: "c3", caseId: "A", options: [] },
+    { id: "q2", caseId: null, options: [{ id: "f" }, { id: "g" }] },
+    { id: "k1", caseId: "B", options: [{ id: "h" }, { id: "i" }] },
+    { id: "k2", caseId: "B", options: [] },
+  ];
+
+  it("groups consecutive questions of a case into one block", () => {
+    expect(blocksOf(withCases).map((b) => b.map((q) => q.id))).toEqual([
+      ["q1"],
+      ["c1", "c2", "c3"],
+      ["q2"],
+      ["k1", "k2"],
+    ]);
+  });
+
+  it("shuffles cases as whole blocks and never shuffles options inside a case", () => {
+    fc.assert(
+      fc.property(fc.double({ min: 0, max: 0.999, noNaN: true }), (seed) => {
+        let x = seed;
+        const random = () => (x = (x * 9301 + 0.49297) % 1);
+        const { questionOrder, optionOrder } = deliveryOrder(
+          withCases,
+          { shuffleQuestions: true, shuffleOptions: true },
+          random,
+        );
+        const at = (id: string) => questionOrder.indexOf(id);
+        expect(at("c2")).toBe(at("c1") + 1);
+        expect(at("c3")).toBe(at("c1") + 2);
+        expect(at("k2")).toBe(at("k1") + 1);
+        expect([...questionOrder].sort()).toEqual(withCases.map((q) => q.id).sort());
+        expect(optionOrder.c1).toEqual(["c", "d", "e"]);
+        expect(optionOrder.k1).toEqual(["h", "i"]);
+      }),
+    );
+  });
+
+  it("knows where each position's case starts (back navigation per case)", () => {
+    expect(blockStarts([null, "A", "A", "A", null, "B", "B"])).toEqual([0, 1, 1, 1, 4, 5, 5]);
+    expect(blockStarts([])).toEqual([]);
   });
 });
 

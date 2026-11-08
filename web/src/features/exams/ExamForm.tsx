@@ -3,7 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import type { ReactNode } from "react";
 import { useForm, type UseFormReturn } from "react-hook-form";
 import { z } from "zod";
-import { Checkbox, Radio, SelectInput, TextInput } from "../../components/form";
+import { Checkbox, Radio, SelectInput, TextArea, TextInput } from "../../components/form";
 import { cx } from "../../components/ui";
 
 // Mirrors the server's createExamBody / updateExamBody for instant feedback; the server decides.
@@ -37,6 +37,9 @@ export const examSchema = z.object({
   requireFullscreen: z.boolean(),
   type: z.enum(["MCQ", "MCQ_ESSAY"]),
   scoringMode: z.enum(["AUTO", "MANUAL_APPROVAL"]),
+  /** Empty = no introduction (the server stores null). */
+  intro: z.string().max(5000, "At most 5,000 characters"),
+  showHints: z.boolean(),
 });
 export type ExamValues = z.infer<typeof examSchema>;
 
@@ -58,6 +61,8 @@ export const NEW_EXAM: ExamValues = {
   requireFullscreen: true,
   type: "MCQ",
   scoringMode: "AUTO",
+  intro: "",
+  showHints: false,
 };
 
 export function valuesOf(e: Exam): ExamValues {
@@ -79,6 +84,8 @@ export function valuesOf(e: Exam): ExamValues {
     requireFullscreen: e.requireFullscreen,
     type: e.type,
     scoringMode: e.scoringMode,
+    intro: e.intro ?? "",
+    showHints: e.showHints,
   };
 }
 
@@ -311,11 +318,36 @@ export function ExamFields({
       )}
 
       {!isExternal && (
+        <Section title="What students read">
+          <TextArea
+            label="Introduction (optional)"
+            rows={4}
+            hint="Shown before the exam starts and during it, e.g. “The story so far” and the instructions of a use case."
+            error={errors.intro?.message}
+            {...register("intro")}
+          />
+          <Checkbox
+            label="Show case hints to students"
+            hint="Off: hints are only shown to staff (graders see them). Hints often give the answer away."
+            {...register("showHints")}
+          />
+        </Section>
+      )}
+
+      {!isExternal && (
         <Section title="Exam session rules">
           <div className="grid gap-3 sm:grid-cols-2">
             <Checkbox label="Allow going back to earlier questions" {...register("allowBackNavigation")} />
-            <Checkbox label="Shuffle the questions per student" {...register("shuffleQuestions")} />
-            <Checkbox label="Shuffle the options per student" {...register("shuffleOptions")} />
+            <Checkbox
+              label="Shuffle the questions per student"
+              hint="A case moves as a whole; its questions keep their order."
+              {...register("shuffleQuestions")}
+            />
+            <Checkbox
+              label="Shuffle the options per student"
+              hint="Except in cases: their options keep their letters."
+              {...register("shuffleOptions")}
+            />
             <Checkbox label="Require fullscreen" {...register("requireFullscreen")} />
           </div>
           <div className="max-w-xs">

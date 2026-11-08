@@ -42,10 +42,10 @@ test("build an exam's questions, import more, reorder, delete, and publish", asy
   const editor = page.getByRole("dialog", { name: "Add a question" });
   await expect(editor.getByRole("button", { name: "Add question" })).toBeDisabled();
   await editor.getByRole("textbox", { name: "Question" }).fill("Which port does HTTPS use?");
-  await editor.getByRole("textbox", { name: "Option 1", exact: true }).fill("443");
-  await editor.getByRole("textbox", { name: "Option 2", exact: true }).fill("80");
-  await editor.getByRole("button", { name: "Remove option 4" }).click();
-  await editor.getByRole("button", { name: "Remove option 3" }).click();
+  await editor.getByRole("textbox", { name: "Option A", exact: true }).fill("443");
+  await editor.getByRole("textbox", { name: "Option B", exact: true }).fill("80");
+  await editor.getByRole("button", { name: "Remove option D" }).click();
+  await editor.getByRole("button", { name: "Remove option C" }).click();
   await expect(editor.getByRole("region", { name: "Student preview" })).toContainText("Which port does HTTPS use?");
   await editor.getByRole("button", { name: "Add question" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Question added" })).toBeVisible();
@@ -53,14 +53,14 @@ test("build an exam's questions, import more, reorder, delete, and publish", asy
   // A true/false question: two fixed options.
   await page.getByRole("button", { name: "Add question" }).click();
   await editor.getByRole("combobox", { name: "Type" }).selectOption("TRUE_FALSE");
-  await expect(editor.getByRole("textbox", { name: "Option 1", exact: true })).toHaveValue("True");
+  await expect(editor.getByRole("textbox", { name: "Option A", exact: true })).toHaveValue("True");
   await expect(editor.getByRole("button", { name: "Add option" })).toHaveCount(0);
   await editor.getByRole("textbox", { name: "Question" }).fill("A /24 network has 256 addresses.");
   await editor.getByRole("button", { name: "Add question" }).click();
 
   const questions = page.getByRole("list", { name: "Questions" });
   await expect(questions.locator(":scope > li")).toHaveCount(2);
-  await expect(questions.locator(":scope > li").first()).toContainText("✓ 443");
+  await expect(questions.locator(":scope > li").first()).toContainText("✓ A. 443");
 
   // Import: an invalid list is refused as a whole, with the reason per question.
   await page.getByRole("button", { name: "Import" }).click();
@@ -75,10 +75,10 @@ test("build an exam's questions, import more, reorder, delete, and publish", asy
     ],
   };
   const broken = { type: "SINGLE_CHOICE", text: "Broken", options: [{ text: "only one", isCorrect: true }] };
-  await importer.getByRole("textbox", { name: "Questions (JSON)" }).fill(JSON.stringify([multi, broken]));
+  await importer.getByRole("textbox", { name: "Questions and cases (JSON)" }).fill(JSON.stringify([multi, broken]));
   await importer.getByRole("button", { name: "Check" }).click();
   await expect(importer.getByRole("alert")).toContainText("Question 2: Give between 2 and 10 options.");
-  await importer.getByRole("textbox", { name: "Questions (JSON)" }).fill(JSON.stringify([multi]));
+  await importer.getByRole("textbox", { name: "Questions and cases (JSON)" }).fill(JSON.stringify([multi]));
   await importer.getByRole("button", { name: "Check" }).click();
   await expect(importer.getByText("All questions are valid.")).toBeVisible();
   await importer.getByRole("button", { name: "Import 1 question" }).click();
@@ -124,7 +124,7 @@ test("once students have taken it, only wording changes; duplicate to change mor
   await page.getByRole("button", { name: "Edit question 1" }).click();
   const editor = page.getByRole("dialog", { name: "Edit question" });
   await expect(editor.getByRole("combobox", { name: "Type" })).toBeDisabled();
-  await expect(editor.getByRole("radio", { name: "Option 2 is correct" })).toBeDisabled();
+  await expect(editor.getByRole("radio", { name: "Option B is correct" })).toBeDisabled();
   await editor.getByRole("textbox", { name: "Question" }).fill("Clearer wording?");
   await editor.getByRole("button", { name: "Save question" }).click();
   await expect(page.getByRole("list", { name: "Questions" })).toContainText("Clearer wording?");

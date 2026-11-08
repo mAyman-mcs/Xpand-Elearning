@@ -62,7 +62,7 @@ describe("locked exams", () => {
   });
 
   it("refuse imports, saying why", async () => {
-    const res = await importQuestions(ctx, w.e3.id, { questions: [{}], dryRun: true });
+    const res = await importQuestions(ctx, w.e3.id, { questions: [{}], cases: [], dryRun: true });
     expect(res.errors[0]).toEqual({
       index: 0,
       message: "Students have already taken this exam: questions can't be added.",
@@ -71,6 +71,6 @@ describe("locked exams", () => {
 });
 
 it("an import entry that isn't an object is reported as a whole", async () => {
-  const res = await importQuestions(ctx, w.e2.id, { questions: ["just text"], dryRun: true });
+  const res = await importQuestions(ctx, w.e2.id, { questions: ["just text"], cases: [], dryRun: true });
   expect(res.errors).toEqual([{ index: 1, message: expect.stringMatching(/^question: /) as unknown }]);
 });

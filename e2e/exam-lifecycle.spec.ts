@@ -150,30 +150,30 @@ test.describe("admin builds the exam in the UI, a student takes it", () => {
 
       await page.getByRole("button", { name: "Add question" }).click();
       await editor.getByRole("textbox", { name: "Question" }).fill("Which port does HTTPS use?");
-      await editor.getByRole("textbox", { name: "Option 1", exact: true }).fill("443");
-      await editor.getByRole("textbox", { name: "Option 2", exact: true }).fill("80");
-      await editor.getByRole("button", { name: "Remove option 4" }).click();
-      await editor.getByRole("button", { name: "Remove option 3" }).click();
-      await editor.getByRole("radio", { name: "Option 1 is correct" }).check();
+      await editor.getByRole("textbox", { name: "Option A", exact: true }).fill("443");
+      await editor.getByRole("textbox", { name: "Option B", exact: true }).fill("80");
+      await editor.getByRole("button", { name: "Remove option D" }).click();
+      await editor.getByRole("button", { name: "Remove option C" }).click();
+      await editor.getByRole("radio", { name: "Option A is correct" }).check();
       await editor.getByRole("button", { name: "Add question" }).click();
       await expect(page.getByRole("status").filter({ hasText: "Question added" })).toBeVisible();
 
       await page.getByRole("button", { name: "Add question" }).click();
       await editor.getByRole("combobox", { name: "Type" }).selectOption("MULTI_CHOICE");
       await editor.getByRole("textbox", { name: "Question" }).fill("Which are private IPv4 ranges?");
-      await editor.getByRole("textbox", { name: "Option 1", exact: true }).fill("10.0.0.0/8");
-      await editor.getByRole("textbox", { name: "Option 2", exact: true }).fill("8.8.8.0/24");
-      await editor.getByRole("textbox", { name: "Option 3", exact: true }).fill("192.168.0.0/16");
-      await editor.getByRole("button", { name: "Remove option 4" }).click();
-      await editor.getByRole("checkbox", { name: "Option 1 is correct" }).check();
-      await editor.getByRole("checkbox", { name: "Option 3 is correct" }).check();
+      await editor.getByRole("textbox", { name: "Option A", exact: true }).fill("10.0.0.0/8");
+      await editor.getByRole("textbox", { name: "Option B", exact: true }).fill("8.8.8.0/24");
+      await editor.getByRole("textbox", { name: "Option C", exact: true }).fill("192.168.0.0/16");
+      await editor.getByRole("button", { name: "Remove option D" }).click();
+      await editor.getByRole("checkbox", { name: "Option A is correct" }).check();
+      await editor.getByRole("checkbox", { name: "Option C is correct" }).check();
       await editor.getByRole("button", { name: "Add question" }).click();
       await expect(editor).toBeHidden();
 
       await page.getByRole("button", { name: "Add question" }).click();
       await editor.getByRole("combobox", { name: "Type" }).selectOption("TRUE_FALSE");
       await editor.getByRole("textbox", { name: "Question" }).fill("TCP is connectionless.");
-      await editor.getByRole("radio", { name: "Option 2 is correct" }).check();
+      await editor.getByRole("radio", { name: "Option B is correct" }).check();
       await editor.getByRole("button", { name: "Add question" }).click();
       await expect(editor).toBeHidden();
       await expect(page.getByRole("heading", { name: /Questions \(3, 3 points\)/ })).toBeVisible();

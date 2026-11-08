@@ -29,6 +29,15 @@ const settings = {
   requireFullscreen: z.boolean(),
   type: z.enum(ExamType),
   scoringMode: z.enum(ScoringMode),
+  /** Shown before and during the exam ("The story so far", instructions). Blank = none. */
+  intro: z
+    .string()
+    .trim()
+    .max(5000)
+    .nullable()
+    .transform((v) => v || null),
+  /** Send case hints to students (CASE_QUESTIONS_PLAN C9). */
+  showHints: z.boolean(),
 };
 
 export const createExamBody = z.object({
@@ -52,6 +61,8 @@ export const createExamBody = z.object({
   strikeLimit: settings.strikeLimit.default(3),
   requireFullscreen: settings.requireFullscreen.default(true),
   type: settings.type.default("MCQ"),
+  intro: settings.intro.default(null),
+  showHints: settings.showHints.default(false),
   // Omitted: AUTO for MCQ, MANUAL_APPROVAL for MCQ_ESSAY (the only option there).
   scoringMode: settings.scoringMode.optional(),
 });
@@ -102,6 +113,8 @@ export function examDto(e: ExamRow) {
     requireFullscreen: e.requireFullscreen,
     type: e.type,
     scoringMode: e.scoringMode,
+    intro: e.intro,
+    showHints: e.showHints,
     createdAt: e.createdAt,
     updatedAt: e.updatedAt,
   };

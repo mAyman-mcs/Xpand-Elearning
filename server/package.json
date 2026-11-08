@@ -14,6 +14,7 @@
     "create-super-admin": "tsx --env-file=../.env scripts/create-super-admin.ts",
     "import-users": "tsx --env-file=../.env scripts/import-users.ts",
     "seed-demo": "tsx --env-file=../.env scripts/seed-demo.ts",
+    "seed-usecases": "tsx --env-file=../.env scripts/seed-usecases.ts",
     "test:int": "vitest run --project integration",
     "test:coverage": "vitest run --coverage"
   },

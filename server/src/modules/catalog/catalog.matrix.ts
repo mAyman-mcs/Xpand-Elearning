@@ -172,6 +172,24 @@ export const catalogRows: MatrixRow[] = [
     expect: statuses(404, { superAdmin: 204, student: 403, instCategory: 204 }),
   },
   {
+    route: "POST /api/catalog/exams/:id/cases",
+    request: (w) => ({
+      path: `/api/catalog/exams/${w.e3.id}/cases`,
+      body: { title: "Permissions", situation: "ls -la shows -rw-r-----" },
+    }),
+    expect: statuses(404, { superAdmin: 201, student: 403, instCategory: 201 }),
+  },
+  {
+    route: "PATCH /api/catalog/cases/:id",
+    request: (w) => ({ path: `/api/catalog/cases/${w.caseE3.id}`, body: { label: "DESIGN" } }),
+    expect: scoped({ instCategory: 200 }),
+  },
+  {
+    route: "DELETE /api/catalog/cases/:id",
+    request: (w) => ({ path: `/api/catalog/cases/${w.caseE3.id}` }),
+    expect: statuses(404, { superAdmin: 204, student: 403, instCategory: 204 }),
+  },
+  {
     route: "GET /api/catalog/exams/:id/materials",
     request: (w) => ({ path: `/api/catalog/exams/${w.e3.id}/materials` }),
     expect: scoped({ instCategory: 200 }),

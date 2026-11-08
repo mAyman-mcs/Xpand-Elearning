@@ -365,9 +365,10 @@ All endpoints that create, find, assign, schedule or open exams. The "Who" colum
   "tagIds": ["…"], "passMark": 80, "weight": 15, "maxAttempts": 1, "isExternal": false,
   "allowBackNavigation": true, "shuffleQuestions": true, "shuffleOptions": true,
   "questionsPerAttempt": null, "strikeLimit": 3, "requireFullscreen": true,
-  "type": "MCQ", "scoringMode": "AUTO" }
+  "type": "MCQ", "scoringMode": "AUTO", "intro": null, "showHints": false }
 ```
 - Required: `code`, `title`, `categoryId`, `durationMinutes` (1–600). The other values shown are the defaults.
+- `intro` (≤ 5,000 characters, blank = none): shown to students before and during the exam. `showHints`: send case hints to students.
 - **Type and scoring** ([EXAM_TYPES_PLAN.md](EXAM_TYPES_PLAN.md)):
   - `type` is `MCQ` (choice questions only) or `MCQ_ESSAY` (may also contain essays).
   - `scoringMode` is `AUTO` (scored on submit) or `MANUAL_APPROVAL` (scored when a grader approves the attempt).
@@ -394,17 +395,20 @@ All need **Perm `EXAM_EDIT`** on the exam (SA always). These responses **include
 
 | Method | Path | Does |
 |---|---|---|
-| GET | `/api/catalog/exams/:id/questions` | `QuestionList`: the questions in order, `locked`, and `publishProblems` |
-| POST | `/api/catalog/exams/:id/questions` | Adds a question at the end → `201 StaffQuestion` |
+| GET | `/api/catalog/exams/:id/questions` | `QuestionList`: the questions in order, the `cases`, `locked`, and `publishProblems` |
+| POST | `/api/catalog/exams/:id/questions` | Adds a question at the end (or, with `caseId`, after its case's last question) → `201 StaffQuestion` |
 | PATCH | `/api/catalog/questions/:id` | Edits a question → `StaffQuestion` |
 | DELETE | `/api/catalog/questions/:id` | `204`; the others are renumbered |
-| PUT | `/api/catalog/exams/:id/questions/order` | `{ questionIds }`: every question of the exam exactly once → `StaffQuestion[]` |
-| POST | `/api/catalog/exams/:id/questions/import` | `{ questions: [...], dryRun = true }` → `QuestionImportResult`; all or nothing, at most 200 |
+| PUT | `/api/catalog/exams/:id/questions/order` | `{ questionIds }`: every question of the exam exactly once, each case's questions together (`400` otherwise) → `StaffQuestion[]` |
+| POST | `/api/catalog/exams/:id/questions/import` | `{ questions?: [...], cases?: [...], dryRun = true }` → `QuestionImportResult`; all or nothing, at most 200 questions and 50 cases |
+| POST | `/api/catalog/exams/:id/cases` | `{ title, situation, label?, hint?, imageId?, imageAlt? }` → `201 StaffCase` |
+| PATCH | `/api/catalog/cases/:id` | Any of those fields → `StaffCase` (allowed on locked exams: it is wording) |
+| DELETE | `/api/catalog/cases/:id` | `204`; deletes the case **and its questions** |
 | GET | `/api/catalog/exams/:id/materials` | `Material[]` |
 | POST | `/api/catalog/exams/:id/materials` | `{ title, url }` (https only) → `201 Material` |
 | PATCH | `/api/catalog/materials/:id` | `{ title?, url? }` → `Material` |
 | DELETE | `/api/catalog/materials/:id` | `204` |
-| POST | `/api/catalog/exams/:id/duplicate` | `{ code, title? }` → `201 { id }`: a DRAFT copy (settings, tags, questions, materials). Also needs `EXAM_EDIT` on the exam's **category** (`403` otherwise); `409` if the code is taken. |
+| POST | `/api/catalog/exams/:id/duplicate` | `{ code, title? }` → `201 { id }`: a DRAFT copy (settings, tags, cases, questions, materials; pictures are shared). Also needs `EXAM_EDIT` on the exam's **category** (`403` otherwise); `409` if the code is taken. |
 
 **A question:**
 ```json
@@ -413,11 +417,38 @@ All need **Perm `EXAM_EDIT`** on the exam (SA always). These responses **include
 ```
 - `type`: `SINGLE_CHOICE` (2–10 options, exactly 1 correct), `MULTI_CHOICE` (2–10 options, at least 1 correct), `TRUE_FALSE` (exactly 2 options, 1 correct) or `ESSAY` (no options; only in `MCQ_ESSAY` exams, otherwise `400` on `type`).
 - `guidance` (essays only, ≤ 5,000 characters): notes for graders. Staff only, never sent to students; ignored on other types.
-- `points` defaults to 1 (more than 0, at most 100); `imageUrl` is optional and must be https.
+- `points` defaults to 1 (more than 0, at most 100); `imageUrl` is optional and must be https (older questions: prefer an upload).
+- `imageId` + `imageAlt`: an uploaded picture (§6.1b) and its description; `imageAlt` is required with a picture.
+- `answerSize` (essays): `SHORT` (one line, ≤ 300 characters) or `LONG` (default, ≤ 10,000).
+- `caseId`: the case the question belongs to (`null` = on its own). Moving a question into a case places it after the case's last question; out of a case, right after it.
+- Options: `text` (may be empty when the option has a picture), `isCorrect`, and optional `detail` (a neutral second line students see), `imageId` + `imageAlt`, `explanation` (why it is right or wrong: **staff only**).
+- Pictures must be uploaded to this exam (or already used by it, e.g. in a copy): otherwise `400`.
 - A violation → `400 VALIDATION_FAILED` with a readable `message`.
+
+**Cases** (docs/CASE_QUESTIONS_PLAN.md) group a situation with its questions, usually one choice question and written follow-ups. A case's questions are always consecutive in the exam's order, delivered together on one screen, and their options are **never shuffled** (follow-ups refer to "Option A"). `shuffleQuestions` moves a case as a whole. A case without questions blocks publishing. `hint` is sent to students only when the exam's `showHints` is on.
+
+**Import with cases:**
+```json
+{ "questions": [ /* questions on their own, as above */ ],
+  "cases": [{ "label": "FILL IN", "title": "Linux file permissions", "situation": "ls -la shows …",
+              "questions": [ /* questions of the case, without caseId */ ] }],
+  "dryRun": true }
+```
+Errors inside a case are reported as `"Case 1: question 2: …"`.
 - **PATCH** sends any of the fields; `options` replaces the whole list (each may carry its `id`). The result is validated as a whole.
 
-**Locked exams.** Once any student has an attempt, only **wording** can change: the question `text`/`imageUrl`/`guidance` and option `text` (options identified by `id`, same correct answers). Changing the type, points, options or correct answers, adding, deleting or importing → `409 CONFLICT`. Duplicate the exam to change more.
+**Locked exams.** Once any student has an attempt, only **wording** can change: the question `text`, pictures and alt text, `guidance`; option `text`, `detail`, pictures, alt text and `explanation` (options identified by `id`, same correct answers); and every case field. Changing the type, points, case, answer size, options or correct answers, adding, deleting or importing questions or cases → `409 CONFLICT`. Duplicate the exam to change more.
+
+### 6.1b Pictures (uploads)
+
+| Method | Path | Who | Does |
+|---|---|---|---|
+| POST | `/api/uploads?examId=…` | Perm `EXAM_EDIT` on the exam | The picture itself as the body, with `Content-Type: image/png`, `image/jpeg` or `image/webp` (the one non-JSON write) → `201 UploadResult` |
+| GET | `/api/uploads/:id` | Logged in | The picture (`Cache-Control: private, no-store`, `nosniff`) |
+
+- At most 2 MB (`413` above) and 8,000 pixels a side. The type is read from the file's bytes, not its name or header: anything else → `400`.
+- Metadata is removed before storing (EXIF/GPS, text chunks, comments, bytes after the image). Pictures are stored in the database, so backups include them.
+- **Reading:** staff who can see the exam it was uploaded for, or an exam using it; a student only **while taking** an exam whose questions use it. Everyone else gets `404`.
 
 ### 6.2 Assigning and scheduling
 
@@ -595,10 +626,10 @@ recorded. There is no "allow resume".
 
 | Method | Path | What |
 |---|---|---|
-| GET | `/api/student/exams/:id` | The pre-check page: rules, status, `inProgressAttemptId` |
+| GET | `/api/student/exams/:id` | The pre-check page: rules, the exam's `intro`, status, `inProgressAttemptId` |
 | POST | `/api/attempts` | `{ examId }` → starts (`201`), or continues from the same session (`200`) |
 | GET | `/api/attempts/:id` | The attempt after a reload; `409 ATTEMPT_SUBMITTED` once it ended |
-| PUT | `/api/attempts/:id/answers/:questionId` | `{ selectedOptionIds }` (choice questions) or `{ text }` (essays, ≤ 10,000 characters) → `{ questionId, savedAt }`. The wrong shape for the question → `400`. Idempotent. |
+| PUT | `/api/attempts/:id/answers/:questionId` | `{ selectedOptionIds }` (choice questions) or `{ text }` (essays, ≤ 10,000 characters; `SHORT` ones ≤ 300) → `{ questionId, savedAt }`. The wrong shape for the question → `400`. Idempotent. |
 | POST | `/api/attempts/:id/position` | `{ index }`: without back navigation, moves forward (skip). Never backwards. |
 | POST | `/api/attempts/:id/events` | `{ type, detail?, clientTime? }`: a cheating signal → `{ strikes, strikeLimit, action, status }` |
 | POST | `/api/attempts/:id/heartbeat` | Every ~10 s → `{ active, status, deadlineAt, serverNow, strikes }` |
@@ -614,18 +645,24 @@ says so) and fixed on the attempt. Two starts at once create one attempt.
 {
   "attemptId": "…", "status": "IN_PROGRESS",
   "exam": { "id": "…", "code": "CLOUD-1", "title": "Cloud Gates",
-            "allowBackNavigation": true, "requireFullscreen": true, "strikeLimit": 3 },
+            "allowBackNavigation": true, "requireFullscreen": true, "strikeLimit": 3, "intro": null },
   "student": { "fullName": "Sara Ali", "username": "sara" },
   "startedAt": "…", "deadlineAt": "…", "serverNow": "…",
   "strikes": 0, "furthestIndex": 0, "questionCount": 20,
-  "questions": [{ "index": 0, "id": "…", "type": "SINGLE_CHOICE", "text": "…", "imageUrl": null,
-                  "points": 1, "options": [{ "id": "…", "text": "…" }] }],
+  "cases": [{ "id": "…", "label": "DESIGN", "title": "Boot sequence", "situation": "…", "hint": null,
+              "imageUrl": "/api/uploads/…", "imageAlt": "…" }],
+  "questions": [{ "index": 0, "id": "…", "type": "SINGLE_CHOICE", "caseId": "…", "text": "…",
+                  "imageUrl": null, "imageAlt": null, "points": 1, "answerSize": "LONG",
+                  "options": [{ "id": "…", "text": "…", "detail": null, "imageUrl": null, "imageAlt": null }] }],
   "answers": { "<questionId>": ["<optionId>"] },
   "essays": { "<questionId>": "the saved essay text" }
 }
 ```
-Essay questions have `"type": "ESSAY"` and `"options": []`.
-Never the answer key. Without back navigation, questions before `furthestIndex` are not sent at all.
+Essay questions have `"type": "ESSAY"` and `"options": []`. A question's `caseId` points into `cases`;
+consecutive questions with the same `caseId` form one screen, and their options keep their order
+(show them as A, B, C…). `imageUrl` is an uploaded picture (`/api/uploads/…`) or an outside link.
+Never the answer key, option explanations or grader guidance. Without back navigation, questions before
+the student's current case (or question) are not sent at all; the whole current case stays open.
 
 **Time.** `deadlineAt` = start + duration, but never after the window closes. The timer never pauses.
 Saves are accepted until 5 s after the deadline; after that the attempt is submitted automatically
@@ -644,7 +681,7 @@ for one attempt. These responses include the answer key and grader guidance: sta
 | Method | Path | What |
 |---|---|---|
 | GET | `/api/grading/exams/:examId` | *Paginated* queue of finished attempts, oldest first → `GradingQueue` (`items` + `counts: { pending, underReview, reviewed }`). Filter `reviewStatus` = `PENDING` / `UNDER_REVIEW` / `REVIEWED` / `NOT_REVIEWED`. Rows and counts cover only students in the caller's scope. `409` on an `AUTO` exam. |
-| GET | `/api/grading/attempts/:id` | `GradingAttempt`: every delivered question with the student's answer, `autoPoints`, `awardedPoints`, feedback, `approvalProblems`, `gradingVersion` and `nextUngradedId` |
+| GET | `/api/grading/attempts/:id` | `GradingAttempt`: the attempt's `cases` (with hints) and every delivered question with its options in the student's order (pictures, `explanation`), the student's answer, `autoPoints`, `awardedPoints`, feedback, `approvalProblems`, `gradingVersion` and `nextUngradedId` |
 | PUT | `/api/grading/attempts/:id/grades` | `{ version, grades: [{ questionId, points, feedback?, reason? }] }` → `GradingAttempt`. A draft: the attempt becomes `UNDER_REVIEW`. |
 | POST | `/api/grading/attempts/:id/approve` | `{ version }` → `GradingAttempt`: `score` = the sum of grader points (else automatic points, else 0); `REVIEWED` |
 | POST | `/api/grading/attempts/:id/reopen` | `{ reason }` → `GradingAttempt`: back to `UNDER_REVIEW`, `score` cleared |
@@ -691,7 +728,9 @@ Legend: ✅ allowed · 🔑 instructors with the named permission on the exam/ta
 | `GET /api/catalog/exams` | — | ❌ | 👁 | ✅ |
 | `GET /api/catalog/exams/:id` | — | ❌ | 🔑 any | ✅ |
 | `POST /api/catalog/exams`, `PATCH …/:id`, `PUT …/:id/tags` | — | ❌ | 🔑 `EXAM_EDIT` | ✅ |
-| Exam content: questions, materials, duplicate (§6.1a) | — | ❌ | 🔑 `EXAM_EDIT` | ✅ |
+| Exam content: questions, cases, materials, duplicate (§6.1a) | — | ❌ | 🔑 `EXAM_EDIT` | ✅ |
+| `POST /api/uploads` (§6.1b) | — | ❌ | 🔑 `EXAM_EDIT` | ✅ |
+| `GET /api/uploads/:id` | — | during an attempt using it | 🔑 any, on an exam using it | ✅ |
 | `GET /api/assignments`, `GET /api/overrides` | — | ❌ | 🔑 `EXAM_ASSIGN` or `EXAM_SCHEDULE` | ✅ |
 | `POST /api/assignments`, `DELETE /api/assignments/:id` | — | ❌ | 🔑 `EXAM_ASSIGN` | ✅ |
 | `POST /api/assignments/bulk`, `…/preview` | — | ❌ | 🔑 `EXAM_ASSIGN` on every pair | ✅ |
@@ -765,11 +804,18 @@ The authoritative version, with every endpoint × 8 test users, is the RBAC matr
 
 **StaffQuestion** (with the answer key: staff only):
 ```ts
-{ id, type: "SINGLE_CHOICE" | "MULTI_CHOICE" | "TRUE_FALSE", text, imageUrl: string | null, points: number,
-  position: number, options: { id, text, isCorrect: boolean, position: number }[] }
+{ id, type: "SINGLE_CHOICE" | "MULTI_CHOICE" | "TRUE_FALSE" | "ESSAY", text, imageUrl: string | null,
+  imageId: string | null, imageAlt: string | null, points: number, position: number,
+  guidance: string | null, answerSize: "SHORT" | "LONG", caseId: string | null,
+  options: { id, text, detail: string | null, imageId: string | null, imageAlt: string | null,
+             isCorrect: boolean, explanation: string | null, position: number }[] }
 ```
 
-**QuestionList**: `{ locked: boolean, questions: StaffQuestion[], publishProblems: string[] }`
+**StaffCase**: `{ id, label: string | null, title, situation, hint: string | null, imageId: string | null, imageAlt: string | null }`
+
+**QuestionList**: `{ locked: boolean, questions: StaffQuestion[], cases: StaffCase[], publishProblems: string[] }`
+
+**UploadResult**: `{ id, url /* /api/uploads/:id */, mime, size, width, height }`
 
 **QuestionImportResult**: `{ dryRun, errors: { index /* 1-based; 0 = the whole import */, message }[], imported: number, questions: StaffQuestion[] }`
 

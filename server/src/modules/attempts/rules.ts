@@ -42,22 +42,53 @@ export function shuffled<T>(items: readonly T[], random: () => number): T[] {
   return out;
 }
 
-/** The attempt's question order and per-question option order, fixed at start (EXAM-6). */
+/**
+ * The delivery blocks of an ordered question list: consecutive questions of the same case form one
+ * block (a case is delivered whole, in its order); every other question is a block on its own.
+ */
+export function blocksOf<Q extends { caseId?: string | null }>(questions: readonly Q[]): Q[][] {
+  const blocks: Q[][] = [];
+  for (const q of questions) {
+    const last = blocks.at(-1);
+    if (q.caseId && last && last[0]?.caseId === q.caseId) last.push(q);
+    else blocks.push([q]);
+  }
+  return blocks;
+}
+
+/**
+ * The attempt's question order and per-question option order, fixed at start (EXAM-6). Shuffling
+ * moves cases as whole blocks; options inside a case are never shuffled, because follow-up
+ * questions refer to them by letter (docs/CASE_QUESTIONS_PLAN.md C3–C4).
+ */
 export function deliveryOrder(
-  questions: { id: string; options: { id: string }[] }[],
+  questions: { id: string; caseId?: string | null; options: { id: string }[] }[],
   settings: { shuffleQuestions: boolean; shuffleOptions: boolean },
   random: () => number,
 ): { questionOrder: string[]; optionOrder: Record<string, string[]> } {
-  const ordered = settings.shuffleQuestions ? shuffled(questions, random) : questions;
+  const blocks = blocksOf(questions);
+  const ordered = (settings.shuffleQuestions ? shuffled(blocks, random) : blocks).flat();
   return {
     questionOrder: ordered.map((q) => q.id),
     optionOrder: Object.fromEntries(
       ordered.map((q) => {
         const ids = q.options.map((o) => o.id);
-        return [q.id, settings.shuffleOptions ? shuffled(ids, random) : ids];
+        return [q.id, settings.shuffleOptions && !q.caseId ? shuffled(ids, random) : ids];
       }),
     ),
   };
+}
+
+/**
+ * For each position of an attempt, where its block starts. Without back navigation a whole case
+ * stays open while the student is on it: questions before `blockStart[furthestIndex]` are closed.
+ */
+export function blockStarts(caseIds: readonly (string | null)[]): number[] {
+  return caseIds.map((caseId, i) => {
+    let start = i;
+    while (caseId && start > 0 && caseIds[start - 1] === caseId) start--;
+    return start;
+  });
 }
 
 // ─────────────────────────────── Answers and grading ───────────────────────────────

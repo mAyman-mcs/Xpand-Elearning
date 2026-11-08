@@ -244,10 +244,16 @@ model Exam {
   resultsReleased     Boolean     @default(false)
   type                ExamType    @default(MCQ)
   scoringMode         ScoringMode @default(AUTO)
+  // Shown before the exam starts and during it ("The story so far", instructions). Plain text.
+  intro               String?
+  // Case hints are sent to students only when this is on (docs/CASE_QUESTIONS_PLAN.md C9).
+  showHints           Boolean     @default(false)
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
 
   questions   Question[]
+  cases       QuestionCase[]
+  uploads     Upload[]
   materials   Material[]
   assignments Assignment[]
   overrides   AccessOverride[]
@@ -265,34 +271,107 @@ enum QuestionType {
   ESSAY // free text, no options; graded by staff (MCQ_ESSAY exams only)
 }
 
+enum AnswerSize {
+  SHORT // one line, at most 300 characters
+  LONG // a text area, at most 10,000 characters
+}
+
+/**
+ * A use-case block (docs/CASE_QUESTIONS_PLAN.md): one situation shared by a choice question and its
+ * written follow-ups. Its questions are contiguous in the exam's question order and are delivered
+ * together, in their order (shuffling moves the whole case).
+ */
+model QuestionCase {
+  id        String   @id @default(uuid()) @db.Uuid
+  examId    String   @db.Uuid
+  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  // Short chip, e.g. KNOWLEDGE, DESIGN, FILL IN, TROUBLESHOOT.
+  label     String?
+  title     String
+  situation String
+  // Sent to students only when the exam's showHints is on.
+  hint      String?
+  imageId   String?  @db.Uuid
+  image     Upload?  @relation(fields: [imageId], references: [id])
+  imageAlt  String?
+  createdAt DateTime @default(now())
+
+  questions Question[]
+
+  @@index([examId])
+}
+
 model Question {
-  id       String       @id @default(uuid()) @db.Uuid
-  examId   String       @db.Uuid
-  exam     Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
-  type     QuestionType
-  text     String
-  imageUrl String?
-  points   Decimal      @default(1) @db.Decimal(6, 2)
-  position Int
+  id         String        @id @default(uuid()) @db.Uuid
+  examId     String        @db.Uuid
+  exam       Exam          @relation(fields: [examId], references: [id], onDelete: Cascade)
+  type       QuestionType
+  text       String
+  // An outside https link (older questions); imageId (an upload) is preferred.
+  imageUrl   String?
+  imageId    String?       @db.Uuid
+  image      Upload?       @relation(fields: [imageId], references: [id])
+  imageAlt   String?
+  points     Decimal       @default(1) @db.Decimal(6, 2)
+  position   Int
   // ESSAY only: notes for graders (model answer, rubric). Staff only, never serialized to students.
-  guidance String?
+  guidance   String?
+  // ESSAY only: the size of the answer box (and its limit).
+  answerSize AnswerSize    @default(LONG)
+  caseId     String?       @db.Uuid
+  case       QuestionCase? @relation(fields: [caseId], references: [id], onDelete: Cascade)
 
   options Option[]
   answers AttemptAnswer[]
 
   @@index([examId])
+  @@index([caseId])
 }
 
 model Option {
-  id         String   @id @default(uuid()) @db.Uuid
-  questionId String   @db.Uuid
-  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  text       String
+  id          String   @id @default(uuid()) @db.Uuid
+  questionId  String   @db.Uuid
+  question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  // May be empty when the option is a picture.
+  text        String   @default("")
+  // A neutral second line shown under the text (students see it).
+  detail      String?
+  imageId     String?  @db.Uuid
+  image       Upload?  @relation(fields: [imageId], references: [id])
+  imageAlt    String?
   // Never serialized to students; grading happens server-side.
-  isCorrect  Boolean  @default(false)
-  position   Int
+  isCorrect   Boolean  @default(false)
+  // Why this option is right or wrong. Staff only, never serialized to students.
+  explanation String?
+  position    Int
 
   @@index([questionId])
+}
+
+/**
+ * An uploaded picture (png, jpeg or webp; metadata stripped). Stored in the database so backups
+ * include it. Readable by staff who can see an exam using it, and by students during an attempt
+ * of such an exam (docs/CASE_QUESTIONS_PLAN.md C8).
+ */
+model Upload {
+  id          String   @id @default(uuid()) @db.Uuid
+  // The exam it was uploaded for (copies of the exam reuse it).
+  examId      String   @db.Uuid
+  exam        Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  mime        String
+  size        Int
+  sha256      String
+  width       Int
+  height      Int
+  data        Bytes
+  createdById String?  @db.Uuid
+  createdAt   DateTime @default(now())
+
+  questions Question[]
+  options   Option[]
+  cases     QuestionCase[]
+
+  @@index([examId])
 }
 
 model Material {

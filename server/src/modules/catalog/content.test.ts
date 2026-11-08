@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { publishProblems, questionProblems, type QuestionShape } from "./content.service.js";
+import {
+  casesContiguous,
+  insertIntoCase,
+  publishProblems,
+  questionProblems,
+  type QuestionShape,
+} from "./content.service.js";
 
 const q = (over: Partial<QuestionShape>): QuestionShape => ({
   type: "SINGLE_CHOICE",
@@ -97,7 +103,7 @@ describe("questionProblems", () => {
           { text: " ", isCorrect: false },
         ],
       }),
-      "An option has no text.",
+      "An option has no text or picture.",
     ],
     [
       "true/false with both marked correct",
@@ -164,5 +170,66 @@ describe("publishProblems", () => {
     ]);
     expect(publishProblems(essayExam, [q({}), q({ type: "ESSAY", options: [] })])).toEqual([]);
     expect(publishProblems(essayExam, [q({ type: "ESSAY", options: [] })])).toEqual([]);
+  });
+});
+
+describe("pictures (CASE_QUESTIONS_PLAN C6)", () => {
+  const pic = "00000000-0000-4000-8000-000000000001";
+  it("accepts picture options with alt text and no text", () => {
+    expect(
+      questionProblems(
+        q({
+          options: [
+            { text: "", imageId: pic, imageAlt: "Power on, BIOS, bootloader", isCorrect: true },
+            { text: "", imageId: pic, imageAlt: "Power on, bootloader, BIOS", isCorrect: false },
+          ],
+        }),
+      ),
+    ).toEqual([]);
+  });
+  it("needs text or a picture, and alt text for every picture", () => {
+    expect(
+      questionProblems(
+        q({
+          options: [
+            { text: "", isCorrect: true },
+            { text: "b", imageId: pic, imageAlt: " ", isCorrect: false },
+          ],
+        }),
+      ),
+    ).toEqual(["An option has no text or picture.", "Describe every option picture (alt text)."]);
+    expect(questionProblems(q({ imageId: pic, imageAlt: null }))).toEqual([
+      "Describe the question's picture (alt text).",
+    ]);
+  });
+});
+
+describe("cases", () => {
+  const exam = { isExternal: false, questionsPerAttempt: null, type: "MCQ" as const };
+  it("refuses publishing an empty case", () => {
+    expect(publishProblems(exam, [q({})], [{ title: "Boot sequence", questionCount: 0 }])).toEqual([
+      "Case “Boot sequence” has no questions: add some or delete it.",
+    ]);
+    expect(publishProblems(exam, [q({})], [{ title: "Boot sequence", questionCount: 1 }])).toEqual([]);
+  });
+
+  it("knows when a case's questions are together", () => {
+    const o = (...cases: (string | null)[]) => cases.map((caseId, i) => ({ id: `q${i}`, caseId }));
+    expect(casesContiguous(o(null, "A", "A", null, "B", "B"))).toBe(true);
+    expect(casesContiguous(o("A", "A", "A"))).toBe(true);
+    expect(casesContiguous(o("A", null, "A"))).toBe(false);
+    expect(casesContiguous(o("A", "B", "A"))).toBe(false);
+    expect(casesContiguous([])).toBe(true);
+  });
+
+  it("adds a question after its case's last question, or at the end of an empty case", () => {
+    const order = [
+      { id: "a", caseId: null },
+      { id: "b", caseId: "A" },
+      { id: "c", caseId: "A" },
+      { id: "d", caseId: null },
+    ];
+    expect(insertIntoCase(order, "new", "A")).toEqual(["a", "b", "c", "new", "d"]);
+    expect(insertIntoCase(order, "new", "B")).toEqual(["a", "b", "c", "d", "new"]);
   });
 });

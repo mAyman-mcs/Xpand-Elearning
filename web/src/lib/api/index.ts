@@ -2,6 +2,9 @@
 // TanStack Query hooks; nothing else calls fetch.
 import type {
   AdminStats,
+  AnswerSize,
+  StaffCase,
+  UploadResult,
   AttemptOutcome,
   AttemptStatus,
   EventResult,
@@ -82,6 +85,10 @@ export interface ExamSettings {
   requireFullscreen: boolean;
   type: ExamType;
   scoringMode: ScoringMode;
+  /** Shown to students before and during the exam. */
+  intro: string | null;
+  /** Send case hints to students. */
+  showHints: boolean;
 }
 export type ExamInput = ExamSettings & { code: string; tagIds: string[] };
 export type ExamPatch = Partial<ExamSettings> & { status?: ExamStatus };
@@ -98,15 +105,34 @@ export interface OverrideInput {
   reason: string;
 }
 
+export interface OptionInput {
+  id?: string;
+  /** May be empty when the option has a picture. */
+  text: string;
+  isCorrect: boolean;
+  detail?: string | null;
+  imageId?: string | null;
+  imageAlt?: string | null;
+  /** Staff only: why it is right or wrong. */
+  explanation?: string | null;
+}
+
 export interface QuestionInput {
   type: QuestionType;
   text: string;
   imageUrl: string | null;
+  imageId?: string | null;
+  imageAlt?: string | null;
   points: number;
   /** ESSAY only: notes for graders, never shown to students. */
   guidance: string | null;
-  options: { id?: string; text: string; isCorrect: boolean }[];
+  /** ESSAY only. */
+  answerSize?: AnswerSize;
+  caseId?: string | null;
+  options: OptionInput[];
 }
+
+export type CaseInput = Omit<StaffCase, "id">;
 
 /** Choice questions send the selected options; essays send their text. */
 export type AnswerInput = { selectedOptionIds: string[] } | { text: string };
@@ -213,8 +239,17 @@ export const api = {
     remove: (id: string) => http.del(`/catalog/questions/${id}`),
     reorder: (examId: string, questionIds: string[]) =>
       http.put<StaffQuestion[]>(`/catalog/exams/${examId}/questions/order`, { questionIds }),
-    import: (examId: string, questions: unknown[], dryRun: boolean) =>
-      http.post<QuestionImportResult>(`/catalog/exams/${examId}/questions/import`, { questions, dryRun }),
+    import: (examId: string, content: { questions: unknown[]; cases: unknown[] }, dryRun: boolean) =>
+      http.post<QuestionImportResult>(`/catalog/exams/${examId}/questions/import`, { ...content, dryRun }),
+  },
+  cases: {
+    create: (examId: string, input: CaseInput) => http.post<StaffCase>(`/catalog/exams/${examId}/cases`, input),
+    update: (id: string, patch: Partial<CaseInput>) => http.patch<StaffCase>(`/catalog/cases/${id}`, patch),
+    remove: (id: string) => http.del(`/catalog/cases/${id}`),
+  },
+  uploads: {
+    /** A png, jpeg or webp picture of at most 2 MB, for one exam's questions, options or cases. */
+    create: (examId: string, file: Blob) => http.upload<UploadResult>(`/uploads?examId=${examId}`, file),
   },
   materials: {
     list: (examId: string) => http.get<Material[]>(`/catalog/exams/${examId}/materials`),

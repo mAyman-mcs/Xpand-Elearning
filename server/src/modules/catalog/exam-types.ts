@@ -10,6 +10,9 @@ export const isChoice = (type: QuestionType) => CHOICE_TYPES.includes(type);
 /** Longest essay answer accepted, in characters (T6; also a CHECK constraint). */
 export const ESSAY_MAX_CHARS = 10_000;
 
+/** Longest answer to a SHORT (one-line) written question (docs/CASE_QUESTIONS_PLAN.md C10). */
+export const SHORT_ANSWER_MAX_CHARS = 300;
+
 /** The scoring mode used when none is chosen: essays always need approval, MCQ is auto scored. */
 export const defaultScoringMode = (type: ExamType): ScoringMode => (type === "MCQ_ESSAY" ? "MANUAL_APPROVAL" : "AUTO");
 

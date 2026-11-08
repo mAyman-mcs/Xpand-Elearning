@@ -6,7 +6,7 @@ import { AppError, conflict, notFound } from "../../core/errors.js";
 import { pageArgs, toPage, type PageQuery } from "../../core/pagination.js";
 import { nonBlank } from "../../core/schemas.js";
 import type { Prisma, ReviewStatus } from "../../generated/prisma/client.js";
-import { optionOrder, order } from "../attempts/service.js";
+import { optionOrder, order, pictureUrl } from "../attempts/service.js";
 import { isChoice } from "../catalog/exam-types.js";
 import type { Scope } from "../rbac/authorize.js";
 import { examScope, studentScope } from "../rbac/resolvers.js";
@@ -108,7 +108,7 @@ async function loadAttempt(db: DbClient, attemptId: string) {
   const ids = order(attempt);
   const rows = await db.question.findMany({
     where: { id: { in: ids } },
-    include: { options: true },
+    include: { options: true, case: true },
   });
   const byId = new Map(rows.map((q) => [q.id, q]));
   const questions = ids.flatMap((id) => {
@@ -246,6 +246,16 @@ export async function getGrading(ctx: Ctx, attemptId: string) {
     maxScore: num(attempt.maxScore),
     exam: attempt.exam,
     student: attempt.user,
+    // The cases of the delivered questions, once each, in delivery order (with hints: graders see all).
+    cases: [...new Map(questions.flatMap((q) => (q.case ? [[q.case.id, q.case] as const] : []))).values()].map((c) => ({
+      id: c.id,
+      label: c.label,
+      title: c.title,
+      situation: c.situation,
+      hint: c.hint,
+      imageUrl: pictureUrl(c),
+      imageAlt: c.imageAlt,
+    })),
     questions: questions.map((q, index) => {
       const a = answers.get(q.id);
       const selected = new Set(a?.selectedOptionIds ?? []);
@@ -254,13 +264,29 @@ export async function getGrading(ctx: Ctx, attemptId: string) {
         index,
         id: q.id,
         type: q.type,
+        caseId: q.caseId,
         text: q.text,
-        imageUrl: q.imageUrl,
+        imageUrl: pictureUrl(q),
+        imageAlt: q.imageAlt,
         points: q.points.toNumber(),
         guidance: q.guidance,
+        answerSize: q.answerSize,
         options: (options[q.id] ?? []).flatMap((oid) => {
           const o = optionText.get(oid);
-          return o ? [{ id: o.id, text: o.text, isCorrect: o.isCorrect, selected: selected.has(o.id) }] : [];
+          return o
+            ? [
+                {
+                  id: o.id,
+                  text: o.text,
+                  detail: o.detail,
+                  imageUrl: pictureUrl(o),
+                  imageAlt: o.imageAlt,
+                  isCorrect: o.isCorrect,
+                  explanation: o.explanation,
+                  selected: selected.has(o.id),
+                },
+              ]
+            : [];
         }),
         answerText: a?.text ?? null,
         answered: isAnswered(a),

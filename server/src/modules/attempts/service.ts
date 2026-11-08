@@ -7,11 +7,13 @@ import { AppError, notFound } from "../../core/errors.js";
 import { uuid } from "../../core/schemas.js";
 import type { Attempt, AttemptStatus, Prisma, ViolationType } from "../../generated/prisma/client.js";
 import { resolveAvailability } from "../assignments/availability.js";
-import { ESSAY_MAX_CHARS, isChoice } from "../catalog/exam-types.js";
+import { ESSAY_MAX_CHARS, isChoice, SHORT_ANSWER_MAX_CHARS } from "../catalog/exam-types.js";
+import { uploadUrl } from "../uploads/service.js";
 import { loadExamRules, loadStudents, rulesFor } from "../assignments/inputs.js";
 import {
   acceptsAnswers,
   applyEvent,
+  blockStarts,
   CLIENT_EVENT_TYPES,
   deadlineFor,
   deliveryOrder,
@@ -59,6 +61,8 @@ const examFields = {
   shuffleQuestions: true,
   shuffleOptions: true,
   scoringMode: true,
+  intro: true,
+  showHints: true,
 } as const;
 
 /** The student's availability for one exam, by the same resolver as their exam list. */
@@ -85,6 +89,21 @@ async function loadOwn(ctx: Ctx, attemptId: string): Promise<Attempt> {
 
 export const order = (a: Pick<Attempt, "questionOrder">) => (a.questionOrder ?? []) as string[];
 export const optionOrder = (a: Pick<Attempt, "optionOrder">) => (a.optionOrder ?? {}) as Record<string, string[]>;
+
+/** An uploaded picture's address, else the outside link (older questions). */
+export const pictureUrl = (row: { imageId: string | null; imageUrl?: string | null }) =>
+  row.imageId ? uploadUrl(row.imageId) : (row.imageUrl ?? null);
+
+/**
+ * Without back navigation: the first position the student may still answer. The whole case they
+ * are on stays open (docs/CASE_QUESTIONS_PLAN.md C12), so this is where that case starts.
+ */
+async function firstOpenIndex(db: DbClient, attempt: Attempt): Promise<number> {
+  const ids = order(attempt);
+  const rows = await db.question.findMany({ where: { id: { in: ids } }, select: { id: true, caseId: true } });
+  const caseOf = new Map(rows.map((r) => [r.id, r.caseId]));
+  return blockStarts(ids.map((id) => caseOf.get(id) ?? null))[attempt.furthestIndex] ?? attempt.furthestIndex;
+}
 
 // ─────────────────────────────── Finalizing ───────────────────────────────
 
@@ -244,13 +263,21 @@ async function studentView(ctx: Ctx, attempt: Attempt) {
   const options = optionOrder(attempt);
   const [exam, questions, answers, user] = await Promise.all([
     ctx.db.exam.findUniqueOrThrow({ where: { id: attempt.examId }, select: examFields }),
-    ctx.db.question.findMany({ where: { id: { in: ids } }, include: { options: true } }),
+    ctx.db.question.findMany({ where: { id: { in: ids } }, include: { options: true, case: true } }),
     ctx.db.attemptAnswer.findMany({ where: { attemptId: attempt.id } }),
     ctx.db.user.findUniqueOrThrow({ where: { id: attempt.userId }, select: { fullName: true, username: true } }),
   ]);
   const byId = new Map(questions.map((q) => [q.id, q]));
-  // Without back navigation, questions before the furthest one are closed: not even sent.
-  const first = exam.allowBackNavigation ? 0 : attempt.furthestIndex;
+  // Without back navigation, questions before the student's current case are closed: not even sent.
+  const first = exam.allowBackNavigation
+    ? 0
+    : (blockStarts(ids.map((id) => byId.get(id)?.caseId ?? null))[attempt.furthestIndex] ?? attempt.furthestIndex);
+  const sent = ids.flatMap((id, index) => {
+    const q = byId.get(id);
+    return q && index >= first ? [{ q, index }] : [];
+  });
+  // The cases of the questions sent, once each, in delivery order. Hints only when the exam shows them.
+  const cases = [...new Map(sent.flatMap(({ q }) => (q.case ? [[q.case.id, q.case] as const] : []))).values()];
   return {
     attemptId: attempt.id,
     status: attempt.status,
@@ -261,6 +288,7 @@ async function studentView(ctx: Ctx, attempt: Attempt) {
       allowBackNavigation: exam.allowBackNavigation,
       requireFullscreen: exam.requireFullscreen,
       strikeLimit: exam.strikeLimit,
+      intro: exam.intro,
     },
     student: user,
     startedAt: attempt.startedAt,
@@ -269,21 +297,33 @@ async function studentView(ctx: Ctx, attempt: Attempt) {
     strikes: attempt.strikes,
     furthestIndex: attempt.furthestIndex,
     questionCount: ids.length,
-    questions: ids.flatMap((id, index) => {
-      const q = byId.get(id);
-      if (!q || index < first) return [];
-      const optionText = new Map(q.options.map((o) => [o.id, o.text]));
-      return [
-        {
-          index,
-          id: q.id,
-          type: q.type,
-          text: q.text,
-          imageUrl: q.imageUrl,
-          points: q.points.toNumber(),
-          options: (options[q.id] ?? []).map((oid) => ({ id: oid, text: optionText.get(oid) ?? "" })),
-        },
-      ];
+    cases: cases.map((c) => ({
+      id: c.id,
+      label: c.label,
+      title: c.title,
+      situation: c.situation,
+      hint: exam.showHints ? c.hint : null,
+      imageUrl: pictureUrl(c),
+      imageAlt: c.imageAlt,
+    })),
+    questions: sent.map(({ q, index }) => {
+      const optionById = new Map(q.options.map((o) => [o.id, o]));
+      return {
+        index,
+        id: q.id,
+        type: q.type,
+        caseId: q.caseId,
+        text: q.text,
+        imageUrl: pictureUrl(q),
+        imageAlt: q.imageAlt,
+        points: q.points.toNumber(),
+        answerSize: q.answerSize,
+        // Field by field: never isCorrect or the staff-only explanation.
+        options: (options[q.id] ?? []).flatMap((oid) => {
+          const o = optionById.get(oid);
+          return o ? [{ id: o.id, text: o.text, detail: o.detail, imageUrl: pictureUrl(o), imageAlt: o.imageAlt }] : [];
+        }),
+      };
     }),
     answers: Object.fromEntries(answers.filter((a) => a.text === null).map((a) => [a.questionId, a.selectedOptionIds])),
     essays: Object.fromEntries(answers.flatMap((a) => (a.text === null ? [] : [[a.questionId, a.text] as const]))),
@@ -313,6 +353,7 @@ export async function examBrief(ctx: Ctx, examId: string) {
       requireFullscreen: exam.requireFullscreen,
       allowBackNavigation: exam.allowBackNavigation,
       isExternal: exam.isExternal,
+      intro: exam.intro,
       materials,
     },
     status: availability.status,
@@ -445,9 +486,16 @@ export async function saveAnswer(
     where: { id: attempt.examId },
     select: { allowBackNavigation: true },
   });
-  if (!exam.allowBackNavigation && index < attempt.furthestIndex)
+  if (!exam.allowBackNavigation && index < (await firstOpenIndex(ctx.db, attempt)))
     throw new AppError("QUESTION_CLOSED", { message: "You can't go back to earlier questions in this exam." });
-  const question = await ctx.db.question.findUniqueOrThrow({ where: { id: questionId }, select: { type: true } });
+  const question = await ctx.db.question.findUniqueOrThrow({
+    where: { id: questionId },
+    select: { type: true, answerSize: true },
+  });
+  if ("text" in input && question.answerSize === "SHORT" && input.text.length > SHORT_ANSWER_MAX_CHARS)
+    throw new AppError("VALIDATION_FAILED", {
+      details: [{ path: "text", message: `This is a short answer: at most ${SHORT_ANSWER_MAX_CHARS} characters.` }],
+    });
   // The answer's shape must match the question: text for essays, options for the rest.
   const essay = question.type === "ESSAY";
   if (essay !== "text" in input)
@@ -497,7 +545,7 @@ export async function moveTo(ctx: Ctx, attemptId: string, sessionId: string, ind
     select: { allowBackNavigation: true },
   });
   if (exam.allowBackNavigation) return { furthestIndex: attempt.furthestIndex };
-  if (index < attempt.furthestIndex)
+  if (index < (await firstOpenIndex(ctx.db, attempt)))
     throw new AppError("QUESTION_CLOSED", { message: "You can't go back to earlier questions in this exam." });
   await ctx.db.attempt.updateMany({
     where: { id: attemptId, status: "IN_PROGRESS", furthestIndex: { lt: index } },

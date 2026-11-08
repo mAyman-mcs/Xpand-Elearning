@@ -116,9 +116,11 @@ describe("starting", () => {
     const text = JSON.stringify(res.body);
     expect(text).not.toMatch(/isCorrect|correct/i);
     for (const q of res.body.questions as { options: object[] }[])
-      for (const o of q.options) expect(Object.keys(o).sort()).toEqual(["id", "text"]);
+      // Exactly these fields: never isCorrect or the staff-only explanation.
+      for (const o of q.options)
+        expect(Object.keys(o).sort()).toEqual(["detail", "id", "imageAlt", "imageUrl", "text"]);
     expect(Object.keys(res.body.questions[0] as object).sort()).toEqual(
-      ["id", "imageUrl", "index", "options", "points", "text", "type"].sort(),
+      ["answerSize", "caseId", "id", "imageAlt", "imageUrl", "index", "options", "points", "text", "type"].sort(),
     );
   });
 

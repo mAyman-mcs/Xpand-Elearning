@@ -46,6 +46,14 @@ export class Reply {
   ) {}
 }
 export const created = (body: unknown) => new Reply(201, body);
+
+/** A binary response (an uploaded picture). Never cached by shared caches. */
+export class FileReply {
+  constructor(
+    readonly contentType: string,
+    readonly data: Buffer,
+  ) {}
+}
 export const noContent = () => new Reply(204);
 
 // ──────────────────────────────── Routes ────────────────────────────────
@@ -185,7 +193,15 @@ function checkPermission(
 }
 
 function send(res: Response, result: unknown): void {
-  if (result instanceof Reply) {
+  if (result instanceof FileReply) {
+    res.set({
+      "Content-Type": result.contentType,
+      "Cache-Control": "private, no-store",
+      "X-Content-Type-Options": "nosniff",
+      "Content-Disposition": "inline",
+    });
+    res.end(result.data);
+  } else if (result instanceof Reply) {
     if (result.body === undefined) res.status(result.status).end();
     else res.status(result.status).json(result.body);
   } else if (result === undefined) {

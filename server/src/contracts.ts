@@ -156,6 +156,10 @@ export interface Exam {
   requireFullscreen: boolean;
   type: ExamType;
   scoringMode: ScoringMode;
+  /** Shown to students before and during the exam. */
+  intro: string | null;
+  /** Case hints are sent to students. */
+  showHints: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -260,6 +264,7 @@ export interface StudentExamBrief {
     requireFullscreen: boolean;
     allowBackNavigation: boolean;
     isExternal: boolean;
+    intro: string | null;
     materials: { title: string; url: string }[];
   };
   status: AvailabilityStatus;
@@ -270,16 +275,46 @@ export interface StudentExamBrief {
   inProgressAttemptId: string | null;
 }
 
+/** ESSAY questions: a one-line answer (at most 300 characters) or a text area (10,000). */
+export type AnswerSize = "SHORT" | "LONG";
+
+/** A use case as delivered: one situation shared by its questions (docs/CASE_QUESTIONS_PLAN.md). */
+export interface StudentCase {
+  id: string;
+  /** Short chip, e.g. KNOWLEDGE, DESIGN. */
+  label: string | null;
+  title: string;
+  situation: string;
+  /** Null unless the exam shows hints (graders always see it). */
+  hint: string | null;
+  imageUrl: string | null;
+  imageAlt: string | null;
+}
+
+/** An option as a student receives it: text and/or a picture, never whether it is correct. */
+export interface StudentOption {
+  id: string;
+  /** May be empty when the option is a picture. */
+  text: string;
+  detail: string | null;
+  imageUrl: string | null;
+  imageAlt: string | null;
+}
+
 /** A question as a student receives it: never the answer key. */
 export interface StudentQuestion {
   /** Position in this attempt (0-based); without back navigation, earlier ones aren't sent. */
   index: number;
   id: string;
   type: QuestionType;
+  /** The case it belongs to (in `cases`); its questions are consecutive and options keep their letters. */
+  caseId: string | null;
   text: string;
   imageUrl: string | null;
+  imageAlt: string | null;
   points: number;
-  options: { id: string; text: string }[];
+  answerSize: AnswerSize;
+  options: StudentOption[];
 }
 
 export interface StudentAttempt {
@@ -292,6 +327,7 @@ export interface StudentAttempt {
     allowBackNavigation: boolean;
     requireFullscreen: boolean;
     strikeLimit: number;
+    intro: string | null;
   };
   /** For the watermark. */
   student: { fullName: string; username: string };
@@ -303,6 +339,8 @@ export interface StudentAttempt {
   strikes: number;
   furthestIndex: number;
   questionCount: number;
+  /** The cases of the questions sent, in delivery order. */
+  cases: StudentCase[];
   questions: StudentQuestion[];
   /** questionId → selected option ids, as saved on the server (choice questions). */
   answers: Record<string, string[]>;
@@ -376,23 +414,58 @@ export interface ImportResult {
 
 export type QuestionType = "SINGLE_CHOICE" | "MULTI_CHOICE" | "TRUE_FALSE" | "ESSAY";
 
+export interface StaffOption {
+  id: string;
+  /** May be empty when the option is a picture. */
+  text: string;
+  /** A neutral second line students see under the text. */
+  detail: string | null;
+  /** An uploaded picture: GET /api/uploads/:imageId. */
+  imageId: string | null;
+  imageAlt: string | null;
+  isCorrect: boolean;
+  /** Why it is right or wrong: staff only. */
+  explanation: string | null;
+  position: number;
+}
+
 /** A question WITH its answer key: staff screens only. */
 export interface StaffQuestion {
   id: string;
   type: QuestionType;
   text: string;
+  /** An outside https link (older questions). */
   imageUrl: string | null;
+  /** An uploaded picture: GET /api/uploads/:imageId. */
+  imageId: string | null;
+  imageAlt: string | null;
   points: number;
+  /** Position in the exam (0-based); a case's questions are consecutive. */
   position: number;
   /** ESSAY only: notes for graders. */
   guidance: string | null;
-  options: { id: string; text: string; isCorrect: boolean; position: number }[];
+  answerSize: AnswerSize;
+  caseId: string | null;
+  options: StaffOption[];
+}
+
+/** A use case: a situation shared by a choice question and its written follow-ups. */
+export interface StaffCase {
+  id: string;
+  label: string | null;
+  title: string;
+  situation: string;
+  hint: string | null;
+  imageId: string | null;
+  imageAlt: string | null;
 }
 
 export interface QuestionList {
   /** Students have taken the exam: only wording can change. */
   locked: boolean;
   questions: StaffQuestion[];
+  /** Every case of the exam (a case without questions is not placed yet). */
+  cases: StaffCase[];
   /** Why it can't be published yet (empty = ready). */
   publishProblems: string[];
 }
@@ -403,6 +476,16 @@ export interface QuestionImportResult {
   errors: { index: number; message: string }[];
   imported: number;
   questions: StaffQuestion[];
+}
+
+/** POST /api/uploads?examId=… with the picture as the body. */
+export interface UploadResult {
+  id: string;
+  url: string;
+  mime: string;
+  size: number;
+  width: number;
+  height: number;
 }
 
 export interface Material {
@@ -442,12 +525,15 @@ export interface GradingQuestion {
   index: number;
   id: string;
   type: QuestionType;
+  caseId: string | null;
   text: string;
   imageUrl: string | null;
+  imageAlt: string | null;
   points: number;
   guidance: string | null;
-  /** Choice questions: in the order the student saw them. */
-  options: { id: string; text: string; isCorrect: boolean; selected: boolean }[];
+  answerSize: AnswerSize;
+  /** Choice questions: in the order the student saw them (so letters match). */
+  options: (StudentOption & { isCorrect: boolean; explanation: string | null; selected: boolean })[];
   /** Essays: the student's text (null = not answered). */
   answerText: string | null;
   answered: boolean;
@@ -474,6 +560,7 @@ export interface GradingAttempt {
   maxScore: number | null;
   exam: { id: string; code: string; title: string; scoringMode: ScoringMode };
   student: PersonRef;
+  cases: StudentCase[];
   questions: GradingQuestion[];
   /** What still blocks approval (empty = it can be approved). */
   approvalProblems: string[];

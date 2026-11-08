@@ -8,6 +8,7 @@ import { assignmentsRows } from "./modules/assignments/assignments.matrix.js";
 import { catalogRows } from "./modules/catalog/catalog.matrix.js";
 import { gradingRows } from "./modules/grading/grading.matrix.js";
 import { authAndRbacRows, groupsRows, usersRows } from "./modules/rbac/rbac.matrix.js";
+import { uploadsRows } from "./modules/uploads/uploads.matrix.js";
 import { createTestApp, resetDb } from "./test/app.js";
 import { runCell, type MatrixRow } from "./test/matrix.js";
 import { ACTORS, seedWorld } from "./test/rbac-world.js";
@@ -21,6 +22,7 @@ const ROWS: MatrixRow[] = [
   ...adminRows,
   ...attemptsRows,
   ...gradingRows,
+  ...uploadsRows,
 ];
 
 const { app, db, deps } = createTestApp();

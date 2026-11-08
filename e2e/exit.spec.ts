@@ -78,7 +78,7 @@ test("exit test: import → grant → exam → instructor schedules → student 
     ],
   }));
   const importer = page.getByRole("dialog", { name: "Import questions" });
-  await importer.getByRole("textbox", { name: "Questions (JSON)" }).fill(JSON.stringify(five));
+  await importer.getByRole("textbox", { name: "Questions and cases (JSON)" }).fill(JSON.stringify(five));
   await importer.getByRole("button", { name: "Check" }).click();
   await importer.getByRole("button", { name: "Import 5 questions" }).click();
   await expect(page.getByRole("heading", { name: /Questions \(5, 5 points\)/ })).toBeVisible();

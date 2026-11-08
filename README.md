@@ -27,6 +27,13 @@ npm run dev:server          # API on :8080
 npm run dev:web             # React on :5173 (proxies /api)
 ```
 
+Demo data to try the exams by hand (local databases only; prints the demo students' passwords):
+
+```sh
+npm run seed-demo -w server       # four short demo exams
+npm run seed-usecases -w server   # the two Cyber Week use cases: cases with written follow-ups, graded by staff
+```
+
 Tests:
 
 ```sh

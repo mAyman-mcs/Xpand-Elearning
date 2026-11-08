@@ -16,6 +16,7 @@ import { gradingRoutes } from "./modules/grading/routes.js";
 import { groupsRoutes } from "./modules/groups/routes.js";
 import { healthRoutes } from "./modules/health/routes.js";
 import { meRoutes, rbacRoutes } from "./modules/rbac/routes.js";
+import { UPLOAD_TYPES, uploadsRoutes } from "./modules/uploads/routes.js";
 import { usersRoutes } from "./modules/users/routes.js";
 
 /** API modules and where they are mounted under /api. */
@@ -33,6 +34,7 @@ function modules(deps: AppDeps): [string, ApiRouter][] {
     ["/student", studentRoutes(deps)],
     ["/attempts", attemptsRoutes(deps)],
     ["/grading", gradingRoutes(deps)],
+    ["/uploads", uploadsRoutes(deps)],
     ["/admin", adminRoutes(deps)],
     ["/audit", auditRoutes(deps)],
   ];
@@ -54,7 +56,9 @@ export function apiRouteTable(deps: AppDeps) {
  * Works together with the SameSite=Strict session cookie.
  */
 const requireJsonForWrites: RequestHandler = (req, _res, next) => {
-  if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method) && !req.is("application/json")) {
+  // Picture uploads are the one raw body; their types can't be sent cross-site without a preflight either.
+  const upload = req.method === "POST" && req.path === "/uploads" && req.is(UPLOAD_TYPES);
+  if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method) && !upload && !req.is("application/json")) {
     next(new AppError("UNSUPPORTED_MEDIA_TYPE"));
     return;
   }
@@ -83,6 +87,8 @@ export function createApp(deps: AppDeps) {
   );
   app.use(createHttpLogger(logger));
   app.use(express.json({ limit: "100kb" }));
+  // Slightly above the 2 MB picture limit, so the sanitizer answers with a readable message.
+  app.use("/api/uploads", express.raw({ type: UPLOAD_TYPES, limit: "2100kb" }));
   app.use(cookieParser());
 
   const api = express.Router();

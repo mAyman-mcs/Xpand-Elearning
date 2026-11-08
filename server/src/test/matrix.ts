@@ -11,7 +11,8 @@ export interface MatrixRow {
   route: string;
   /** Optional label when one route has several rows (e.g. in-scope vs out-of-scope target). */
   label?: string;
-  request: (w: World) => { path: string; body?: object };
+  /** `raw`: a binary body with its content type (picture uploads) instead of JSON. */
+  request: (w: World) => { path: string; body?: object; raw?: { type: string; data: Buffer } };
   expect: Record<Actor, number>;
 }
 
@@ -41,8 +42,9 @@ export async function runCell(app: Express, w: World, row: MatrixRow, actor: Act
     const res = await agent.post("/api/auth/login").send({ username: user.username, password: user.password });
     if (res.status !== 200) throw new Error(`login as ${actor} failed: ${res.status}`);
   }
-  const { path, body } = row.request(w);
+  const { path, body, raw } = row.request(w);
   const method = row.route.split(" ")[0]?.toLowerCase() as "get" | "post" | "put" | "patch" | "delete";
   const req = agent[method](path);
+  if (raw) return req.set("Content-Type", raw.type).send(raw.data);
   return body === undefined && method === "get" ? req : req.send(body ?? {});
 }

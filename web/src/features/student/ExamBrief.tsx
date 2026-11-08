@@ -69,6 +69,12 @@ export function ExamBrief() {
         </Card>
       )}
 
+      {exam.intro && (
+        <Card title="Introduction" className="mb-4">
+          <p className="text-sm whitespace-pre-wrap text-slate-700">{exam.intro}</p>
+        </Card>
+      )}
+
       <Card title="Before you start" className="mb-4">
         <ul className="list-disc space-y-2 pl-5 text-sm text-slate-700">
           <li>
@@ -89,7 +95,8 @@ export function ExamBrief() {
           <li>Copying, pasting, printing and screenshots are blocked and recorded.</li>
           {!exam.allowBackNavigation && (
             <li>
-              <strong>You can't go back</strong> to a question once you move past it.
+              <strong>You can't go back</strong> to a question once you move past it. The questions of one case are on
+              the same screen, so you can move between them until you go on.
             </li>
           )}
           <li>Your name is shown on the exam screen.</li>

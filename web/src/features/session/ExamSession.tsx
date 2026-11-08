@@ -4,8 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useBlocker, useNavigate, useParams } from "react-router";
 import { NotFound, usePageTitle } from "../../app/pages";
 import { Dialog } from "../../components/Dialog";
+import { Picture } from "../../components/Picture";
 import { Button, cx, ErrorBanner, Loading } from "../../components/ui";
 import { api, ApiError, type AnswerInput } from "../../lib/api";
+import { blocksOf, optionLetter, SHORT_ANSWER_MAX_CHARS } from "../../lib/questions";
 import { qk } from "../../lib/query";
 import { clockOffset, formatCountdown, LOW_TIME_MS, remainingMs } from "../../lib/session";
 import { enterFullscreen } from "../student/ExamBrief";
@@ -173,9 +175,14 @@ function Session({ initial }: { initial: StudentAttempt }) {
   }, [live]);
   const blocker = useBlocker(({ nextLocation }) => live && !nextLocation.pathname.endsWith("/done"));
 
-  // ─── Questions ───
+  // ─── Questions, one screen per block: a case with all its questions, or a question on its own ───
   const questions = initial.questions;
-  const current = questions.find((q) => q.index === index) ?? questions[0];
+  const blocks = useMemo(() => blocksOf([...initial.questions].sort((a, b) => a.index - b.index)), [initial.questions]);
+  const screen = blocks.find((b) => b.some((q) => q.index === index)) ?? blocks[0];
+  const current = screen?.[0];
+  const lastOfScreen = screen?.at(-1);
+  const caseOf = (q: StudentQuestion) => initial.cases.find((c) => c.id === q.caseId) ?? null;
+  const screenCase = current ? caseOf(current) : null;
   const answeredCount =
     Object.values(answers).filter((a) => a.length > 0).length +
     Object.values(essays).filter((t) => t.trim().length > 0).length;
@@ -185,7 +192,8 @@ function Session({ initial }: { initial: StudentAttempt }) {
     q.type === "ESSAY" ? (essays[q.id]?.trim().length ?? 0) > 0 : (answers[q.id]?.length ?? 0) > 0;
   const answerOf = (q: StudentQuestion): AnswerInput =>
     q.type === "ESSAY" ? { text: essays[q.id] ?? "" } : { selectedOptionIds: answers[q.id] ?? [] };
-  const isLast = index >= initial.questionCount - 1;
+  const isLast = (lastOfScreen?.index ?? index) >= initial.questionCount - 1;
+  const screenIndex = screen ? blocks.indexOf(screen) : 0;
 
   const choose = (q: StudentQuestion, optionId: string, checked: boolean) => {
     if (!live) return;
@@ -209,7 +217,8 @@ function Session({ initial }: { initial: StudentAttempt }) {
   };
 
   const goNext = async () => {
-    const target = index + 1;
+    // The first question after this screen (a case is answered as a whole).
+    const target = (lastOfScreen?.index ?? index) + 1;
     if (!exam.allowBackNavigation) {
       setConfirmNext(false);
       await api.attempts.moveTo(id, target).catch(() => undefined);
@@ -234,10 +243,9 @@ function Session({ initial }: { initial: StudentAttempt }) {
   };
 
   if (elsewhere) return <Elsewhere />;
-  if (!current) return <Loading />;
+  if (!current || !screen) return <Loading />;
 
   const low = left !== null && left < LOW_TIME_MS;
-  const state = saveState[current.id];
   const pendingSaves = Object.values(saveState).some((s) => s.state === "saving" || s.state === "retrying");
   const needsFullscreen = exam.requireFullscreen && !fullscreen && live;
 
@@ -279,113 +287,99 @@ function Session({ initial }: { initial: StudentAttempt }) {
       </header>
 
       <main className="mx-auto max-w-4xl px-4 py-6">
+        {exam.intro && (
+          <details open={screenIndex === 0} className="mb-4 rounded-xl border border-slate-200 bg-white p-4 text-sm">
+            <summary className="cursor-pointer font-semibold text-slate-800">Introduction</summary>
+            <p className="mt-2 whitespace-pre-wrap text-slate-700">{exam.intro}</p>
+          </details>
+        )}
+
         {exam.allowBackNavigation && (
           <nav aria-label="Questions" className="mb-4 flex flex-wrap gap-1.5">
-            {Array.from({ length: initial.questionCount }, (_, i) => {
-              const q = questions.find((x) => x.index === i);
-              const done = q ? isAnswered(q) : false;
+            {blocks.map((b, i) => {
+              const first = b[0]!;
+              const last = b.at(-1)!;
+              const done = b.every(isAnswered);
+              const here = b === screen;
+              const range = b.length > 1 ? `${first.index + 1}–${last.index + 1}` : `${first.index + 1}`;
               return (
                 <button
-                  key={i}
+                  key={first.id}
                   type="button"
-                  onClick={() => setIndex(i)}
-                  aria-current={i === index ? "step" : undefined}
-                  aria-label={`Question ${i + 1}${done ? ", answered" : ""}`}
+                  onClick={() => setIndex(first.index)}
+                  aria-current={here ? "step" : undefined}
+                  aria-label={`${b.length > 1 ? "Questions" : "Question"} ${range}${done ? ", answered" : ""}`}
                   className={cx(
-                    "h-8 w-8 rounded-md text-xs font-semibold",
-                    i === index
+                    "h-8 min-w-8 rounded-md px-1.5 text-xs font-semibold",
+                    here
                       ? "bg-teal-700 text-white"
                       : done
                         ? "bg-teal-50 text-teal-800 ring-1 ring-teal-200"
                         : "bg-white text-slate-700 ring-1 ring-slate-200",
                   )}
+                  data-screen={i}
                 >
-                  {i + 1}
+                  {range}
                 </button>
               );
             })}
           </nav>
         )}
 
-        <section aria-labelledby="question-title" className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
-            <span>
-              Question {current.index + 1} of {initial.questionCount} · {current.points}{" "}
-              {current.points === 1 ? "point" : "points"}
-              {current.type === "MULTI_CHOICE" && " · choose all that apply"}
-              {current.type === "ESSAY" && " · written answer, graded by staff"}
-            </span>
-            <SaveIndicator
-              state={state?.state}
-              message={state?.message}
-              onRetry={() => saver.set(current.id, answerOf(current))}
-            />
-          </div>
-          <h2 id="question-title" className="text-lg font-semibold whitespace-pre-wrap text-slate-800">
-            {current.text}
-          </h2>
-          {current.imageUrl && (
-            <img
-              src={current.imageUrl}
-              alt=""
-              className="mt-4 max-h-80 rounded border border-slate-200"
-              draggable={false}
-            />
-          )}
-          {current.type === "ESSAY" && (
-            <div className="mt-5">
-              <label htmlFor={`essay-${current.id}`} className="sr-only">
-                Your answer
-              </label>
-              <textarea
-                id={`essay-${current.id}`}
-                rows={12}
-                maxLength={ESSAY_MAX_CHARS}
-                value={essays[current.id] ?? ""}
-                disabled={!live}
-                onChange={(e) => write(current, e.target.value)}
-                aria-describedby={`essay-count-${current.id}`}
-                spellCheck={false}
-                autoComplete="off"
-                className="w-full rounded-lg border border-slate-300 p-3 text-sm text-slate-800 outline-none select-text focus:ring-2 focus:ring-teal-500"
-              />
-              <p id={`essay-count-${current.id}`} className="mt-1 text-right text-xs text-slate-600">
-                {(essays[current.id] ?? "").length.toLocaleString()} / {ESSAY_MAX_CHARS.toLocaleString()} characters ·
-                pasting is not allowed
+        <section
+          aria-labelledby="screen-title"
+          className="space-y-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6"
+        >
+          {screenCase && (
+            <div className="rounded-lg border border-teal-200 bg-teal-50/50 p-4">
+              <p className="mb-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                {screenCase.label && (
+                  <span className="rounded bg-teal-700 px-2 py-0.5 font-bold tracking-wide text-white">
+                    {screenCase.label}
+                  </span>
+                )}
+                <span>
+                  Questions {current.index + 1}–{(lastOfScreen ?? current).index + 1} of {initial.questionCount}
+                </span>
               </p>
+              <h2 id="screen-title" className="text-lg font-bold text-slate-800">
+                {screenCase.title}
+              </h2>
+              <p className="mt-2 text-sm font-semibold text-slate-700">Situation</p>
+              <p className="mt-1 text-sm whitespace-pre-wrap text-slate-800">{screenCase.situation}</p>
+              {screenCase.imageUrl && (
+                <div className="mt-3">
+                  <Picture src={screenCase.imageUrl} alt={screenCase.imageAlt} className="max-h-72" />
+                </div>
+              )}
+              {screenCase.hint && (
+                <p className="mt-3 text-sm text-amber-900">
+                  <span className="font-semibold">Hint:</span> {screenCase.hint}
+                </p>
+              )}
             </div>
           )}
-          <fieldset className="mt-5 space-y-2" hidden={current.type === "ESSAY"}>
-            <legend className="sr-only">Options</legend>
-            {current.options.map((o) => {
-              const checked = (answers[current.id] ?? []).includes(o.id);
-              return (
-                <label
-                  key={o.id}
-                  className={cx(
-                    "flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm",
-                    checked ? "border-teal-600 bg-teal-50" : "border-slate-200 hover:bg-slate-50",
-                  )}
-                >
-                  <input
-                    type={current.type === "MULTI_CHOICE" ? "checkbox" : "radio"}
-                    name={`q-${current.id}`}
-                    className="mt-0.5 h-4 w-4"
-                    checked={checked}
-                    disabled={!live}
-                    onChange={(e) => choose(current, o.id, e.target.checked)}
-                  />
-                  <span className="text-slate-800">{o.text}</span>
-                </label>
-              );
-            })}
-          </fieldset>
+          {screen.map((q) => (
+            <QuestionBlock
+              key={q.id}
+              q={q}
+              total={initial.questionCount}
+              titleId={screenCase ? undefined : "screen-title"}
+              live={live}
+              selected={answers[q.id] ?? []}
+              text={essays[q.id] ?? ""}
+              save={saveState[q.id]}
+              onChoose={(optionId, checked) => choose(q, optionId, checked)}
+              onWrite={(text) => write(q, text)}
+              onRetry={() => saver.set(q.id, answerOf(q))}
+            />
+          ))}
         </section>
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            {exam.allowBackNavigation && index > 0 && (
-              <Button variant="secondary" onClick={() => setIndex(index - 1)}>
+            {exam.allowBackNavigation && screenIndex > 0 && (
+              <Button variant="secondary" onClick={() => setIndex(blocks[screenIndex - 1]![0]!.index)}>
                 Previous
               </Button>
             )}
@@ -437,7 +431,7 @@ function Session({ initial }: { initial: StudentAttempt }) {
         open={confirmNext}
         onOpenChange={setConfirmNext}
         title="Move to the next question?"
-        description="In this exam you can't come back to a question once you move past it."
+        description="In this exam you can't come back to these questions once you move past them."
         footer={
           <>
             <Button variant="secondary" onClick={() => setConfirmNext(false)}>
@@ -507,6 +501,129 @@ function Session({ initial }: { initial: StudentAttempt }) {
             <p className="mt-2 text-sm text-slate-600">Saving your last answers and submitting…</p>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+/** One question of the current screen: its text and picture, then options (A, B, C…) or an answer box. */
+function QuestionBlock({
+  q,
+  total,
+  titleId,
+  live,
+  selected,
+  text,
+  save,
+  onChoose,
+  onWrite,
+  onRetry,
+}: {
+  q: StudentQuestion;
+  total: number;
+  /** The screen's heading id, when this question is the screen (not part of a case). */
+  titleId?: string;
+  live: boolean;
+  selected: string[];
+  text: string;
+  save?: { state: SaveState; message?: string };
+  onChoose: (optionId: string, checked: boolean) => void;
+  onWrite: (text: string) => void;
+  onRetry: () => void;
+}) {
+  const essay = q.type === "ESSAY";
+  const short = essay && q.answerSize === "SHORT";
+  const max = short ? SHORT_ANSWER_MAX_CHARS : ESSAY_MAX_CHARS;
+  const headingId = titleId ?? `q-title-${q.id}`;
+  const pictureOptions = q.options.some((o) => o.imageUrl);
+  return (
+    <div role="group" aria-labelledby={headingId}>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+        <span>
+          Question {q.index + 1} of {total} · {q.points} {q.points === 1 ? "point" : "points"}
+          {q.type === "MULTI_CHOICE" && " · choose all that apply"}
+          {essay && " · written answer, graded by staff"}
+        </span>
+        <SaveIndicator state={save?.state} message={save?.message} onRetry={onRetry} />
+      </div>
+      <h3 id={headingId} className="text-base font-semibold whitespace-pre-wrap text-slate-800 sm:text-lg">
+        {q.text}
+      </h3>
+      {q.imageUrl && (
+        <div className="mt-3">
+          <Picture src={q.imageUrl} alt={q.imageAlt} className="max-h-80" />
+        </div>
+      )}
+      {essay ? (
+        <div className="mt-3">
+          <label htmlFor={`essay-${q.id}`} className="sr-only">
+            Your answer to question {q.index + 1}
+          </label>
+          {short ? (
+            <input
+              id={`essay-${q.id}`}
+              type="text"
+              maxLength={max}
+              value={text}
+              disabled={!live}
+              onChange={(e) => onWrite(e.target.value)}
+              aria-describedby={`essay-count-${q.id}`}
+              spellCheck={false}
+              autoComplete="off"
+              className="w-full rounded-lg border border-slate-300 p-3 text-sm text-slate-800 outline-none select-text focus:ring-2 focus:ring-teal-500"
+            />
+          ) : (
+            <textarea
+              id={`essay-${q.id}`}
+              rows={8}
+              maxLength={max}
+              value={text}
+              disabled={!live}
+              onChange={(e) => onWrite(e.target.value)}
+              aria-describedby={`essay-count-${q.id}`}
+              spellCheck={false}
+              autoComplete="off"
+              className="w-full rounded-lg border border-slate-300 p-3 text-sm text-slate-800 outline-none select-text focus:ring-2 focus:ring-teal-500"
+            />
+          )}
+          <p id={`essay-count-${q.id}`} className="mt-1 text-right text-xs text-slate-600">
+            {text.length.toLocaleString()} / {max.toLocaleString()} characters · pasting is not allowed
+          </p>
+        </div>
+      ) : (
+        <fieldset className={cx("mt-3 gap-2", pictureOptions ? "grid sm:grid-cols-2" : "space-y-2")}>
+          <legend className="sr-only">Options for question {q.index + 1}</legend>
+          {q.options.map((o, i) => {
+            const checked = selected.includes(o.id);
+            return (
+              <label
+                key={o.id}
+                className={cx(
+                  "flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm",
+                  checked ? "border-teal-600 bg-teal-50" : "border-slate-200 hover:bg-slate-50",
+                )}
+              >
+                <input
+                  type={q.type === "MULTI_CHOICE" ? "checkbox" : "radio"}
+                  name={`q-${q.id}`}
+                  className="mt-0.5 h-4 w-4 shrink-0"
+                  checked={checked}
+                  disabled={!live}
+                  onChange={(e) => onChoose(o.id, e.target.checked)}
+                  aria-label={`Option ${optionLetter(i)}${o.text ? `: ${o.text}` : o.imageAlt ? `: ${o.imageAlt}` : ""}`}
+                />
+                <span aria-hidden="true" className="font-bold text-slate-600">
+                  {optionLetter(i)}
+                </span>
+                <span className="min-w-0 flex-1">
+                  {o.imageUrl && <Picture src={o.imageUrl} alt={o.imageAlt} className="mb-1 max-h-56" />}
+                  {o.text && <span className="block text-slate-800">{o.text}</span>}
+                  {o.detail && <span className="block text-xs text-slate-600 italic">{o.detail}</span>}
+                </span>
+              </label>
+            );
+          })}
+        </fieldset>
       )}
     </div>
   );

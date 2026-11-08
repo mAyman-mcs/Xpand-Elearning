@@ -110,12 +110,20 @@ export async function seedWorld(db: Db, now = new Date()) {
   const materialE3 = await db.material.create({
     data: { examId: e3.id, title: "Slides", url: "https://example.com/s" },
   });
+  const caseE3 = await db.questionCase.create({
+    data: { examId: e3.id, title: "Boot sequence", situation: "A server is switched on." },
+  });
+  const pictureE3 = await db.upload.create({
+    data: { examId: e3.id, mime: "image/png", size: 4, sha256: "x", width: 1, height: 1, data: new Uint8Array([1, 2, 3, 4]) },
+  });
 
   return {
     users,
     attemptE1B,
     questionE3,
     materialE3,
+    caseE3,
+    pictureE3,
     studentB,
     groupA,
     groupB,
