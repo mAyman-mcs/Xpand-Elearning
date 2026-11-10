@@ -16,6 +16,7 @@ import { gradingRoutes } from "./modules/grading/routes.js";
 import { groupsRoutes } from "./modules/groups/routes.js";
 import { healthRoutes } from "./modules/health/routes.js";
 import { meRoutes, rbacRoutes } from "./modules/rbac/routes.js";
+import { submissionsRoutes } from "./modules/submissions/routes.js";
 import { UPLOAD_TYPES, uploadsRoutes } from "./modules/uploads/routes.js";
 import { usersRoutes } from "./modules/users/routes.js";
 
@@ -34,6 +35,7 @@ function modules(deps: AppDeps): [string, ApiRouter][] {
     ["/student", studentRoutes(deps)],
     ["/attempts", attemptsRoutes(deps)],
     ["/grading", gradingRoutes(deps)],
+    ["/submissions", submissionsRoutes(deps)],
     ["/uploads", uploadsRoutes(deps)],
     ["/admin", adminRoutes(deps)],
     ["/audit", auditRoutes(deps)],

@@ -18,6 +18,8 @@ import type {
 } from "./modules/catalog/content.service.js";
 import type { examDto } from "./modules/catalog/exams.service.js";
 import type { getGrading, gradingQueue } from "./modules/grading/service.js";
+import type { giveExtraAttempt } from "./modules/assignments/extra-attempts.service.js";
+import type { dashboard, listSubmissions, previewSubmission } from "./modules/submissions/service.js";
 import type { categoryDto, tagDto } from "./modules/catalog/taxonomy.service.js";
 import type { getGroup, groupDto } from "./modules/groups/service.js";
 import type { grantDto } from "./modules/rbac/grants.service.js";
@@ -71,4 +73,8 @@ export type Checks = [
   Assert<Same<Out<typeof heartbeat>, C.HeartbeatResult>>,
   Assert<Same<Out<typeof gradingQueue>, C.GradingQueue>>,
   Assert<Same<Out<typeof getGrading>, C.GradingAttempt>>,
+  Assert<Same<Out<typeof giveExtraAttempt>, C.AvailabilityRow>>,
+  Assert<Same<Out<typeof listSubmissions>, C.Page<C.SubmissionRow>>>,
+  Assert<Same<Out<typeof previewSubmission>, C.SubmissionPreview>>,
+  Assert<Same<Out<typeof dashboard>, C.StaffDashboard>>,
 ];

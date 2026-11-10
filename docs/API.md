@@ -66,6 +66,7 @@ Every error body is `{ "error": CODE, "message"?: string, "details"?: … }`.
 | GET | `/api/auth/me` | Logged in (also while a password change is pending) |
 | POST | `/api/auth/change-password` | Logged in (also while a password change is pending) |
 | GET | `/api/me/permissions` | Logged in |
+| GET | `/api/me/dashboard` | Staff (super admins and instructors, **with or without grants**) |
 
 **`GET /api/health/live`** → `200 { ok: true }` when the process is up.
 **`GET /api/health/ready`** → `200 { ok: true }` when the database answers too. Used by Docker and uptime monitors.
@@ -131,6 +132,10 @@ Instructors read people and groups **within their reach**: students in, and grou
 | GET | `/api/groups/:id` | A group in reach, with its members; otherwise `404` |
 | GET | `/api/catalog/categories` | All categories (pickers) |
 | GET | `/api/catalog/tags` | All tags (pickers) |
+
+Every instructor also has a **dashboard** (`GET /api/me/dashboard`) and the **submissions list**
+(`GET /api/submissions`, §6.9), grants or not: both cover only what their grants reach, so an
+instructor without grants sees zeros and an empty list, never an error.
 
 Everything else an instructor does is **exam work**, controlled by grant permissions (§6). Query parameters and response shapes are the same as for super admins (§5.1, §5.2).
 
@@ -568,6 +573,23 @@ Returns every student the exam is assigned to (directly or through a group), eac
 ```
 `source` says what decided the status: `none`, `exam`, `attempts`, `user-override`, `group-override`, `user-assignment` or `group-assignment`.
 
+**Give another attempt** (re-assign a submitted exam to one student):
+
+| Method | Path | Who |
+|---|---|---|
+| POST | `/api/assignments/extra-attempts` | Perm `EXAM_ASSIGN` on the exam × student; with `openUntil`, also `EXAM_SCHEDULE` |
+
+`{ examId, userId, reason, openUntil? }` → `201 AvailabilityRow` (the student's new state).
+- The student keeps every earlier attempt (answers, grades); they get **one** attempt on top of the
+  exam's `maxAttempts`. Each call adds one.
+- Only for a student who **used every attempt** (status `SUBMITTED`). Otherwise `409` with a readable
+  reason: still has an attempt left (open the exam instead), taking it right now, not assigned,
+  external exam, draft or archived exam.
+- `openUntil` (in the future, else `400`) also opens the exam for the student from now until then (a
+  student `OPEN` override with reason "Another attempt: …"). Without it, the schedule decides: after
+  the window has passed the student is `CLOSED` until staff open it.
+- Audited: `attempts.extra_given` (exam, student, reason, `openUntil`, the override's id).
+
 ### 6.5 The student's exam list
 
 | Method | Path | Who |
@@ -699,6 +721,24 @@ for one attempt. These responses include the answer key and grader guidance: sta
   `attempts.reopened` (reason, old score).
 - Students see the score only once results are released **and** the attempt is approved.
 
+### 6.9 Submissions (every exam) and the staff dashboard
+
+| Method | Path | Who |
+|---|---|---|
+| GET | `/api/submissions` | Staff; rows filtered to the caller's scope (no grant needed) |
+| GET | `/api/submissions/:id` | Perm `RESULTS_VIEW` or `ATTEMPT_REVIEW` on the exam **and** the student |
+| GET | `/api/me/dashboard` | Staff (no grant needed) |
+
+- **List:** *paginated*, newest first → `Page<SubmissionRow>`: submitted attempts (never in progress or
+  voided) whose exam and student **one same grant** with `RESULTS_VIEW` or `ATTEMPT_REVIEW` covers.
+  Filters: `examId`, `show=all|awaiting-grading` (needs-approval exams not approved yet), `q` (student
+  name or username, exam title or code). `isLatest` marks each student's latest attempt on the exam.
+- **Preview:** `SubmissionPreview`: the `GradingAttempt` shape (any scoring mode, read only, with the
+  answer key) without `nextUngradedId`, plus `canGrade` (needs-approval exam, `ATTEMPT_REVIEW`) and
+  `canGiveAnotherAttempt` (the latest attempt, `EXAM_ASSIGN`). In progress → `409`.
+- **Dashboard:** `{ exams, students, submissions: { total, awaitingGrading, lastWeek } }`: exams (not
+  archived) and active students reachable through any grant, and submissions as in the list.
+
 **Events.** `type` is one of `FULLSCREEN_EXIT`, `TAB_HIDDEN`, `WINDOW_BLUR`, `RESIZE` (strikes) or
 `CLIPBOARD`, `CONTEXT_MENU`, `BLOCKED_SHORTCUT`, `DEVTOOLS` (logged only). Strike signals within 3 s
 count once (one Alt+Tab fires several). `action`: `WARN` (a new strike: show the warning), `LOGGED`,
@@ -716,6 +756,8 @@ Legend: ✅ allowed · 🔑 instructors with the named permission on the exam/ta
 |---|---|---|---|---|
 | `GET /api/health/*`, `POST /api/auth/login`, `POST /api/auth/logout` | ✅ | ✅ | ✅ | ✅ |
 | `GET /api/auth/me`, `POST /api/auth/change-password`, `GET /api/me/permissions` | — | ✅ | ✅ | ✅ |
+| `GET /api/me/dashboard`, `GET /api/submissions` | — | ❌ | 👁 (no grant needed) | ✅ |
+| `GET /api/submissions/:id` | — | ❌ | 🔑 `RESULTS_VIEW` or `ATTEMPT_REVIEW` (exam and student) | ✅ |
 | `GET /api/student/exams` | — | ✅ | ❌ | ❌ |
 | `GET /api/users`, `GET /api/users/:id` | — | ❌ | 👁 students | ✅ |
 | `GET /api/users/lookup` | — | ❌ | 👁 students | ✅ |
@@ -735,6 +777,7 @@ Legend: ✅ allowed · 🔑 instructors with the named permission on the exam/ta
 | `POST /api/assignments`, `DELETE /api/assignments/:id` | — | ❌ | 🔑 `EXAM_ASSIGN` | ✅ |
 | `POST /api/assignments/bulk`, `…/preview` | — | ❌ | 🔑 `EXAM_ASSIGN` on every pair | ✅ |
 | `PATCH /api/assignments/:id`, `POST /api/overrides`, `POST /api/overrides/:id/end` | — | ❌ | 🔑 `EXAM_SCHEDULE` | ✅ |
+| `POST /api/assignments/extra-attempts` | — | ❌ | 🔑 `EXAM_ASSIGN` (+ `EXAM_SCHEDULE` with `openUntil`) | ✅ |
 | `GET /api/assignments/availability` | — | ❌ | 🔑 any | ✅ |
 | `/api/grading/…` (§6.8) | — | ❌ | 🔑 `ATTEMPT_REVIEW` (exam, and student for one attempt) | ✅ |
 | `GET /api/admin/stats`, `GET /api/audit`, `GET /api/audit/actions` | — | ❌ | ❌ | ✅ |

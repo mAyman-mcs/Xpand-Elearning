@@ -1,14 +1,17 @@
 import type { AvailabilityRow, AvailabilityStatus } from "@contracts";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { usePermissions } from "../../app/auth";
 import { SelectInput, TextInput } from "../../components/form";
 import { Table, type Column } from "../../components/Table";
-import { Badge, Card } from "../../components/ui";
+import { Badge, Button, Card } from "../../components/ui";
 import { api } from "../../lib/api";
 import { AVAILABILITY, PROGRESS } from "../../lib/labels";
+import { can } from "../../lib/permissions";
 import { qk } from "../../lib/query";
 import { formatInstant } from "../../lib/time";
 import { useExam } from "../exams/ExamLayout";
+import { GiveAnotherAttempt } from "./GiveAnotherAttempt";
 
 const SOURCE: Record<string, string> = {
   none: "Not assigned",
@@ -28,6 +31,10 @@ export function ExamAvailability() {
     queryFn: () => api.assignments.availability(exam.id),
     staleTime: 0,
   });
+  const { data: perms } = usePermissions();
+  const ref = { id: exam.id, categoryId: exam.category.id, tagIds: exam.tags.map((t) => t.id) };
+  const mayAssign = can(perms, "EXAM_ASSIGN", ref);
+  const [another, setAnother] = useState<AvailabilityRow | null>(null);
   const [status, setStatus] = useState<AvailabilityStatus | "">("");
   const [search, setSearch] = useState("");
 
@@ -79,6 +86,24 @@ export function ExamAvailability() {
         </span>
       ),
     },
+    ...(mayAssign
+      ? [
+          {
+            header: "Action",
+            cell: (r: AvailabilityRow) =>
+              r.status === "SUBMITTED" ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  aria-label={`Give ${r.student.fullName} another attempt`}
+                  onClick={() => setAnother(r)}
+                >
+                  Another attempt
+                </Button>
+              ) : null,
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -123,6 +148,12 @@ export function ExamAvailability() {
           hint: rows.data?.length ? undefined : "Assign it on the Assignments tab.",
         }}
       />
+      {another && (
+        <GiveAnotherAttempt
+          target={{ exam: { ...ref, title: exam.title }, student: another.student }}
+          onClose={() => setAnother(null)}
+        />
+      )}
     </Card>
   );
 }

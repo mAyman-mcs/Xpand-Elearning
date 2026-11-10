@@ -42,3 +42,19 @@ export const gradingRows: MatrixRow[] = [
     expect: oneAttempt,
   },
 ];
+
+// Submissions: the list is open to all staff and filtered to their scope; one preview needs
+// RESULTS_VIEW or ATTEMPT_REVIEW on the exam AND the student (student B on E1: the super admin
+// and instTag). instExamA and instSplit see E1 only for group A, and student B is in group B.
+export const submissionsRows: MatrixRow[] = [
+  {
+    route: "GET /api/submissions",
+    request: () => ({ path: "/api/submissions" }),
+    expect: statuses(200, { student: 403 }),
+  },
+  {
+    route: "GET /api/submissions/:id",
+    request: (w) => ({ path: `/api/submissions/${w.attemptE1B.id}` }),
+    expect: statuses(404, { superAdmin: 200, instTag: 200, student: 403 }),
+  },
+];

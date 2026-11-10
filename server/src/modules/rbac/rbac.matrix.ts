@@ -12,6 +12,12 @@ export const authAndRbacRows: MatrixRow[] = [
     expect: statuses(400),
   },
   { route: "GET /api/me/permissions", request: () => ({ path: "/api/me/permissions" }), expect: statuses(200) },
+  // Every staff member has a dashboard, grants or not (instructors without any see zeros).
+  {
+    route: "GET /api/me/dashboard",
+    request: () => ({ path: "/api/me/dashboard" }),
+    expect: statuses(200, { student: 403 }),
+  },
 
   { route: "GET /api/rbac/grants", request: () => ({ path: "/api/rbac/grants" }), expect: superAdminOnly(200) },
   {

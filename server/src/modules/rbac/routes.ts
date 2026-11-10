@@ -2,6 +2,7 @@ import { z } from "zod";
 import { actorOf, authOf, type AppDeps } from "../../core/context.js";
 import { access, ApiRouter, created, noContent } from "../../core/route.js";
 import { idParams, uuid } from "../../core/schemas.js";
+import { dashboard } from "../submissions/service.js";
 import { createGrant, deleteGrant, grantBody, grantPatchBody, listGrants, updateGrant } from "./grants.service.js";
 
 /** Grant management: super admins only. Mounted at /api/rbac. */
@@ -43,6 +44,12 @@ export function rbacRoutes(deps: AppDeps): ApiRouter {
 /** The caller's own role and active grants, for the UI to decide what to show. Mounted at /api/me. */
 export function meRoutes(deps: AppDeps): ApiRouter {
   const api = new ApiRouter(deps);
+
+  // A staff member's own dashboard: never needs a grant (without one, every number is 0).
+  api.get("/dashboard", {
+    access: access.roles("SUPER_ADMIN", "INSTRUCTOR"),
+    handler: (ctx) => dashboard(ctx),
+  });
 
   api.get("/permissions", {
     access: access.authenticated(),

@@ -15,6 +15,9 @@ import { NewExam } from "../features/exams/NewExam";
 import { ChangePassword } from "../features/auth/ChangePassword";
 import { Login } from "../features/auth/Login";
 import { Dashboard } from "../features/dashboard/Dashboard";
+import { InstructorDashboard } from "../features/dashboard/InstructorDashboard";
+import { SubmissionPreview } from "../features/submissions/SubmissionPreview";
+import { Submissions } from "../features/submissions/Submissions";
 import { InstructorDetail, InstructorsList } from "../features/grants/Instructors";
 import { GradeAttempt } from "../features/grading/GradeAttempt";
 import { GradingQueue } from "../features/grading/GradingQueue";
@@ -65,6 +68,21 @@ export const router = createBrowserRouter([
               { path: "instructors", element: <InstructorsList /> },
               { path: "instructors/:id", element: <InstructorDetail /> },
               { path: "catalog", element: <CatalogPage /> },
+            ],
+          },
+          // An instructor's own dashboard: never behind a grant (it shows only what their grants reach).
+          {
+            path: "instructor",
+            element: <RequireRole roles={["INSTRUCTOR"]} />,
+            children: [{ index: true, element: <InstructorDashboard /> }],
+          },
+          // Submitted exams: every staff member; the server filters the list to their scope.
+          {
+            path: "submissions",
+            element: <RequireRole roles={["SUPER_ADMIN", "INSTRUCTOR"]} />,
+            children: [
+              { index: true, element: <Submissions /> },
+              { path: ":attemptId", element: <SubmissionPreview /> },
             ],
           },
           {

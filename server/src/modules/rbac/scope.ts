@@ -127,3 +127,29 @@ export function targetWhere(reach: Reach) {
   if (groupSide(reach) === "all") return {};
   return { OR: [{ group: { is: groupWhere(reach) } }, { user: { is: studentWhere(reach) } }] };
 }
+
+/** The pairs of several permissions together: reachable through any one of them. */
+export function reachOfAny(p: Principal, permissions: Permission[], now: Date): Reach {
+  const pairs: Extract<Reach, { kind: "pairs" }>["pairs"] = [];
+  for (const perm of permissions) {
+    const r = reachOf(p, perm, now);
+    if (r.kind === "everything") return r;
+    pairs.push(...r.pairs);
+  }
+  return { kind: "pairs", pairs };
+}
+
+/**
+ * Attempts whose exam AND student one same pair covers (never an exam from one grant combined with
+ * a student from another). For lists of attempts across exams.
+ */
+export function attemptWhere(reach: Reach): Prisma.AttemptWhereInput {
+  if (reach.kind === "everything") return {};
+  const or = reach.pairs.flatMap((pair): Prisma.AttemptWhereInput[] => {
+    const user = { is: studentWhere({ kind: "pairs", pairs: [pair] }) };
+    if (pair.exams === "all") return [{ user }];
+    const exams = examSideWhere(pair.exams);
+    return exams.length ? [{ exam: { is: { OR: exams } }, user }] : [];
+  });
+  return or.length ? { OR: or } : NOTHING;
+}

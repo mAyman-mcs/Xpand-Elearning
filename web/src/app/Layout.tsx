@@ -21,6 +21,9 @@ const staff = (role: Role, perms: MyPermissions | undefined) =>
 // every page is still protected by the server.
 const NAV: NavItem[] = [
   { to: "/admin", label: "Dashboard", end: true, show: admin },
+  // Instructors always have their own dashboard and submissions, grants or not.
+  { to: "/instructor", label: "Dashboard", end: true, show: (role) => role === "INSTRUCTOR" },
+  { to: "/submissions", label: "Submissions", show: (role) => role === "SUPER_ADMIN" || role === "INSTRUCTOR" },
   { to: "/admin/users", label: "Users", show: admin },
   { to: "/admin/groups", label: "Groups", show: admin },
   { to: "/admin/instructors", label: "Instructors", show: admin },

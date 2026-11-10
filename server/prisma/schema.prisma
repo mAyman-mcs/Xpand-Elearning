@@ -35,15 +35,16 @@ model User {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  sessions    Session[]
-  memberships GroupMember[]
-  grants      InstructorGrant[] @relation("grantee")
-  attempts    Attempt[]
-  overrides   AccessOverride[]
-  warnings    Warning[]         @relation("warned")
-  attendance  Attendance[]
-  auditLogs   AuditLog[]
-  assignments Assignment[]
+  sessions      Session[]
+  memberships   GroupMember[]
+  grants        InstructorGrant[] @relation("grantee")
+  attempts      Attempt[]
+  overrides     AccessOverride[]
+  warnings      Warning[]         @relation("warned")
+  attendance    Attendance[]
+  auditLogs     AuditLog[]
+  assignments   Assignment[]
+  extraAttempts ExtraAttempt[]
 }
 
 model Session {
@@ -251,15 +252,16 @@ model Exam {
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
 
-  questions   Question[]
-  cases       QuestionCase[]
-  uploads     Upload[]
-  materials   Material[]
-  assignments Assignment[]
-  overrides   AccessOverride[]
-  attempts    Attempt[]
-  grantScopes GrantExam[]
-  tags        ExamTag[]
+  questions     Question[]
+  cases         QuestionCase[]
+  uploads       Upload[]
+  extraAttempts ExtraAttempt[]
+  materials     Material[]
+  assignments   Assignment[]
+  overrides     AccessOverride[]
+  attempts      Attempt[]
+  grantScopes   GrantExam[]
+  tags          ExamTag[]
 
   @@index([categoryId])
 }
@@ -415,6 +417,21 @@ model Assignment {
   @@unique([examId, groupId])
   @@index([userId])
   @@index([groupId])
+}
+
+// One more attempt for one student on one exam, given by staff on top of the exam's maxAttempts
+// ("give another attempt"). Rows are never edited; each row is one attempt.
+model ExtraAttempt {
+  id          String   @id @default(uuid()) @db.Uuid
+  examId      String   @db.Uuid
+  exam        Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  userId      String   @db.Uuid
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reason      String
+  createdById String?  @db.Uuid
+  createdAt   DateTime @default(now())
+
+  @@index([examId, userId])
 }
 
 enum OverrideAction {

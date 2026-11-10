@@ -70,6 +70,7 @@ const resolve = (
     attempts?: AttemptInput[];
     exam?: Partial<ExamInput>;
     student?: Partial<StudentInput>;
+    extraAttempts?: number;
   },
 ) =>
   resolveAvailability({
@@ -79,6 +80,7 @@ const resolve = (
     assignments: parts.assignments ?? [],
     overrides: parts.overrides ?? [],
     attempts: parts.attempts ?? [],
+    extraAttempts: parts.extraAttempts,
   });
 
 // ─────────────────────────────── Tables ───────────────────────────────
@@ -150,6 +152,17 @@ describe("resolveAvailability: attempts", () => {
   it("allows a second attempt when maxAttempts is 2", () => {
     const r = resolve("2026-07-10T09:00:00Z", { ...assigned, attempts: [attempt()], exam: { maxAttempts: 2 } });
     expect([r.status, r.progress]).toEqual(["OPEN", "ANSWERED"]);
+  });
+
+  it("an extra attempt from staff counts on top of maxAttempts, once", () => {
+    const one = resolve("2026-07-10T09:00:00Z", { ...assigned, attempts: [attempt()], extraAttempts: 1 });
+    expect([one.status, one.progress]).toEqual(["OPEN", "ANSWERED"]);
+    const used = resolve("2026-07-10T09:00:00Z", {
+      ...assigned,
+      attempts: [attempt(), attempt({ attemptNo: 2 })],
+      extraAttempts: 1,
+    });
+    expect(used.status).toBe("SUBMITTED");
   });
 
   it("an OPEN override never reopens a submitted exam", () => {

@@ -6,7 +6,7 @@ import { cx, ErrorBanner, Loading, PageHeader } from "../../components/ui";
 import { api } from "../../lib/api";
 import { qk } from "../../lib/query";
 
-interface Stat {
+export interface Stat {
   label: string;
   value: number;
   to?: string;
@@ -83,7 +83,7 @@ export function Dashboard() {
   );
 }
 
-function StatCard({ label, value, to, warn, hint }: Stat) {
+export function StatCard({ label, value, to, warn, hint }: Stat) {
   const body = (
     <>
       <span className="block text-sm font-medium text-slate-600">{label}</span>

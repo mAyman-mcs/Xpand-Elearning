@@ -14,12 +14,14 @@ import {
   updateAssignment,
 } from "./assignments.service.js";
 import { examAvailability, studentExams } from "./availability.service.js";
+import { giveExtraAttempt } from "./extra-attempts.service.js";
 import { createOverride, endOverride, listOverrides, overrideScope } from "./overrides.service.js";
 import {
   bulkAssignmentBody,
   createAssignmentBody,
   createOverrideBody,
   examQuery,
+  extraAttemptBody,
   updateAssignmentBody,
 } from "./schemas.js";
 
@@ -61,6 +63,14 @@ export function assignmentsRoutes(deps: AppDeps): ApiRouter {
     query: examQuery,
     scope: (ctx, { query }) => examScope(ctx.db, query.examId),
     handler: (ctx, { query }) => examAvailability(ctx, query.examId),
+  });
+
+  /** "Give another attempt": one more attempt for a student who used them all (optionally opened now). */
+  api.post("/extra-attempts", {
+    access: access.permission("EXAM_ASSIGN"),
+    body: extraAttemptBody,
+    scope: (ctx, { body }) => examTargetScope(ctx.db, body.examId, { userId: body.userId }),
+    handler: async (ctx, { body }) => created(await giveExtraAttempt(ctx, body)),
   });
 
   api.patch("/:id", {

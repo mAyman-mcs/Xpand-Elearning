@@ -130,6 +130,8 @@ export function resolveAvailability(input: {
   assignments: AssignmentInput[];
   overrides: OverrideInput[];
   attempts: AttemptInput[];
+  /** Attempts staff gave this student on top of the exam's maxAttempts ("give another attempt"). */
+  extraAttempts?: number;
   now: Date;
 }): Availability {
   const { exam, student, now } = input;
@@ -157,10 +159,11 @@ export function resolveAvailability(input: {
   if (exam.isExternal) return result("EXTERNAL", "exam", "Taken outside the platform; scores are entered by staff.");
 
   // 3. Attempts: an attempt in progress can always be resumed (its own deadline applies);
-  //    used-up attempts end it — overrides never reopen a submitted exam.
+  //    used-up attempts end it — overrides never reopen a submitted exam (an extra attempt does).
   if (progress === "IN_PROGRESS") return result("OPEN", "attempts", "An attempt is in progress.");
   const used = input.attempts.filter((a) => a.status !== "VOIDED" && a.status !== "IN_PROGRESS").length;
-  if (used >= exam.maxAttempts) return result("SUBMITTED", "attempts", "All attempts have been used.");
+  if (used >= exam.maxAttempts + (input.extraAttempts ?? 0))
+    return result("SUBMITTED", "attempts", "All attempts have been used.");
 
   // 4. Overrides: a user override beats group overrides; among group overrides, CLOSE wins.
   const active = input.overrides.filter((o) => reaches(o) && isActiveOverride(o, now));

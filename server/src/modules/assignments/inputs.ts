@@ -32,6 +32,7 @@ export interface ExamRules {
   assignments: (AssignmentInput & { examId: string })[];
   overrides: (OverrideInput & { examId: string })[];
   attempts: (AttemptInput & { examId: string; userId: string })[];
+  extraAttempts: { examId: string; userId: string }[];
 }
 
 /** Everything that decides availability for these students on these exams. */
@@ -40,15 +41,19 @@ export async function loadExamRules(db: DbClient, examIds: string[], students: S
   const groupIds = [...new Set(students.flatMap((s) => s.memberships.map((m) => m.groupId)))];
   const target = { OR: [{ userId: { in: userIds } }, { groupId: { in: groupIds } }] };
 
-  const [assignments, overrides, attempts] = await Promise.all([
+  const [assignments, overrides, attempts, extraAttempts] = await Promise.all([
     db.assignment.findMany({ where: { examId: { in: examIds }, ...target } }),
     db.accessOverride.findMany({ where: { examId: { in: examIds }, ...target } }),
     db.attempt.findMany({
       where: { examId: { in: examIds }, userId: { in: userIds } },
       select: { examId: true, userId: true, status: true, reviewStatus: true, attemptNo: true },
     }),
+    db.extraAttempt.findMany({
+      where: { examId: { in: examIds }, userId: { in: userIds } },
+      select: { examId: true, userId: true },
+    }),
   ]);
-  return { assignments, overrides, attempts };
+  return { assignments, overrides, attempts, extraAttempts };
 }
 
 /** The slice of the rules for one exam and one student (the resolver filters targets itself). */
@@ -57,5 +62,6 @@ export function rulesFor(rules: ExamRules, examId: string, userId: string) {
     assignments: rules.assignments.filter((a) => a.examId === examId),
     overrides: rules.overrides.filter((o) => o.examId === examId),
     attempts: rules.attempts.filter((a) => a.examId === examId && a.userId === userId),
+    extraAttempts: rules.extraAttempts.filter((x) => x.examId === examId && x.userId === userId).length,
   };
 }

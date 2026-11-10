@@ -40,6 +40,9 @@ import type {
   StaffQuestion,
   Role,
   SessionUser,
+  StaffDashboard,
+  SubmissionPreview,
+  SubmissionRow,
   Tag,
   UserDetail,
   UserLookup,
@@ -144,6 +147,20 @@ export interface GradeInput {
   reason?: string;
 }
 
+export interface SubmissionFilter {
+  examId?: string;
+  show?: "all" | "awaiting-grading";
+  q?: string;
+}
+
+export interface ExtraAttemptInput {
+  examId: string;
+  userId: string;
+  reason: string;
+  /** Also open the exam for the student from now until then (needs schedule access). */
+  openUntil: string | null;
+}
+
 export interface UserListFilter {
   role?: Role;
   groupId?: string;
@@ -178,6 +195,12 @@ export const api = {
   },
   me: {
     permissions: () => http.get<MyPermissions>("/me/permissions"),
+    dashboard: () => http.get<StaffDashboard>("/me/dashboard"),
+  },
+  submissions: {
+    list: (filter: SubmissionFilter, cursor?: string, limit = 50) =>
+      http.get<Page<SubmissionRow>>("/submissions", { ...filter, cursor, limit }),
+    get: (attemptId: string) => http.get<SubmissionPreview>(`/submissions/${attemptId}`),
   },
   users: {
     list: (filter: UserListFilter, cursor?: string) =>
@@ -268,6 +291,8 @@ export const api = {
     bulk: (input: BulkInput) => http.post<{ created: number }>("/assignments/bulk", input),
     preview: (input: BulkInput) => http.post<PreviewRow[]>("/assignments/preview", input),
     availability: (examId: string) => http.get<AvailabilityRow[]>("/assignments/availability", { examId }),
+    /** "Give another attempt" to a student who used them all. */
+    giveAnotherAttempt: (input: ExtraAttemptInput) => http.post<AvailabilityRow>("/assignments/extra-attempts", input),
   },
   admin: {
     stats: () => http.get<AdminStats>("/admin/stats"),

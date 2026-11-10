@@ -95,7 +95,7 @@ async function lockVersion(tx: Prisma.TransactionClient, attemptId: string, expe
     });
 }
 
-async function loadAttempt(db: DbClient, attemptId: string) {
+export async function loadAttempt(db: DbClient, attemptId: string) {
   const attempt = await db.attempt.findUnique({
     where: { id: attemptId },
     include: {
@@ -117,7 +117,7 @@ async function loadAttempt(db: DbClient, attemptId: string) {
   });
   return { attempt, questions, answers: new Map(attempt.answers.map((a) => [a.questionId, a])) };
 }
-type Loaded = Awaited<ReturnType<typeof loadAttempt>>;
+export type Loaded = Awaited<ReturnType<typeof loadAttempt>>;
 
 function gradingInputs({ questions, answers }: Loaded) {
   const graded: GradedQuestion[] = questions.map((q) => ({ id: q.id, type: q.type, points: q.points.toNumber() }));
@@ -205,18 +205,10 @@ export async function gradingQueue(ctx: Ctx, examId: string, filter: z.infer<typ
 /** The attempt as the grader sees it: every question with the answer key and the student's answer. */
 export async function getGrading(ctx: Ctx, attemptId: string) {
   const loaded = await loadAttempt(ctx.db, attemptId);
-  const { attempt, questions, answers } = loaded;
+  const { attempt } = loaded;
   assertGradable(attempt);
-
-  const options = optionOrder(attempt);
-  const peopleIds = [
-    ...new Set([
-      ...attempt.answers.flatMap((a) => (a.gradedById ? [a.gradedById] : [])),
-      ...(attempt.reviewedById ? [attempt.reviewedById] : []),
-    ]),
-  ];
-  const [people, next] = await Promise.all([
-    ctx.db.user.findMany({ where: { id: { in: peopleIds } }, ...person }),
+  const [detail, next] = await Promise.all([
+    attemptDetail(ctx, loaded),
     ctx.db.attempt.findFirst({
       where: {
         examId: attempt.examId,
@@ -229,6 +221,20 @@ export async function getGrading(ctx: Ctx, attemptId: string) {
       select: { id: true },
     }),
   ]);
+  return { ...detail, nextUngradedId: next?.id ?? null };
+}
+
+/** A finished attempt in full, for staff (the grading page and the read-only preview). */
+export async function attemptDetail(ctx: Ctx, loaded: Loaded) {
+  const { attempt, questions, answers } = loaded;
+  const options = optionOrder(attempt);
+  const peopleIds = [
+    ...new Set([
+      ...attempt.answers.flatMap((a) => (a.gradedById ? [a.gradedById] : [])),
+      ...(attempt.reviewedById ? [attempt.reviewedById] : []),
+    ]),
+  ];
+  const people = await ctx.db.user.findMany({ where: { id: { in: peopleIds } }, ...person });
   const personOf = (id: string | null) => (id ? (people.find((p) => p.id === id) ?? null) : null);
   const { graded, byQuestion } = gradingInputs(loaded);
 
@@ -299,7 +305,6 @@ export async function getGrading(ctx: Ctx, attemptId: string) {
       };
     }),
     approvalProblems: approvalProblems(graded, byQuestion),
-    nextUngradedId: next?.id ?? null,
   };
 }
 

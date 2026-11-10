@@ -19,6 +19,9 @@ export function createQueryClient() {
 export const qk = {
   permissions: ["me", "permissions"] as const,
   stats: ["admin", "stats"] as const,
+  dashboard: ["me", "dashboard"] as const,
+  submissions: ["submissions"] as const,
+  submission: (attemptId: string) => ["submissions", attemptId] as const,
   audit: ["audit"] as const,
   users: ["users"] as const,
   user: (id: string) => ["users", id] as const,

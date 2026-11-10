@@ -16,7 +16,7 @@ export function usePageTitle(title: string) {
 export function HomeRedirect() {
   const { user } = useAuth();
   if (user?.role === "SUPER_ADMIN") return <Navigate to="/admin" replace />;
-  if (user?.role === "INSTRUCTOR") return <Navigate to="/exams" replace />;
+  if (user?.role === "INSTRUCTOR") return <Navigate to="/instructor" replace />;
   return <Navigate to="/student" replace />;
 }
 
@@ -35,7 +35,7 @@ export function RequireStaff() {
   return hasAnyGrant(perms) ? (
     <Outlet />
   ) : (
-    <NoAccess message="You have no active access grants. Ask a super admin to grant you access." />
+    <NoAccess message="You have no active access grants. Ask a super admin to grant you access; your dashboard is always available." />
   );
 }
 

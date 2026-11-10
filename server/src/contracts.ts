@@ -567,3 +567,35 @@ export interface GradingAttempt {
   /** The next attempt of this exam, in scope, that isn't approved yet. */
   nextUngradedId: string | null;
 }
+
+// ─────────────────────────────── Submissions & staff dashboard ───────────────────────────────
+
+/** One submitted exam in the cross-exam submissions list (staff, within their scope). */
+export interface SubmissionRow {
+  attemptId: string;
+  attemptNo: number;
+  /** The student's latest attempt on this exam (only that one can get another attempt). */
+  isLatest: boolean;
+  exam: { id: string; code: string; title: string; scoringMode: ScoringMode };
+  student: PersonRef;
+  status: AttemptStatus;
+  submittedAt: string | null;
+  reviewStatus: ReviewStatus;
+  /** A needs-approval exam that isn't approved yet. */
+  awaitingGrading: boolean;
+  score: number | null;
+  maxScore: number | null;
+}
+
+/** A submitted exam, read only (any scoring mode). */
+export interface SubmissionPreview extends Omit<GradingAttempt, "nextUngradedId"> {
+  canGrade: boolean;
+  canGiveAnotherAttempt: boolean;
+}
+
+/** GET /api/me/dashboard: counts within the caller's own scope (zeros without grants). */
+export interface StaffDashboard {
+  exams: number;
+  students: number;
+  submissions: { total: number; awaitingGrading: number; lastWeek: number };
+}

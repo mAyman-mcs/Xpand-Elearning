@@ -67,6 +67,16 @@ export const assignmentsRows: MatrixRow[] = [
     request: (w) => ({ path: `/api/assignments/availability?examId=${w.e1.id}` }),
     expect: scoped(200, { instExamA: 200, instSplit: 200, instTag: 200 }),
   },
+  // EXAM_ASSIGN on E1 × student B: the super admin and instTag (student B submitted E1). E1 isn't
+  // assigned to student B, so they get past access control and the handler answers 409.
+  {
+    route: "POST /api/assignments/extra-attempts",
+    request: (w) => ({
+      path: "/api/assignments/extra-attempts",
+      body: { examId: w.e1.id, userId: w.studentB.id, reason: "retake" },
+    }),
+    expect: statuses(404, { superAdmin: 409, instTag: 409, student: 403 }),
+  },
   {
     route: "PATCH /api/assignments/:id",
     label: "E1 → group A",

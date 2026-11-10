@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { GrantScope, Principal } from "./authorize.js";
-import { examWhere, groupWhere, reachOf, studentWhere } from "./scope.js";
+import { attemptWhere, examWhere, groupWhere, reachOf, reachOfAny, studentWhere } from "./scope.js";
 
 const NOW = new Date("2026-10-01T12:00:00Z");
 const NOTHING = { id: { in: [] } };
@@ -84,5 +84,49 @@ describe("Prisma filters", () => {
   it("a grant with an exam scope but no groups reaches no students", () => {
     const r = reach("INSTRUCTOR", grant({ examIds: ["e1"] }));
     expect(studentWhere(r)).toEqual(NOTHING);
+  });
+});
+
+describe("attempts across exams", () => {
+  const principal = (role: Principal["role"], ...grants: GrantScope[]): Principal => ({ userId: "u", role, grants });
+  const any = (p: Principal) => reachOfAny(p, ["RESULTS_VIEW", "ATTEMPT_REVIEW"], NOW);
+
+  it("super admins see every attempt; nobody else without a grant sees one", () => {
+    expect(attemptWhere(any(principal("SUPER_ADMIN")))).toEqual({});
+    expect(attemptWhere(any(principal("INSTRUCTOR")))).toEqual(NOTHING);
+  });
+
+  it("joins the grants of every listed permission, and ignores the others", () => {
+    const p = principal(
+      "INSTRUCTOR",
+      grant({ permissions: ["RESULTS_VIEW"], examIds: ["e1"], groupIds: ["g1"] }),
+      grant({ permissions: ["ATTEMPT_REVIEW"], allExams: true, allGroups: true }),
+      grant({ permissions: ["EXAM_EDIT"], examIds: ["e9"], allGroups: true }),
+    );
+    expect(any(p)).toEqual({
+      kind: "pairs",
+      pairs: [
+        { exams: { examIds: ["e1"], categoryIds: [], tagIds: [] }, groups: ["g1"] },
+        { exams: "all", groups: "all" },
+      ],
+    });
+  });
+
+  it("keeps each grant's exam and students together, and skips a grant with no exams", () => {
+    const p = principal(
+      "INSTRUCTOR",
+      grant({ examIds: ["e1"], groupIds: ["g1"] }),
+      grant({ allExams: true, groupIds: ["g2"] }),
+      grant({ groupIds: ["g3"] }),
+    );
+    expect(attemptWhere(any(p))).toEqual({
+      OR: [
+        {
+          exam: { is: { OR: [{ id: { in: ["e1"] } }] } },
+          user: { is: { role: "STUDENT", OR: [{ memberships: { some: { groupId: { in: ["g1"] } } } }] } },
+        },
+        { user: { is: { role: "STUDENT", OR: [{ memberships: { some: { groupId: { in: ["g2"] } } } }] } } },
+      ],
+    });
   });
 });

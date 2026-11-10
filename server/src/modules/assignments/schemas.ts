@@ -76,3 +76,14 @@ export const createOverrideBody = z
     message: "validUntil must be after validFrom.",
     path: ["validUntil"],
   });
+
+/**
+ * "Give another attempt": one more attempt for a student who used them all. `openUntil` also
+ * opens the exam for them from now until then (a student OPEN override; needs EXAM_SCHEDULE).
+ */
+export const extraAttemptBody = z.object({
+  examId: uuid,
+  userId: uuid,
+  reason: nonBlank(500),
+  openUntil: instant.nullable().default(null),
+});
