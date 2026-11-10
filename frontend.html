@@ -1487,44 +1487,7 @@
       if (errorBox) errorBox.classList.add('hidden');
 
       const usersDatabase = {
-        'abdulr': { pass: '329377', fullName: 'Abdulrahman Tarek Rashed', email: 'abdulrahmantarek08@gmail.com', mobile: '+20 101 234 5678' },
-        'adnans': { pass: '101854', fullName: 'Adnan Samy Abdel Aleem El Sayed', email: 'adnansamy2006@gmail.com', mobile: '+20 102 345 6789' },
-        'ahmedt': { pass: '200501', fullName: 'Ahmed tarek ahmed elmanndhouh', email: 'Ahmedeldandouh53@gmail.com', mobile: '+20 103 456 7890' },
-        'ahmsal': { pass: '284833', fullName: 'Ahmed Tarek Salah', email: 'ahmedtarek3201@gmail.com', mobile: '+20 104 567 8901' },
-        'alibel': { pass: '883174', fullName: 'Ali Belal Zahran', email: 'alibzahran@gmail.com', mobile: '+20 105 678 9012' },
-        'ammara': { pass: '742773', fullName: 'Ammar AHMED ADLY elsakka', email: 'ammar.aelsakka@gmail.com', mobile: '+20 106 789 0123' },
-        'amrahm': { pass: '282370', fullName: 'Amr ahmed abass Ewis', email: 'amroooo170@gmail.com', mobile: '+20 107 890 1234' },
-        'assemt': { pass: '009739', fullName: 'Assem Tarek Albialy', email: 'assem251006@gmail.com', mobile: '+20 108 901 2345' },
-        'belalm': { pass: '365299', fullName: 'Belal Mahmoud Abd El Tawab', email: 'belalm223@gmail.com', mobile: '+20 109 012 3456' },
-        'ehabre': { pass: '588657', fullName: 'Ehab Reda Abdelmoniem', email: 'ehab23gu@gmail.com', mobile: '+20 110 123 4567' },
-        'genaal': { pass: '638325', fullName: 'Gena Alaa Mohamed', email: 'genaalaam@gmail.com', mobile: '+20 111 234 5678' },
-        'habiba': { pass: '683504', fullName: 'Habiba Walid AbdulSalam AbdulWahab', email: 'habibaw006@gmail.com', mobile: '+20 112 345 6789' },
-        'hagars': { pass: '517289', fullName: 'Hagar sherif Mohamed', email: 'sherifhagar1@gmail.com', mobile: '+20 113 456 7890' },
-        'ibrahi': { pass: '876235', fullName: 'Ibrahim Ahmed Ibrahim Zarad', email: 'hemazarad77@gmail.com', mobile: '+20 114 567 8901' },
-        'maisoo': { pass: '106585', fullName: 'Maisoon Badr Gassar', email: 'maisoonbadrg@gmail.com', mobile: '+20 115 678 9012' },
-        'mirnat': { pass: '185078', fullName: 'Mirna Taha Shams', email: 'mirnashams01@gmail.com', mobile: '+20 116 789 0123' },
-        'mohame': { pass: '330459', fullName: 'Mohamed Osama AbdelFatah', email: 'osamaalkady2020@gmail.com', mobile: '+20 117 890 1234' },
-        'mohmoh': { pass: '489828', fullName: 'Mohamed Salah Mohamed', email: 'mohamed0salah213@gmail.com', mobile: '+20 118 901 2345' },
-        'omarab': { pass: '310884', fullName: 'Omar Abdelhamid Eid', email: 'omar.abdelhamid113@gmail.com', mobile: '+20 119 012 3456' },
-        'omarga': { pass: '480964', fullName: 'Omar Gamal Eissa', email: 'mromargamal@gmail.com', mobile: '+20 120 123 4567' },
-        'omarmo': { pass: '492944', fullName: 'Omar Mohamed Farouk Sherif', email: 'omarello2006@gmail.com', mobile: '+20 121 234 5678' },
-        'omarna': { pass: '716017', fullName: 'Omar Nabil Eldeeb', email: 'omarnabileldeeb04@gmail.com', mobile: '+20 122 345 6789' },
-        'salehw': { pass: '349088', fullName: 'Saleh Walid Khalaf', email: 'Salehwalid8888@gmail.com', mobile: '+20 123 456 7890' },
-        'shahdw': { pass: '629127', fullName: 'Shahd Walid Abdulsalam Abdulwahab Abdelhamid', email: 'shahd.w1205@gmail.com', mobile: '+20 124 567 8901' },
-        'weamkh': { pass: '055260', fullName: 'weam khalil ahmed', email: 'weamkhalil76@gmail.com', mobile: '+20 125 678 9012' },
-        'yousse': { pass: '118568', fullName: 'Youssef Ehab Elsayed Mohamed Ahmed Abulnasr', email: 'yabulnasr7@gmail.com', mobile: '+20 126 789 0123' },
-        'nahla waheed': { pass: '654321', fullName: 'Nahla Waheed', email: 'nahla.waheed@xpandcs.com', mobile: '+20 100 987 6543', isAdmin: true },
-        'mohamed metwally': { pass: '7654321', fullName: 'Mohamed Metwally', email: 'mohamed.metwally@xpandcs.com', mobile: '+20 100 876 5432', isAdmin: true },
-        'amr faisal': { pass: '54321', fullName: 'Amr Faisal', email: 'amr.faisal@xpandcs.com', mobile: '+20 100 112 2334', isAdmin: true },
-        'ahta': { pass: '359863sx', fullName: 'Ahmed Tarek Salah', email: 'ahta@example.com', mobile: '+20 104 567 8901' },
-        'shwa': { pass: '399711xy', fullName: 'Shahd Walid Abdulsalam Abdulwahab Abdelhamid', email: 'shwa@example.com', mobile: '+20 124 567 8901' },
-        'adsa': { pass: '017297ya', fullName: 'Adnan Samy Abdel Aleem El Sayed', email: 'adsa@example.com', mobile: '+20 102 345 6789' },
-        'bema': { pass: '356790yd', fullName: 'Belal Mahmoud Abd El Tawab', email: 'bema@example.com', mobile: '+20 109 012 3456' },
-        'mita': { pass: '427154vq', fullName: 'Mirna Taha Shams', email: 'mita@example.com', mobile: '+20 116 789 0123' },
-        'omna': { pass: '017429mo', fullName: 'Omar Nabil Eldeeb', email: 'omna@example.com', mobile: '+20 122 345 6789' },
-        'omga': { pass: '567722ev', fullName: 'Omar Gamal Eissa', email: 'omga@example.com', mobile: '+20 120 123 4567' },
-        'wekh': { pass: '330988tc', fullName: 'Weam Khalil', email: 'wekh@example.com', mobile: '+20 125 678 9012' },
-        'maisoon': { pass: '106585', fullName: 'Maisoon Badr Gassar', email: 'maisoonbadrg@gmail.com', mobile: '+20 115 678 9012' }
+        // Accounts removed: the legacy portal is retired; use the new portal.
       };
 
       if (!usersDatabase.hasOwnProperty(usernameInput)) {
