@@ -247,7 +247,10 @@ function Session({ initial }: { initial: StudentAttempt }) {
 
   const low = left !== null && left < LOW_TIME_MS;
   const pendingSaves = Object.values(saveState).some((s) => s.state === "saving" || s.state === "retrying");
-  const needsFullscreen = exam.requireFullscreen && !fullscreen && live;
+  // A browser without fullscreen (iPhone Safari, an attempt resumed elsewhere) gets a banner, never an
+  // overlay it could not leave while the timer runs.
+  const fullscreenMissing = exam.requireFullscreen && !document.fullscreenEnabled;
+  const needsFullscreen = exam.requireFullscreen && !fullscreen && live && !fullscreenMissing;
 
   return (
     <div className="exam-session relative min-h-screen bg-slate-50 select-none">
@@ -279,6 +282,11 @@ function Session({ initial }: { initial: StudentAttempt }) {
             )}
           </div>
         </div>
+        {fullscreenMissing && live && (
+          <p role="status" className="bg-amber-50 px-4 py-1 text-center text-xs text-amber-800">
+            This browser can&apos;t show the exam in fullscreen. Keep this page open and don&apos;t switch away from it.
+          </p>
+        )}
         {offline && (
           <p role="status" className="bg-amber-50 px-4 py-1 text-center text-xs text-amber-800">
             Connection lost. Keep going: your answers are saved when it's back. The timer doesn't stop.

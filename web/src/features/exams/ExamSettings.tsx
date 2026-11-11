@@ -3,44 +3,19 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router";
 import { usePermissions } from "../../app/auth";
-import { ConfirmDialog } from "../../components/Dialog";
+import { ConfirmDialog, LeavePageDialog } from "../../components/Dialog";
 import { FormError } from "../../components/form";
 import { useToast } from "../../components/Toast";
 import { Badge, Button, Card } from "../../components/ui";
-import { api, type ExamPatch } from "../../lib/api";
-import { applyServerErrors } from "../../lib/forms";
+import { api } from "../../lib/api";
+import { applyServerErrors, useUnsavedChanges } from "../../lib/forms";
 import { EXAM_STATUS } from "../../lib/labels";
 import { qk } from "../../lib/query";
 import { formatInstant } from "../../lib/time";
 import { useCategories, useTags } from "../catalog/queries";
-import { ExamFields, useExamForm, valuesOf, type ExamValues } from "./ExamForm";
+import { ExamFields, patchOf, SETTINGS, useExamForm, valuesOf, type ExamValues } from "./ExamForm";
 import { useExam } from "./ExamLayout";
 import { editableCategories } from "./permissions";
-
-const SETTINGS = [
-  "title",
-  "durationMinutes",
-  "passMark",
-  "weight",
-  "maxAttempts",
-  "strikeLimit",
-  "questionsPerAttempt",
-  "isExternal",
-  "allowBackNavigation",
-  "shuffleQuestions",
-  "shuffleOptions",
-  "requireFullscreen",
-  "type",
-  "scoringMode",
-] as const;
-
-/** The changed settings only (omitted fields keep their value on the server). */
-function patchOf(before: ExamValues, after: ExamValues): ExamPatch {
-  const patch: Record<string, unknown> = {};
-  for (const key of SETTINGS) if (before[key] !== after[key]) patch[key] = after[key];
-  if (before.categoryId !== after.categoryId) patch.categoryId = after.categoryId;
-  return patch as ExamPatch;
-}
 
 const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x));
 
@@ -56,6 +31,7 @@ export function ExamSettings() {
   const form = useExamForm(before);
   const [formError, setFormError] = useState<string | null>(null);
   const [pendingMove, setPendingMove] = useState<ExamValues | null>(null);
+  const blocker = useUnsavedChanges(canEdit && form.formState.isDirty);
   // Type and scoring lock once students have taken the exam (the question list knows).
   const content = useQuery({
     queryKey: qk.questions(exam.id),
@@ -74,14 +50,16 @@ export function ExamSettings() {
   const save = useMutation({
     mutationFn: async (v: ExamValues) => {
       const patch = patchOf(before, v);
+      const tagsChanged = !sameSet(before.tagIds, v.tagIds);
       let next = exam;
       if (Object.keys(patch).length) next = await api.exams.update(exam.id, patch);
-      if (!sameSet(before.tagIds, v.tagIds)) next = await api.exams.setTags(exam.id, v.tagIds);
-      return next;
+      if (tagsChanged) next = await api.exams.setTags(exam.id, v.tagIds);
+      return { next, changed: Object.keys(patch).length > 0 || tagsChanged };
     },
-    onSuccess: async (next) => {
+    onSuccess: async ({ next, changed }) => {
       await updated(next);
-      toast("Exam saved");
+      // Never claim a save that sent nothing: a field missing from the patch would hide behind it.
+      toast(changed ? "Exam saved" : "Nothing to save");
     },
     onError: (e) =>
       setFormError(
@@ -137,6 +115,7 @@ export function ExamSettings() {
             </div>
           )}
         </form>
+        <LeavePageDialog blocker={blocker} />
         <ConfirmDialog
           open={pendingMove !== null}
           onOpenChange={(o) => !o && setPendingMove(null)}

@@ -1,7 +1,7 @@
 import type { AnswerSize, ExamType, QuestionType, StaffCase, StaffQuestion } from "@contracts";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
-import { Dialog } from "../../components/Dialog";
+import { Dialog, useConfirmDiscard } from "../../components/Dialog";
 import { FormError, SelectInput, TextArea, TextInput } from "../../components/form";
 import { ImageField, Picture } from "../../components/Picture";
 import { Button, cx } from "../../components/ui";
@@ -57,11 +57,13 @@ const fromQuestion = (q: StaffQuestion): QuestionInput => ({
 const blank = (v: string | null | undefined) => v?.trim() || null;
 
 export function QuestionEditor({ examId, examType, question, cases, start, locked, onClose, onSaved }: Props) {
-  const [draft, setDraft] = useState<QuestionInput>(() => {
+  const [initial] = useState<QuestionInput>(() => {
     if (question) return fromQuestion(question);
     const fresh = { ...NEW_QUESTION, caseId: start?.caseId ?? null };
     return start?.type ? changeType(fresh, start.type) : fresh;
   });
+  const [draft, setDraft] = useState<QuestionInput>(initial);
+  const { requestClose, confirm } = useConfirmDiscard(JSON.stringify(draft) !== JSON.stringify(initial), onClose);
   const set = (patch: Partial<QuestionInput>) => setDraft((d) => ({ ...d, ...patch }));
   const setOption = (i: number, patch: Partial<OptionInput>) =>
     setDraft((d) => ({ ...d, options: d.options.map((o, j) => (j === i ? { ...o, ...patch } : o)) }));
@@ -119,7 +121,7 @@ export function QuestionEditor({ examId, examType, question, cases, start, locke
   return (
     <Dialog
       open
-      onOpenChange={(o) => !o && onClose()}
+      onOpenChange={(o) => !o && requestClose()}
       title={question ? "Edit question" : inCase ? `Add a question to “${inCase.title}”` : "Add a question"}
       description={
         locked
@@ -129,7 +131,7 @@ export function QuestionEditor({ examId, examType, question, cases, start, locke
       wide
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={requestClose}>
             Cancel
           </Button>
           <Button busy={save.isPending} disabled={problems.length > 0 || !!imageProblem} onClick={() => save.mutate()}>
@@ -382,6 +384,7 @@ export function QuestionEditor({ examId, examType, question, cases, start, locke
           ))}
         </ul>
       </section>
+      {confirm}
     </Dialog>
   );
 }

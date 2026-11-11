@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { blockedShortcut, clockOffset, formatCountdown, isShrunk, remainingMs, retryDelay } from "./session";
+import {
+  blockedShortcut,
+  clockOffset,
+  deviceProblem,
+  formatCountdown,
+  isShrunk,
+  remainingMs,
+  retryDelay,
+} from "./session";
 
 const key = (k: string, mods: Partial<Record<"ctrlKey" | "metaKey" | "shiftKey" | "altKey", boolean>> = {}) => ({
   key: k,
@@ -57,6 +65,22 @@ describe("window size", () => {
     expect(isShrunk({ width: 1920, height: 940 }, screen)).toBe(false);
     expect(isShrunk({ width: 960, height: 1040 }, screen)).toBe(true);
     expect(isShrunk({ width: 1920, height: 500 }, screen)).toBe(true);
+  });
+});
+
+describe("devices that can't take an exam", () => {
+  it("accepts a laptop or desktop", () => {
+    expect(deviceProblem({ touch: false, fullscreenEnabled: true }, true)).toBeNull();
+  });
+
+  it("refuses phones and tablets, fullscreen or not", () => {
+    expect(deviceProblem({ touch: true, fullscreenEnabled: true }, false)).toBe("touch");
+  });
+
+  it("refuses a browser without fullscreen only when the exam needs it", () => {
+    const noFullscreen = { touch: false, fullscreenEnabled: false };
+    expect(deviceProblem(noFullscreen, true)).toBe("fullscreen");
+    expect(deviceProblem(noFullscreen, false)).toBeNull();
   });
 });
 

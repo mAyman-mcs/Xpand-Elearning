@@ -6,7 +6,15 @@ import { Badge, Button, Card, ErrorBanner, Loading, PageHeader } from "../../com
 import { api } from "../../lib/api";
 import { AVAILABILITY } from "../../lib/labels";
 import { qk } from "../../lib/query";
+import { currentDevice, deviceProblem, type DeviceProblem } from "../../lib/session";
 import { formatInstant, formatMinutes } from "../../lib/time";
+
+const DEVICE_MESSAGE: Record<DeviceProblem, string> = {
+  touch:
+    "Exams need a laptop or desktop computer: on phones and tablets, the on-screen keyboard would count as leaving the exam. Open this page on a computer to start. Nothing has started yet.",
+  fullscreen:
+    "This exam runs in fullscreen, and this browser can't switch to fullscreen. Open this page in Chrome, Edge or Firefox on a computer. Nothing has started yet.",
+};
 
 /** Asks for fullscreen; must run inside the click (browsers refuse it otherwise). Never throws. */
 export async function enterFullscreen(): Promise<boolean> {
@@ -26,14 +34,22 @@ export function ExamBrief() {
   const client = useQueryClient();
   const brief = useQuery({ queryKey: qk.studentExam(id), queryFn: () => api.student.exam(id), staleTime: 0 });
   const [agreed, setAgreed] = useState(false);
+  const [fullscreenRefused, setFullscreenRefused] = useState(false);
+  const [device] = useState(currentDevice);
   usePageTitle(brief.data?.exam.title ?? "Exam");
 
   const start = useMutation({
     mutationFn: async () => {
-      if (brief.data?.exam.requireFullscreen) await enterFullscreen();
+      setFullscreenRefused(false);
+      // Never start the timer without fullscreen when the exam needs it.
+      if (brief.data?.exam.requireFullscreen && !(await enterFullscreen())) {
+        setFullscreenRefused(true);
+        return null;
+      }
       return api.attempts.start(id);
     },
     onSuccess: (attempt) => {
+      if (!attempt) return;
       client.setQueryData(qk.attempt(attempt.attemptId), attempt);
       void client.invalidateQueries({ queryKey: qk.studentExams });
       void navigate(`/exam/${attempt.attemptId}`);
@@ -48,6 +64,7 @@ export function ExamBrief() {
   const { exam, status } = brief.data;
   const resuming = brief.data.inProgressAttemptId !== null;
   const canStart = status === "OPEN" && !exam.isExternal;
+  const problem = deviceProblem(device, exam.requireFullscreen);
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -78,6 +95,9 @@ export function ExamBrief() {
       <Card title="Before you start" className="mb-4">
         <ul className="list-disc space-y-2 pl-5 text-sm text-slate-700">
           <li>
+            Use a <strong>laptop or desktop computer</strong>. Phones and tablets can&apos;t be used for exams.
+          </li>
+          <li>
             The timer starts when you press Start and <strong>never pauses</strong>, even if you close the page or lose
             your connection.
             {brief.data.closesAt && <> The exam window closes {formatInstant(brief.data.closesAt)}.</>}
@@ -103,7 +123,16 @@ export function ExamBrief() {
         </ul>
       </Card>
 
-      {canStart && (
+      {canStart && problem && (
+        <Card>
+          <div role="alert" className="text-sm text-slate-800">
+            <p className="font-semibold">You can&apos;t start this exam on this device.</p>
+            <p className="mt-1">{DEVICE_MESSAGE[problem]}</p>
+          </div>
+        </Card>
+      )}
+
+      {canStart && !problem && (
         <Card>
           <label className="flex items-start gap-3 text-sm text-slate-800">
             <input
@@ -122,6 +151,12 @@ export function ExamBrief() {
               <span className="text-xs text-slate-600">Study materials are on your exams page.</span>
             )}
           </div>
+          {fullscreenRefused && (
+            <p role="alert" className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              Your browser didn&apos;t switch to fullscreen, so the exam hasn&apos;t started. Allow fullscreen if your
+              browser asks, then press Start again.
+            </p>
+          )}
           {start.error && (
             <div className="mt-3">
               <ErrorBanner error={start.error} />

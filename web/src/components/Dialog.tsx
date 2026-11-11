@@ -1,5 +1,6 @@
 import * as RadixDialog from "@radix-ui/react-dialog";
 import { useState, type ReactNode } from "react";
+import type { Blocker } from "react-router";
 import { errorMessage } from "../lib/api";
 import { FormError, TextArea } from "./form";
 import { Button, cx } from "./ui";
@@ -122,6 +123,93 @@ export function ConfirmDialog({
           onChange={(e) => setText(e.target.value)}
         />
       )}
+      <FormError message={error ? errorMessage(error) : null} />
+    </Dialog>
+  );
+}
+
+/**
+ * Guards an editor dialog with unsaved changes: Escape, a click outside and Cancel all go through
+ * `requestClose`, which asks first when `dirty`. Render `confirm` inside the editor dialog.
+ */
+export function useConfirmDiscard(dirty: boolean, onClose: () => void) {
+  const [asking, setAsking] = useState(false);
+  const requestClose = () => (dirty ? setAsking(true) : onClose());
+  const confirm = (
+    <Dialog
+      open={asking}
+      onOpenChange={setAsking}
+      title="Discard your changes?"
+      description="What you changed here hasn't been saved."
+      footer={
+        <>
+          {/* First, so it takes the focus: Enter keeps the work. */}
+          <Button variant="secondary" onClick={() => setAsking(false)}>
+            Keep editing
+          </Button>
+          <Button
+            variant="danger"
+            onClick={() => {
+              setAsking(false);
+              onClose();
+            }}
+          >
+            Discard
+          </Button>
+        </>
+      }
+    />
+  );
+  return { requestClose, confirm };
+}
+
+/**
+ * Shown when leaving a page with unsaved changes (from `useUnsavedChanges`): stay, discard, or save
+ * first when the page can save.
+ */
+export function LeavePageDialog({ blocker, onSave }: { blocker: Blocker; onSave?: () => Promise<unknown> }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const stay = () => {
+    if (busy) return;
+    setError(null);
+    blocker.reset?.();
+  };
+  async function saveAndGo() {
+    if (!onSave) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await onSave();
+      blocker.proceed?.();
+    } catch (e) {
+      setError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Dialog
+      open={blocker.state === "blocked"}
+      onOpenChange={(o) => !o && stay()}
+      title="Leave without saving?"
+      description="You have changes on this page that haven't been saved."
+      footer={
+        <>
+          <Button variant="secondary" onClick={stay} disabled={busy}>
+            Stay on this page
+          </Button>
+          <Button variant={onSave ? "secondary" : "danger"} onClick={() => blocker.proceed?.()} disabled={busy}>
+            Discard changes
+          </Button>
+          {onSave && (
+            <Button busy={busy} onClick={() => void saveAndGo()}>
+              Save and continue
+            </Button>
+          )}
+        </>
+      }
+    >
       <FormError message={error ? errorMessage(error) : null} />
     </Dialog>
   );

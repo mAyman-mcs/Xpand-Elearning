@@ -1,7 +1,7 @@
 import type { EventResult } from "@contracts";
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../../lib/api";
-import { blockedShortcut, isShrunk, retryDelay, type ClientEvent } from "../../lib/session";
+import { blockedShortcut, currentDevice, isShrunk, retryDelay, type ClientEvent } from "../../lib/session";
 
 type Detail = Record<string, string | number | boolean>;
 interface Queued {
@@ -111,7 +111,11 @@ export function useProctoring({ attemptId, active, onResult, onElsewhere }: Opti
       { width: window.innerWidth, height: window.innerHeight },
       { width: screen.availWidth, height: screen.availHeight },
     );
+    // On phones and tablets the on-screen keyboard shrinks the window: that's typing, not cheating.
+    // (The brief page doesn't start exams on touch devices; this covers one that gets through.)
+    const touch = currentDevice().touch;
     const onResize = () => {
+      if (touch) return;
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
         const inner = { width: window.innerWidth, height: window.innerHeight };
