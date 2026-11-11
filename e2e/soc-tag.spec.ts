@@ -62,7 +62,7 @@ test("soc tag grant: the instructor sees the soc exam and only students who subm
   await expect(page.getByRole("table", { name: "Tags" })).toContainText("soc");
 
   const instructor = await createUser(admin, { fullName: `Ines Soc ${id}`, role: "INSTRUCTOR" });
-  await page.goto(`/admin/instructors/${instructor.id}`);
+  await page.goto(`/admin/users/${instructor.id}`);
   await page.getByRole("button", { name: "Grant access" }).click();
   const editor = page.getByRole("dialog", { name: `New access for Ines Soc ${id}` });
   await editor.getByRole("checkbox", { name: "View results" }).check();

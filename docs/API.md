@@ -392,6 +392,10 @@ All endpoints that create, find, assign, schedule or open exams. The "Who" colum
 
 **`PUT /api/catalog/exams/:id/tags`** `{ tagIds: [..] }` → `Exam`. Replaces the exam's whole tag set; sending the same set again changes nothing.
 
+**`GET /api/catalog/exams/:id/results`** (`RESULTS_VIEW`, `RESULTS_RELEASE` or `ATTEMPT_REVIEW`) → `{ released, releasedAt, submitted, graded }`: whether students see this exam's results, and how many submitted attempts (of students the caller reaches) have a score.
+
+**`PUT /api/catalog/exams/:id/results-release`** `{ released: boolean }` (`RESULTS_RELEASE`) → the same shape. Released: each student sees their own score and pass/fail once their attempt is graded (never their answers). Hidden again: scores disappear from the student's pages; grades are kept. Audited as `results.released` / `results.hidden`.
+
 **Publishing** (`PATCH … { status: "PUBLISHED" }`) is refused with `409 CONFLICT` until the exam is ready; `details` lists the problems in words. An exam is ready when it is external, or when it has at least one question, every question is valid and allowed by the exam type, an `MCQ_ESSAY` exam has at least one essay, and `questionsPerAttempt` is empty (random draws come with question pools). The check uses the settings sent in the same request.
 
 ### 6.1a Exam content: questions, materials, duplicate
@@ -525,6 +529,20 @@ An assignment makes an exam **visible** to one target and says **when it opens**
    "replacedByPersonalAssignment": false }]
 ```
 The preview uses the same calculation the server uses for students, so it always matches what they'll see. `replacedByPersonalAssignment: true` means the student has a personal assignment for that exam, so this group schedule wouldn't apply to them.
+
+#### Tags given to groups (live bundles)
+
+A tag given to a group (e.g. “SOC Part 1” → a cohort) assigns the group **every exam carrying the tag, including exams tagged later**, all with the bundle's schedule. Each covered exam gets an ordinary assignment (`viaTag` is set on it), so availability, overrides and the student's list work as for any assignment. Rules:
+- Taking the tag off an exam (or deleting the bundle) removes the assignments it made. Another tag given to the same group keeps covering the exam.
+- A direct assignment of the same exam to the same group wins; no tag assignment is made for it.
+- A tag-made assignment can't be deleted on its own (`409`). Changing its schedule (`PATCH /api/assignments/:id`) detaches it from the tag: it becomes a direct assignment.
+- Putting a given tag on an exam, or taking it off, assigns or unassigns the exam, so it needs `EXAM_ASSIGN` on that exam for each of those groups (`403` otherwise). A tag given to a group can't be deleted (`409`).
+
+| Endpoint | Access | Does |
+|---|---|---|
+| `GET /api/assignments/tag-bundles?groupId=&tagId=` | Staff | `TagBundle[]`, only bundles the caller may manage |
+| `POST /api/assignments/tag-bundles` `{ tagId, groupId, schedule }` | `EXAM_ASSIGN` on the tag (a grant covering the tag or all exams) and the group | `201` `TagBundle & { assigned }`; `409` when the tag is already given to that group |
+| `DELETE /api/assignments/tag-bundles/:id` | same | `204` |
 
 ### 6.3 Opening and closing now (overrides)
 

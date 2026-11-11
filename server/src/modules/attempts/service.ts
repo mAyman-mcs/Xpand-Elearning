@@ -461,6 +461,7 @@ export async function attemptOutcome(ctx: Ctx, attemptId: string) {
     submittedAt: attempt.submittedAt,
     submitReason: attempt.submitReason,
     awaitingGrading: finished && exam.scoringMode === "MANUAL_APPROVAL" && attempt.reviewStatus !== "REVIEWED",
+    resultsReleased: exam.resultsReleased,
     result:
       released && attempt.score && attempt.maxScore
         ? { score: attempt.score.toNumber(), maxScore: attempt.maxScore.toNumber() }

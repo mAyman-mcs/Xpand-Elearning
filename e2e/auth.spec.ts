@@ -86,8 +86,10 @@ test.describe("navigation by role", () => {
       await page.goto("/");
       await expect(page).toHaveURL(/\/admin$/);
       const nav = page.getByRole("navigation", { name: "Main" });
-      for (const item of ["Dashboard", "Users", "Groups", "Instructors", "Categories & tags", "Exams", "Audit log"])
+      for (const item of ["Dashboard", "Users", "Groups", "Categories & tags", "Exams", "Audit log"])
         await expect(nav.getByRole("link", { name: item })).toBeVisible();
+      // Instructors and their access are managed under Users.
+      await expect(nav.getByRole("link", { name: "Instructors" })).toHaveCount(0);
       await expect(page).toHaveTitle(/Dashboard/);
     });
 

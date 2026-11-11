@@ -36,6 +36,7 @@ export async function seedWorld(db: Db, now = new Date()) {
   const unusedCategory = await makeCategory(db, { name: "Unused" });
   const tagCore = await makeTag(db, { name: "core" });
   const tagSpare = await makeTag(db, { name: "spare" }); // used by no grant: a plain tag
+  const tagBundle = await makeTag(db, { name: "bundle" }); // on no exam; given to group B
   const e1 = await makeExam(db, networking, { title: "E1", tags: [tagCore] });
   const e2 = await makeExam(db, networking, { title: "E2" });
   const e3 = await makeExam(db, cloud, { title: "E3" });
@@ -82,6 +83,7 @@ export async function seedWorld(db: Db, now = new Date()) {
     data: { examId: e1.id, groupId: groupA.id, mode: "FIXED", opensAt: new Date(now.getTime() - 3_600_000) },
   });
   const assignmentE3B = await db.assignment.create({ data: { examId: e3.id, groupId: groupB.id, mode: "MANUAL" } });
+  const bundleB = await db.tagAssignment.create({ data: { tagId: tagBundle.id, groupId: groupB.id } });
   const overrideE1A = await db.accessOverride.create({
     data: {
       examId: e1.id,
@@ -132,6 +134,8 @@ export async function seedWorld(db: Db, now = new Date()) {
     unusedCategory,
     tagCore,
     tagSpare,
+    tagBundle,
+    bundleB,
     e1,
     e2,
     e3,

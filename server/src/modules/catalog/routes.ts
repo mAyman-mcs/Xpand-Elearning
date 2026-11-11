@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { releaseBody, resultsStatus, setResultsRelease } from "./results-release.service.js";
 import type { AppDeps } from "../../core/context.js";
 import { pageQuery } from "../../core/pagination.js";
 import { access, ApiRouter, created, noContent } from "../../core/route.js";
@@ -133,6 +134,20 @@ export function catalogRoutes(deps: AppDeps): ApiRouter {
     body: updateExamBody,
     scope: (ctx, { params }) => examScope(ctx.db, params.id),
     handler: (ctx, { params, body }) => updateExam(ctx, params.id, body),
+  });
+  // Results: whether students see their scores (RES-3), and how far grading is.
+  api.get("/exams/:id/results", {
+    access: access.permission("RESULTS_VIEW", "RESULTS_RELEASE", "ATTEMPT_REVIEW"),
+    params: idParams,
+    scope: (ctx, { params }) => examScope(ctx.db, params.id),
+    handler: (ctx, { params }) => resultsStatus(ctx, params.id),
+  });
+  api.put("/exams/:id/results-release", {
+    access: access.permission("RESULTS_RELEASE"),
+    params: idParams,
+    body: releaseBody,
+    scope: (ctx, { params }) => examScope(ctx.db, params.id),
+    handler: (ctx, { params, body }) => setResultsRelease(ctx, params.id, body.released),
   });
   api.put("/exams/:id/tags", {
     access: access.permission("EXAM_EDIT"),

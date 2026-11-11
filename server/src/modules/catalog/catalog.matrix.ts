@@ -217,4 +217,16 @@ export const catalogRows: MatrixRow[] = [
     request: (w) => ({ path: `/api/catalog/exams/${w.e3.id}/duplicate`, body: { code: "E3-COPY" } }),
     expect: statuses(404, { superAdmin: 201, student: 403, instCategory: 201 }),
   },
+  {
+    route: "GET /api/catalog/exams/:id/results",
+    request: (w) => ({ path: `/api/catalog/exams/${w.e1.id}/results` }),
+    // RESULTS_VIEW, RESULTS_RELEASE or ATTEMPT_REVIEW on E1.
+    expect: statuses(404, { superAdmin: 200, student: 403, instExamA: 200, instSplit: 200, instTag: 200 }),
+  },
+  {
+    route: "PUT /api/catalog/exams/:id/results-release",
+    request: (w) => ({ path: `/api/catalog/exams/${w.e1.id}/results-release`, body: { released: true } }),
+    // instExamA and instSplit may see E1's results, but not show them to students.
+    expect: statuses(404, { superAdmin: 200, student: 403, instExamA: 403, instSplit: 403, instTag: 200 }),
+  },
 ];

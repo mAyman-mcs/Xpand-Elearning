@@ -74,6 +74,7 @@ model Group {
   assignments Assignment[]
   overrides   AccessOverride[]
   grantScopes GrantGroup[]
+  tagBundles  TagAssignment[]
 }
 
 model GroupMember {
@@ -190,6 +191,7 @@ model Tag {
 
   exams       ExamTag[]
   grantScopes GrantTag[]
+  bundles     TagAssignment[]
 }
 
 model ExamTag {
@@ -243,6 +245,8 @@ model Exam {
   sebConfigKeyHash    String?
   accessCodeHash      String? // optional proctor PIN to start
   resultsReleased     Boolean     @default(false)
+  // When staff last showed the results to students (null while hidden).
+  resultsReleasedAt   DateTime?
   type                ExamType    @default(MCQ)
   scoringMode         ScoringMode @default(AUTO)
   // Shown before the exam starts and during it ("The story so far", instructions). Plain text.
@@ -396,26 +400,57 @@ enum ScheduleMode {
 // Makes an exam visible to a user or a group, and says when it opens.
 // Exactly one of userId / groupId is set (enforced by a CHECK constraint in the migration).
 model Assignment {
-  id            String       @id @default(uuid()) @db.Uuid
-  examId        String       @db.Uuid
-  exam          Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
-  userId        String?      @db.Uuid
-  user          User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  groupId       String?      @db.Uuid
-  group         Group?       @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  mode          ScheduleMode @default(MANUAL)
-  opensAt       DateTime?
-  closesAt      DateTime?
-  offsetDays    Int?
-  openTime      String? // "HH:mm", interpreted in the app time zone (Africa/Cairo)
-  windowMinutes Int?
-  createdById   String?      @db.Uuid
-  createdAt     DateTime     @default(now())
+  id              String         @id @default(uuid()) @db.Uuid
+  examId          String         @db.Uuid
+  exam            Exam           @relation(fields: [examId], references: [id], onDelete: Cascade)
+  userId          String?        @db.Uuid
+  user            User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groupId         String?        @db.Uuid
+  group           Group?         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  mode            ScheduleMode   @default(MANUAL)
+  opensAt         DateTime?
+  closesAt        DateTime?
+  offsetDays      Int?
+  openTime        String? // "HH:mm", interpreted in the app time zone (Africa/Cairo)
+  windowMinutes   Int?
+  createdById     String?        @db.Uuid
+  createdAt       DateTime       @default(now())
+  // Set when the row comes from a tag given to a group (kept in sync with the exam's tags).
+  // Null for an assignment made directly, or one detached from its tag by editing its schedule.
+  tagAssignmentId String?        @db.Uuid
+  tagAssignment   TagAssignment? @relation(fields: [tagAssignmentId], references: [id], onDelete: Cascade)
 
   // An exam is assigned to a target at most once (duplicates are a 409, never stacked).
   @@unique([examId, userId])
   @@unique([examId, groupId])
   @@index([userId])
+  @@index([groupId])
+  @@index([tagAssignmentId])
+}
+
+// A tag given to a group ("SOC Part 1" → "Cohort 5"): a live bundle. The group is assigned every
+// exam carrying the tag, including exams tagged later; taking the tag off an exam removes it again.
+// Each covered exam gets an ordinary Assignment row (tagAssignmentId set) with this schedule, so
+// availability works exactly as for direct assignments. A direct assignment of the same exam to
+// the same group wins: no row is made for it.
+model TagAssignment {
+  id            String       @id @default(uuid()) @db.Uuid
+  tagId         String       @db.Uuid
+  tag           Tag          @relation(fields: [tagId], references: [id], onDelete: Restrict)
+  groupId       String       @db.Uuid
+  group         Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  mode          ScheduleMode @default(MANUAL)
+  opensAt       DateTime?
+  closesAt      DateTime?
+  offsetDays    Int?
+  openTime      String?
+  windowMinutes Int?
+  createdById   String?      @db.Uuid
+  createdAt     DateTime     @default(now())
+
+  assignments Assignment[]
+
+  @@unique([tagId, groupId])
   @@index([groupId])
 }
 

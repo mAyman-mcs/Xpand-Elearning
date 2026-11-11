@@ -6,6 +6,7 @@ import { AppError, conflict, notFound } from "../../core/errors.js";
 import { nonBlank, uuid } from "../../core/schemas.js";
 import { AnswerSize, QuestionType, type ExamType, type Prisma } from "../../generated/prisma/client.js";
 import { authorize } from "../rbac/authorize.js";
+import { assertMayChangeBundleTags, syncTagBundles } from "../assignments/tag-bundles.service.js";
 import { assertMayChangeAccessTags } from "./access-tags.js";
 import { questionAllowed } from "./exam-types.js";
 
@@ -767,6 +768,9 @@ export async function duplicateExam(ctx: Ctx, examId: string, input: z.infer<typ
     actor,
     source.tags.map((t) => t.tagId),
   );
+  // ... and a tag given to groups assigns the copy to them.
+  const tagIds = source.tags.map((t) => t.tagId);
+  await assertMayChangeBundleTags(ctx.db, actor, { categoryId: source.categoryId, tagIds }, tagIds, ctx.now);
 
   try {
     return await inTransaction(ctx.db, async (tx) => {
@@ -790,6 +794,7 @@ export async function duplicateExam(ctx: Ctx, examId: string, input: z.infer<typ
           title: input.title ?? `${title} (copy)`,
           status: "DRAFT",
           resultsReleased: false,
+          resultsReleasedAt: null,
           tags: { create: tags.map((t) => ({ tagId: t.tagId })) },
           materials: { create: materials.map((m) => ({ title: m.title, url: m.url, position: m.position })) },
         },
@@ -838,6 +843,7 @@ export async function duplicateExam(ctx: Ctx, examId: string, input: z.infer<typ
           },
         });
       }
+      await syncTagBundles(tx, [copy.id]);
       await audit(tx, {
         action: "catalog.exam_duplicated",
         actorId: actor.userId,

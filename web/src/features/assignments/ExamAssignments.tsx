@@ -41,6 +41,11 @@ export function ExamAssignments() {
         a.target.type === "group" ? (
           <span>
             <Badge tone="blue">Group</Badge> <span className="font-semibold">{a.target.name}</span>
+            {a.viaTag && (
+              <span className="mt-1 block text-xs text-slate-600">
+                Through the tag <Badge tone="outline">{a.viaTag.name}</Badge>
+              </span>
+            )}
           </span>
         ) : (
           <span>
@@ -68,7 +73,7 @@ export function ExamAssignments() {
               Schedule
             </Button>
           )}
-          {canAssign && (
+          {canAssign && !a.viaTag && (
             <Button
               size="sm"
               variant="ghost"
@@ -219,6 +224,12 @@ function RescheduleDialog({
         </>
       }
     >
+      {assignment.viaTag && (
+        <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+          {assignment.target.name} has this exam through the tag “{assignment.viaTag.name}”. Giving it its own schedule
+          takes it out of the tag: it then stays assigned even if the tag is taken off the exam.
+        </p>
+      )}
       <ScheduleFields
         draft={draft}
         onChange={(d) => {

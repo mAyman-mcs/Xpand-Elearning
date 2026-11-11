@@ -145,7 +145,7 @@ test("a use case: case editor, picture options, one screen per case, grading", a
   await s.context.close();
 
   // ─── The grader sees the case, the explanation and the student's choice ───
-  await page.goto(`/exams/${exam.id}/grading`);
+  await page.goto(`/exams/${exam.id}/results`);
   await page.getByRole("link", { name: "Grade Una Usecase" }).click();
   const theCase = page.getByRole("region", { name: "Case: Boot sequence" });
   await expect(theCase.getByText("Firmware first.")).toBeVisible(); // graders always see the hint

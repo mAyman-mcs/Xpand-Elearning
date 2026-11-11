@@ -66,6 +66,7 @@ export async function studentExams(ctx: Ctx) {
       opensAt: availability.opensAt,
       closesAt: availability.closesAt,
       reason: availability.reason,
+      resultsReleased: exam.resultsReleased,
       result: resultOf(exam.id),
     };
   });

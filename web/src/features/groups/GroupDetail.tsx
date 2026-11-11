@@ -15,6 +15,7 @@ import { api, errorMessage } from "../../lib/api";
 import { applyServerErrors } from "../../lib/forms";
 import { qk } from "../../lib/query";
 import { formatDate } from "../../lib/time";
+import { GiveTagForm, TagBundleTable } from "../assignments/TagBundles";
 import { groupSchema, type GroupValues } from "./GroupsList";
 
 export function GroupDetail() {
@@ -22,6 +23,7 @@ export function GroupDetail() {
   const group = useQuery({ queryKey: qk.group(id), queryFn: () => api.groups.get(id) });
   usePageTitle(group.data?.name ?? "Group");
   const [adding, setAdding] = useState(false);
+  const [givingTag, setGivingTag] = useState(false);
   const [editing, setEditing] = useState<GroupMember | null>(null);
   const [removing, setRemoving] = useState<GroupMember | null>(null);
   const queryClient = useQueryClient();
@@ -101,7 +103,33 @@ export function GroupDetail() {
             empty={{ title: "No members yet", hint: "Add students with “Add students”." }}
           />
         </Card>
+        <Card
+          title="Exam tags"
+          actions={
+            <Button variant="secondary" onClick={() => setGivingTag(true)}>
+              Give a tag
+            </Button>
+          }
+        >
+          <p className="mb-3 text-sm text-slate-600">
+            The group gets every exam with these tags, including exams tagged later.
+          </p>
+          <TagBundleTable groupId={g.id} />
+        </Card>
       </div>
+
+      <Dialog open={givingTag} onOpenChange={setGivingTag} title={`Give a tag to ${g.name}`} wide>
+        {givingTag && (
+          <GiveTagForm
+            groupId={g.id}
+            onCancel={() => setGivingTag(false)}
+            onGiven={() => {
+              setGivingTag(false);
+              toast("Tag given");
+            }}
+          />
+        )}
+      </Dialog>
 
       <AddMembersDialog
         open={adding}

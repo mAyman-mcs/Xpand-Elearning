@@ -6,6 +6,8 @@ import type { adminStats, listAudit } from "./modules/admin/service.js";
 import type { assignmentDto, previewAssignments } from "./modules/assignments/assignments.service.js";
 import type { examAvailability, studentExams } from "./modules/assignments/availability.service.js";
 import type { overrideDto } from "./modules/assignments/overrides.service.js";
+import type { tagBundleDto } from "./modules/assignments/tag-bundles.service.js";
+import type { resultsStatus } from "./modules/catalog/results-release.service.js";
 import type { attemptOutcome, examBrief, getAttempt, heartbeat, reportEvent } from "./modules/attempts/service.js";
 import type { publicUser } from "./modules/auth/service.js";
 import type { uploadImage } from "./modules/uploads/service.js";
@@ -52,6 +54,8 @@ export type Checks = [
   Assert<Same<Out<typeof examDto>, C.Exam>>,
   Assert<Same<Out<typeof assignmentDto>, C.Assignment>>,
   Assert<Same<Out<typeof overrideDto>, C.Override>>,
+  Assert<Same<Out<typeof tagBundleDto>, C.TagBundle>>,
+  Assert<Same<Out<typeof resultsStatus>, C.ResultsStatus>>,
   Assert<Same<Item<typeof previewAssignments>, C.PreviewRow>>,
   Assert<Same<Item<typeof examAvailability>, C.AvailabilityRow>>,
   Assert<Same<Item<typeof studentExams>, C.StudentExamRow>>,

@@ -8,6 +8,7 @@ import { examScope, targetScope } from "../rbac/resolvers.js";
 import { examWhere, reachForExam, reachOf, targetWhere } from "../rbac/scope.js";
 import { anchorFor, scheduleWindow } from "./availability.js";
 import { loadStudents } from "./inputs.js";
+import { syncTagBundles } from "./tag-bundles.service.js";
 import { scheduleColumns, type BulkAssignment, type Schedule, type Target } from "./schemas.js";
 
 // ─────────────────────────────── Scopes ───────────────────────────────
@@ -29,6 +30,7 @@ export async function assignmentScope(db: DbClient, assignmentId: string): Promi
 const withTarget = {
   user: { select: { id: true, username: true, fullName: true } },
   group: { select: { id: true, name: true } },
+  tagAssignment: { select: { tag: { select: { id: true, name: true } } } },
 } satisfies Prisma.AssignmentInclude;
 type AssignmentRow = Prisma.AssignmentGetPayload<{ include: typeof withTarget }>;
 
@@ -47,6 +49,8 @@ export function assignmentDto(a: AssignmentRow) {
       openTime: a.openTime,
       windowMinutes: a.windowMinutes,
     },
+    /** Set when the group got this exam through a tag given to it (kept in sync with the exam's tags). */
+    viaTag: a.tagAssignment?.tag ?? null,
     createdAt: a.createdAt,
     createdById: a.createdById,
   };
@@ -128,9 +132,10 @@ export async function updateAssignment(ctx: Ctx, assignmentId: string, schedule:
   return inTransaction(ctx.db, async (tx) => {
     const before = await tx.assignment.findUnique({ where: { id: assignmentId } });
     if (!before) throw notFound("Assignment not found.");
+    // A tag-made row given its own schedule becomes a direct assignment: the tag no longer manages it.
     const updated = await tx.assignment.update({
       where: { id: assignmentId },
-      data: scheduleColumns(schedule),
+      data: { ...scheduleColumns(schedule), tagAssignmentId: null },
       include: withTarget,
     });
     await audit(tx, {
@@ -138,7 +143,11 @@ export async function updateAssignment(ctx: Ctx, assignmentId: string, schedule:
       actorId: actor.userId,
       entityType: "Assignment",
       entityId: assignmentId,
-      detail: { before: auditDetail(before), after: auditDetail(updated) },
+      detail: {
+        before: auditDetail(before),
+        after: auditDetail(updated),
+        ...(before.tagAssignmentId ? { detachedFromTagAssignment: before.tagAssignmentId } : {}),
+      },
       ip: ctx.ip,
     });
     return assignmentDto(updated);
@@ -148,9 +157,18 @@ export async function updateAssignment(ctx: Ctx, assignmentId: string, schedule:
 export async function deleteAssignment(ctx: Ctx, assignmentId: string): Promise<void> {
   const actor = actorOf(ctx);
   await inTransaction(ctx.db, async (tx) => {
-    const existing = await tx.assignment.findUnique({ where: { id: assignmentId } });
+    const existing = await tx.assignment.findUnique({
+      where: { id: assignmentId },
+      include: { tagAssignment: { select: { tag: { select: { name: true } } } } },
+    });
     if (!existing) throw notFound("Assignment not found.");
+    if (existing.tagAssignment)
+      throw conflict(
+        `This exam comes from the tag “${existing.tagAssignment.tag.name}” given to the group. Take the tag off the exam, or take the tag away from the group.`,
+      );
     await tx.assignment.delete({ where: { id: assignmentId } });
+    // A tag given to the group may cover this exam: it takes over from the removed direct assignment.
+    if (existing.groupId) await syncTagBundles(tx, [existing.examId]);
     await audit(tx, {
       action: "assignments.deleted",
       actorId: actor.userId,

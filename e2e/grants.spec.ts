@@ -11,12 +11,13 @@ test("grant, edit and remove an instructor's access, and the instructor sees exa
 }) => {
   const inst = await freshStaff(await apiAs("admin"), playwright, baseURL ?? "", "Gina Granted");
 
-  // No access yet.
-  await page.goto("/admin/instructors");
-  const row = page.getByRole("table", { name: "Instructors" }).getByRole("row", { name: /Gina Granted/ });
+  // No access yet: flagged in the users list, managed on the user's own page.
+  await page.goto("/admin/users?role=INSTRUCTOR");
+  const row = page.getByRole("table", { name: "Users" }).getByRole("row", { name: /Gina Granted/ });
   await expect(row).toContainText("No access");
   await row.getByRole("link").click();
-  await expect(page.getByText("This instructor sees nothing until you grant access.")).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Details" })).toBeVisible();
+  await expect(page.getByText("No access yet: Gina Granted sees nothing until you grant access.")).toBeVisible();
 
   // Grant: assign + schedule, category Cloud, Group A.
   await page.getByRole("button", { name: "Grant access" }).click();
@@ -70,22 +71,26 @@ test("grant, edit and remove an instructor's access, and the instructor sees exa
     .getByRole("dialog", { name: "Remove this access?" })
     .getByRole("button", { name: "Remove access" })
     .click();
-  await expect(page.getByText("This instructor sees nothing until you grant access.")).toBeVisible();
+  await expect(page.getByText("No access yet: Gina Granted sees nothing until you grant access.")).toBeVisible();
   await instPage.reload();
   await expect(instPage.getByText("You have no active access grants")).toBeVisible();
   await context.close();
 });
 
 test("the seeded instructor's grant reads as a sentence", async ({ page }) => {
-  await page.goto("/admin/instructors");
+  await page.goto("/admin/users?role=INSTRUCTOR");
   await page.getByRole("link", { name: new RegExp(WORLD.users.instCloud.fullName) }).click();
   await expect(page.getByRole("list", { name: "Grants" })).toContainText(
     `Can edit exams and questions, assign exams, schedule and open/close exams and view results for exams in ${WORLD.categories.cloud.name}, for students in ${WORLD.groups.a.name}.`,
   );
 });
 
-test("a non-instructor has no grant page", async ({ page, apiAs }) => {
+test("only instructors have an Access section; old instructor links open the user page", async ({ page, apiAs }) => {
   const student = await createUser(await apiAs("admin"), { fullName: "Not An Instructor" });
   await page.goto(`/admin/instructors/${student.id}`);
-  await expect(page.getByText("Not An Instructor is not an instructor")).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/admin/users/${student.id}$`));
+  await expect(page.getByRole("heading", { level: 1, name: "Not An Instructor" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Grant access" })).toHaveCount(0);
+  await page.goto("/admin/instructors");
+  await expect(page).toHaveURL(/\/admin\/users\?role=INSTRUCTOR$/);
 });

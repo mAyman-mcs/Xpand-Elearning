@@ -113,4 +113,34 @@ export const assignmentsRows: MatrixRow[] = [
     request: () => ({ path: "/api/student/exams" }),
     expect: statuses(403, { student: 200 }),
   },
+  {
+    route: "GET /api/assignments/tag-bundles",
+    request: () => ({ path: "/api/assignments/tag-bundles" }),
+    // Open to staff; the list holds only bundles the caller may manage.
+    expect: statuses(200, { student: 403 }),
+  },
+  {
+    route: "POST /api/assignments/tag-bundles",
+    label: "core → group A",
+    request: (w) => ({
+      path: "/api/assignments/tag-bundles",
+      body: { tagId: w.tagCore.id, groupId: w.groupA.id, schedule: { mode: "MANUAL" } },
+    }),
+    // Every exam with the tag, now and later: only a grant covering the tag (or all exams) and the group.
+    expect: scoped(201, {}),
+  },
+  {
+    route: "POST /api/assignments/tag-bundles",
+    label: "already given",
+    request: (w) => ({
+      path: "/api/assignments/tag-bundles",
+      body: { tagId: w.tagBundle.id, groupId: w.groupB.id, schedule: { mode: "MANUAL" } },
+    }),
+    expect: scoped(409, {}),
+  },
+  {
+    route: "DELETE /api/assignments/tag-bundles/:id",
+    request: (w) => ({ path: `/api/assignments/tag-bundles/${w.bundleB.id}` }),
+    expect: scoped(204, {}),
+  },
 ];

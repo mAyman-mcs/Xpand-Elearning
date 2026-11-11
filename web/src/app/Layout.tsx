@@ -5,7 +5,6 @@ import {
   ChevronDown,
   ClipboardList,
   FileText,
-  GraduationCap,
   Inbox,
   KeyRound,
   LayoutDashboard,
@@ -48,7 +47,6 @@ const NAV: NavItem[] = [
   },
   { to: "/admin/users", label: "Users", icon: Users, show: admin },
   { to: "/admin/groups", label: "Groups", icon: UsersRound, show: admin },
-  { to: "/admin/instructors", label: "Instructors", icon: GraduationCap, show: admin },
   { to: "/admin/catalog", label: "Categories & tags", icon: Tags, show: admin },
   { to: "/exams", label: "Exams", icon: FileText, show: staff },
   {

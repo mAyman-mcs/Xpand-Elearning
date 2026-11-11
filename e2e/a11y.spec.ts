@@ -58,8 +58,7 @@ test.describe("super admin", () => {
       "/admin/users/import",
       "/admin/groups",
       `/admin/groups/${await groupId(admin, "a")}`,
-      "/admin/instructors",
-      `/admin/instructors/${instructor}`,
+      `/admin/users/${instructor}`,
       "/admin/catalog",
       "/admin/audit",
       "/exams",
@@ -67,9 +66,8 @@ test.describe("super admin", () => {
       `/exams/${exam}`,
       `/exams/${exam}/questions`,
       `/exams/${exam}/materials`,
-      `/exams/${exam}/assignments`,
-      `/exams/${exam}/overrides`,
-      `/exams/${exam}/availability`,
+      `/exams/${exam}/access`,
+      `/exams/${exam}/results`,
       "/assignments/new",
       "/no/such/page",
     ]);
@@ -84,7 +82,7 @@ test.describe("super admin", () => {
     ).items[0]?.id;
     const dialogs: [string, string][] = [
       ["/admin/groups", "New group"],
-      [`/admin/instructors/${instructor}`, "Grant access"],
+      [`/admin/users/${instructor}`, "Grant access"],
       [`/exams/${exam}/questions`, "Add question"],
       [`/exams/${exam}/assignments`, "Assign"],
       [`/exams/${exam}/overrides`, "Open or close now"],

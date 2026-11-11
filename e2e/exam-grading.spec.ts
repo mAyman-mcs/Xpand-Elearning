@@ -108,10 +108,16 @@ test("an essay exam: chosen type, essay answer, grading, approval", async ({
   await s.page.getByRole("link", { name: "Back to my exams" }).click();
   await expect(card.getByText("Awaiting grading")).toBeVisible();
 
-  // ─── A grader approves ───
-  await page.goto(`/exams/${exam.id}/grading`);
+  // ─── A grader approves (the Results tab: release switch + grading queue) ───
+  await page.goto(`/exams/${exam.id}/grading`); // old link: redirects to Results
+  await expect(page).toHaveURL(new RegExp(`/exams/${exam.id}/results$`));
   await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
-  await noSeriousA11yProblems(page, "grading queue");
+  const release = page
+    .locator("section")
+    .filter({ has: page.getByRole("heading", { name: "Showing results to students" }) });
+  await expect(release).toContainText("Hidden from students");
+  await expect(release).toContainText("1 attempt isn't graded yet.");
+  await noSeriousA11yProblems(page, "results and grading queue");
   await page.getByRole("link", { name: "Grade Esra Essay" }).click();
 
   await expect(page.getByText("TLS keeps traffic private and unchanged in transit.")).toBeVisible();
@@ -132,9 +138,33 @@ test("an essay exam: chosen type, essay answer, grading, approval", async ({
   await expect(page.getByText("Approved: 5 / 6")).toBeVisible();
   await expect(page.getByRole("button", { name: "Reopen" })).toBeVisible();
 
-  // The student's dashboard no longer waits for grading.
+  // The student's dashboard no longer waits for grading, but shows no score until results are shown.
   await s.page.reload();
   await expect(card).toContainText("Submitted");
   await expect(card.getByText("Awaiting grading")).toHaveCount(0);
+  await expect(card).toContainText("Your result appears here once your instructor shares the results.");
+  await expect(card).not.toContainText("Score:");
+
+  // ─── Staff show the results: the student sees their score and pass/fail, never their answers ───
+  await page.goto(`/exams/${exam.id}/results`);
+  await expect(release).toContainText("Hidden from students");
+  await release.getByRole("button", { name: "Show results to students" }).click();
+  await page
+    .getByRole("dialog", { name: "Show the results to students?" })
+    .getByRole("button", { name: "Show results" })
+    .click();
+  await expect(release).toContainText("Shown to students");
+  await s.page.reload();
+  await expect(card).toContainText("Score: 5 / 6 · 83%");
+  await expect(card).toContainText("Passed");
+  await expect(card).not.toContainText("TLS keeps traffic private");
+  await expect(card).not.toContainText("Good, mention authentication too.");
+
+  // ─── Hidden again: the score disappears ───
+  await release.getByRole("button", { name: "Hide results" }).click();
+  await page.getByRole("dialog", { name: "Hide the results?" }).getByRole("button", { name: "Hide results" }).click();
+  await expect(release).toContainText("Hidden from students");
+  await s.page.reload();
+  await expect(card).not.toContainText("Score:");
   await s.context.close();
 });

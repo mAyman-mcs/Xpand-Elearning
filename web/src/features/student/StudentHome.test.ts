@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { scoreSummary } from "./StudentHome";
+import { pendingResultText, scoreSummary } from "./StudentHome";
 
 describe("a score against the pass mark", () => {
   it("passes at or above the pass mark", () => {
@@ -14,5 +14,14 @@ describe("a score against the pass mark", () => {
 
   it("copes with an empty exam", () => {
     expect(scoreSummary(0, 0, 50)).toEqual({ percent: 0, passed: false });
+  });
+});
+
+describe("pendingResultText", () => {
+  it("says whether the student waits for grading or for staff to share the results", () => {
+    expect(pendingResultText(true, false)).toMatch(/being graded.*instructor shares the results/);
+    expect(pendingResultText(true, true)).toMatch(/being graded.*when grading is finished/);
+    expect(pendingResultText(false, false)).toMatch(/once your instructor shares the results/);
+    expect(pendingResultText(false, true)).toBe("Submitted. Your result isn't available yet.");
   });
 });

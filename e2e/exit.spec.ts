@@ -98,7 +98,7 @@ test("exit test: import → grant → exam → instructor schedules → student 
   const instructorTemp = (await created.getByTestId("secret-value").nth(1).textContent()) ?? "";
   await created.getByRole("button", { name: "I have saved it" }).click();
 
-  await page.goto("/admin/instructors");
+  await page.goto("/admin/users?role=INSTRUCTOR");
   await page.getByRole("link", { name: new RegExp(`Instructor ${id}`) }).click();
   await page.getByRole("button", { name: "Grant access" }).click();
   const editor = page.getByRole("dialog", { name: `New access for Instructor ${id}` });

@@ -177,9 +177,13 @@ export async function deleteTag(ctx: Ctx, tagId: string): Promise<void> {
   await inTransaction(ctx.db, async (tx) => {
     const tag = await tx.tag.findUnique({
       where: { id: tagId },
-      include: { _count: { select: { exams: true, grantScopes: true } } },
+      include: { _count: { select: { exams: true, grantScopes: true, bundles: true } } },
     });
     if (!tag) throw notFound("Tag not found.");
+    if (tag._count.bundles > 0)
+      throw conflict(
+        `“${tag.name}” is given to ${tag._count.bundles} group${tag._count.bundles === 1 ? "" : "s"}, who get its exams; take it away from ${tag._count.bundles === 1 ? "that group" : "those groups"} first.`,
+      );
     if (tag._count.grantScopes > 0)
       throw conflict(
         `“${tag.name}” gives instructors access (${tag._count.grantScopes} grant${tag._count.grantScopes === 1 ? "" : "s"}); remove it from those grants first.`,

@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate, Outlet } from "react-router";
+import { createBrowserRouter, Navigate, Outlet, useParams } from "react-router";
 import { Loading } from "../components/ui";
 import { BulkAssign } from "../features/assignments/BulkAssign";
 import { WhoAndWhen } from "../features/assignments/WhoAndWhen";
@@ -16,9 +16,8 @@ import { Dashboard } from "../features/dashboard/Dashboard";
 import { InstructorDashboard } from "../features/dashboard/InstructorDashboard";
 import { SubmissionPreview } from "../features/submissions/SubmissionPreview";
 import { Submissions } from "../features/submissions/Submissions";
-import { InstructorDetail, InstructorsList } from "../features/grants/Instructors";
 import { GradeAttempt } from "../features/grading/GradeAttempt";
-import { GradingQueue } from "../features/grading/GradingQueue";
+import { ExamResults } from "../features/grading/ExamResults";
 import { GroupDetail } from "../features/groups/GroupDetail";
 import { GroupsList } from "../features/groups/GroupsList";
 import { ExamDone } from "../features/session/ExamDone";
@@ -34,6 +33,12 @@ import { Layout } from "./Layout";
 import { HomeRedirect, NotFound, RequireRole, RequireStaff, RouteError } from "./pages";
 
 /** Signed out → Login (on the same URL, so the user lands where they were); forced change → ChangePassword. */
+/** Old instructor links (/admin/instructors/:id) open the user page, where access now lives. */
+function ToUser() {
+  const { id = "" } = useParams();
+  return <Navigate to={`/admin/users/${id}`} replace />;
+}
+
 function Root() {
   const { user, loading } = useAuth();
   if (loading) return <Loading />;
@@ -65,8 +70,9 @@ export const router = createBrowserRouter([
               { path: "groups", element: <GroupsList /> },
               { path: "groups/:id", element: <GroupDetail /> },
               { path: "audit", element: <AuditLog /> },
-              { path: "instructors", element: <InstructorsList /> },
-              { path: "instructors/:id", element: <InstructorDetail /> },
+              // Instructors and their access now live under Users.
+              { path: "instructors", element: <Navigate to="/admin/users?role=INSTRUCTOR" replace /> },
+              { path: "instructors/:id", element: <ToUser /> },
               { path: "catalog", element: <CatalogPage /> },
             ],
           },
@@ -104,7 +110,8 @@ export const router = createBrowserRouter([
                   { path: "assignments", element: <Navigate to="../access#assignments" replace /> },
                   { path: "overrides", element: <Navigate to="../access#overrides" replace /> },
                   { path: "availability", element: <Navigate to="../access" replace /> },
-                  { path: "grading", element: <GradingQueue /> },
+                  { path: "results", element: <ExamResults /> },
+                  { path: "grading", element: <Navigate to="../results" replace /> },
                 ],
               },
               { path: "grading/:attemptId", element: <GradeAttempt /> },

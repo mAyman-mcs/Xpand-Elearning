@@ -127,6 +127,17 @@ function ExamList({
 }
 
 /** "14 / 20 · 70%" and whether it reaches the pass mark. */
+/** What a student with no score yet reads: still being graded, or graded but not shared yet. */
+export function pendingResultText(awaitingGrading: boolean, released: boolean): string {
+  if (awaitingGrading)
+    return released
+      ? "Submitted. Your answers are being graded; your result appears here when grading is finished."
+      : "Submitted. Your answers are being graded; your result appears here once your instructor shares the results.";
+  return released
+    ? "Submitted. Your result isn't available yet."
+    : "Submitted. Your result appears here once your instructor shares the results.";
+}
+
 export function scoreSummary(score: number, maxScore: number, passMark: number) {
   const percent = maxScore > 0 ? (score / maxScore) * 100 : 0;
   return { percent: Math.round(percent), passed: percent >= passMark };
@@ -191,10 +202,8 @@ function ExamCard({ row, now, highlight }: { row: StudentExamRow; now: number; h
         <p className="mt-3 text-sm text-slate-700">
           {row.result ? (
             <Score result={row.result} passMark={exam.passMark} />
-          ) : awaitingGrading ? (
-            "Submitted. Your answers are being graded; your result appears here once it is released."
           ) : (
-            "Submitted. Your result appears here once it is released."
+            pendingResultText(awaitingGrading, row.resultsReleased)
           )}
         </p>
       )}

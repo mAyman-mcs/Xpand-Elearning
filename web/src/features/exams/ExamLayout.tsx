@@ -34,11 +34,8 @@ export const EXAM_TABS: Tab[] = [
   { to: "materials", label: "Materials", show: (p, e) => on(p, e, "EXAM_EDIT") },
   // Who can take it and when: availability, assignments and open/close overrides on one tab.
   { to: "access", label: "Who and when", show: () => true },
-  {
-    to: "grading",
-    label: "Grading",
-    show: (p, e) => !e.isExternal && e.scoringMode === "MANUAL_APPROVAL" && on(p, e, "ATTEMPT_REVIEW"),
-  },
+  // Whether students see their scores, and (needs-approval exams) the grading queue.
+  { to: "results", label: "Results", show: (p, e) => on(p, e, "RESULTS_VIEW", "RESULTS_RELEASE", "ATTEMPT_REVIEW") },
 ];
 
 /** /exams/:id: the exam's header and tabs; each tab is a child route. */

@@ -160,6 +160,9 @@ export interface Exam {
   intro: string | null;
   /** Case hints are sent to students. */
   showHints: boolean;
+  /** Students see their score and pass/fail (once graded). */
+  resultsReleased: boolean;
+  resultsReleasedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -183,8 +186,35 @@ export interface Assignment {
   examId: string;
   target: Target;
   schedule: Schedule;
+  /** The group got this exam through a tag given to it; the tag keeps it in sync. */
+  viaTag: { id: string; name: string } | null;
   createdAt: string;
   createdById: string | null;
+}
+
+/**
+ * A tag given to a group: the group gets every exam carrying the tag, including exams tagged
+ * later, all with this schedule.
+ */
+export interface TagBundle {
+  id: string;
+  tag: { id: string; name: string };
+  group: { id: string; name: string };
+  /** Exams carrying the tag right now. */
+  examCount: number;
+  schedule: Schedule;
+  createdAt: string;
+  createdById: string | null;
+}
+
+/** Whether students see an exam's results, and how far grading is (within the caller's reach). */
+export interface ResultsStatus {
+  released: boolean;
+  releasedAt: string | null;
+  /** Submitted attempts (not voided). */
+  submitted: number;
+  /** Of those, attempts with a score. */
+  graded: number;
 }
 
 export interface Override {
@@ -246,6 +276,8 @@ export interface StudentExamRow {
   opensAt: string | null;
   closesAt: string | null;
   reason: string;
+  /** Staff have chosen to show this exam's results to students. */
+  resultsReleased: boolean;
   /** Only once staff have released this exam's results (and, for MANUAL_APPROVAL, approved the attempt). */
   result: { score: number; maxScore: number } | null;
 }
@@ -358,6 +390,8 @@ export interface AttemptOutcome {
   submitReason: string | null;
   /** Submitted, but the score is set only when a grader approves it. */
   awaitingGrading: boolean;
+  /** Staff have chosen to show this exam's results to students. */
+  resultsReleased: boolean;
   result: { score: number; maxScore: number } | null;
 }
 

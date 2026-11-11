@@ -65,8 +65,10 @@ export function ExamDone() {
         ended && (
           <p className="mt-4 text-sm text-slate-600">
             {o.awaitingGrading
-              ? "Your score will be available after your answers are graded. It appears on your exams page once it is released."
-              : "Your result appears on your exams page once it is released."}
+              ? o.resultsReleased
+                ? "Your score will be available on your exams page after your answers are graded."
+                : "Your score will be available after your answers are graded and your instructor shares the results."
+              : "Your result appears on your exams page once your instructor shares the results."}
           </p>
         )
       )}

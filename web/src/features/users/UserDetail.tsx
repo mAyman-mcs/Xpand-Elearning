@@ -16,6 +16,7 @@ import { applyServerErrors, blankToNull } from "../../lib/forms";
 import { accountState, ROLE_LABEL, ROLE_TONE } from "../../lib/labels";
 import { qk } from "../../lib/query";
 import { formatDate, formatInstant } from "../../lib/time";
+import { InstructorAccess } from "../grants/InstructorAccess";
 import { userFields } from "./NewUser";
 import { useUser } from "./queries";
 
@@ -43,7 +44,9 @@ export function UserDetail({ mode }: { mode: "admin" | "instructor" }) {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           {mode === "admin" ? <DetailsForm user={u} /> : <ReadOnlyDetails user={u} />}
-          <GroupsCard user={u} linkGroups={mode === "admin"} />
+          {/* Instructors: their access, here with their account. Groups matter for students. */}
+          {mode === "admin" && u.role === "INSTRUCTOR" && <InstructorAccess user={u} />}
+          {(u.role === "STUDENT" || u.groups.length > 0) && <GroupsCard user={u} linkGroups={mode === "admin"} />}
         </div>
         {mode === "admin" && <AccountCard user={u} />}
       </div>

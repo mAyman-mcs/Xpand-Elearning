@@ -66,7 +66,7 @@ export function Dashboard() {
           title: "People",
           items: [
             { label: "Students", value: s.users.students, to: "/admin/users?role=STUDENT" },
-            { label: "Instructors", value: s.users.instructors, to: "/admin/instructors" },
+            { label: "Instructors", value: s.users.instructors, to: "/admin/users?role=INSTRUCTOR" },
             { label: "Super admins", value: s.users.admins, to: "/admin/users?role=SUPER_ADMIN" },
             { label: "Deactivated", value: s.users.inactive, to: "/admin/users?includeInactive=true" },
             { label: "Groups", value: s.groups, to: "/admin/groups" },

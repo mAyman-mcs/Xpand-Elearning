@@ -17,6 +17,16 @@ import { examAvailability, studentExams } from "./availability.service.js";
 import { giveExtraAttempt } from "./extra-attempts.service.js";
 import { createOverride, endOverride, listOverrides, overrideScope } from "./overrides.service.js";
 import {
+  assertTagAndGroupExist,
+  bundleScope,
+  createTagBundle,
+  createTagBundleBody,
+  deleteTagBundle,
+  listTagBundles,
+  tagBundleQuery,
+  tagBundleScope,
+} from "./tag-bundles.service.js";
+import {
   bulkAssignmentBody,
   createAssignmentBody,
   createOverrideBody,
@@ -55,6 +65,33 @@ export function assignmentsRoutes(deps: AppDeps): ApiRouter {
     access: staff,
     body: bulkAssignmentBody,
     handler: (ctx, { body }) => previewAssignments(ctx, body),
+  });
+
+  // Tags given to groups (live bundles): EXAM_ASSIGN on the tag (every exam with it) and the group.
+  api.get("/tag-bundles", {
+    access: staff,
+    query: tagBundleQuery,
+    handler: (ctx, { query }) => listTagBundles(ctx, query),
+  });
+
+  api.post("/tag-bundles", {
+    access: access.permission("EXAM_ASSIGN"),
+    body: createTagBundleBody,
+    scope: async (ctx, { body }) => {
+      await assertTagAndGroupExist(ctx.db, body.tagId, body.groupId);
+      return bundleScope(body.tagId, body.groupId);
+    },
+    handler: async (ctx, { body }) => created(await createTagBundle(ctx, body)),
+  });
+
+  api.delete("/tag-bundles/:id", {
+    access: access.permission("EXAM_ASSIGN"),
+    params: idParams,
+    scope: (ctx, { params }) => tagBundleScope(ctx.db, params.id),
+    handler: async (ctx, { params }) => {
+      await deleteTagBundle(ctx, params.id);
+      return noContent();
+    },
   });
 
   /** "Why is this open?": every reachable assigned student with status, source and reason. */

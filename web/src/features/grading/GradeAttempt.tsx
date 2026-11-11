@@ -117,7 +117,7 @@ function Grader({ attempt: a }: { attempt: GradingAttempt }) {
           </span>
         }
         actions={
-          <Link to={`/exams/${a.exam.id}/grading`} className="text-sm font-semibold text-brand-700 hover:underline">
+          <Link to={`/exams/${a.exam.id}/results`} className="text-sm font-semibold text-brand-700 hover:underline">
             Back to the grading list
           </Link>
         }

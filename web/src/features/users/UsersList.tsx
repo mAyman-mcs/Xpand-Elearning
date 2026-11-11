@@ -8,6 +8,7 @@ import { Badge, ButtonLink, ClearFilters, PageHeader } from "../../components/ui
 import { useSearchBox, useUrlFilters } from "../../lib/forms";
 import { accountState, ROLE_LABEL, ROLE_TONE } from "../../lib/labels";
 import { formatDate } from "../../lib/time";
+import { useAccessSummary } from "../grants/InstructorAccess";
 import { useGroups, useUsers } from "./queries";
 
 /**
@@ -31,6 +32,7 @@ export function UsersList({ mode }: { mode: "admin" | "instructor" }) {
     includeInactive,
   });
   const base = admin ? "/admin/users" : "/students";
+  const access = useAccessSummary(admin && role !== "STUDENT" && role !== "SUPER_ADMIN");
 
   const columns: Column<UserDetail>[] = [
     {
@@ -43,7 +45,20 @@ export function UsersList({ mode }: { mode: "admin" | "instructor" }) {
       ),
     },
     ...(admin
-      ? [{ header: "Role", cell: (u: UserDetail) => <Badge tone={ROLE_TONE[u.role]}>{ROLE_LABEL[u.role]}</Badge> }]
+      ? [
+          {
+            header: "Role",
+            cell: (u: UserDetail) => (
+              <span className="flex flex-wrap items-center gap-1">
+                <Badge tone={ROLE_TONE[u.role]}>{ROLE_LABEL[u.role]}</Badge>
+                {/* An instructor without access sees nothing: worth seeing from the list. */}
+                {u.role === "INSTRUCTOR" && access.loaded && access.active(u.id) === 0 && (
+                  <Badge tone="amber">No access</Badge>
+                )}
+              </span>
+            ),
+          },
+        ]
       : []),
     { header: "Groups", cell: (u) => u.groups.map((g) => g.name).join(", ") || "—" },
     { header: "Join date", cell: (u) => formatDate(u.joinDate) },
@@ -60,7 +75,11 @@ export function UsersList({ mode }: { mode: "admin" | "instructor" }) {
     <>
       <PageHeader
         title={admin ? "Users" : "Students"}
-        description={admin ? "Students, instructors and super admins." : "Students in the groups your access covers."}
+        description={
+          admin
+            ? "Students, instructors and super admins. Open an instructor to manage their access."
+            : "Students in the groups your access covers."
+        }
         actions={
           admin && (
             <>

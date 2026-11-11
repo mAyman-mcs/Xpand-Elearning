@@ -303,7 +303,9 @@ test.describe("admin builds the exam in the UI, a student takes it", () => {
         .click();
       await expect(s.getByRole("heading", { name: "Exam submitted" })).toBeVisible();
       await expect(s.getByText("Your answers were submitted.")).toBeVisible();
-      await expect(s.getByText("Your result appears on your exams page once it is released.")).toBeVisible();
+      await expect(
+        s.getByText("Your result appears on your exams page once your instructor shares the results."),
+      ).toBeVisible();
     });
 
     await test.step("2.8 graded all or nothing: 1 of 3 (the half-right answer scores 0)", async () => {
@@ -323,15 +325,22 @@ test.describe("admin builds the exam in the UI, a student takes it", () => {
       await s.goto("/student");
       const card = s.getByRole("listitem").filter({ hasText: title });
       await expect(card).toContainText("Submitted");
-      await expect(card).toContainText("Your result appears here once it is released.");
+      await expect(card).toContainText("Your result appears here once your instructor shares the results.");
       await expect(card.getByRole("link")).toHaveCount(0);
       await s.goto(`/student/exams/${examId}`);
       await expect(s.getByRole("button", { name: /Start exam|Resume exam/ })).toHaveCount(0);
     });
 
     await test.step("2.10 once results are released, the score shows on the dashboard and the done page", async () => {
-      // No release screen yet (results come in a later phase): flip the flag in the database.
-      await sql(`UPDATE "Exam" SET "resultsReleased" = true WHERE id = $1`, [examId]);
+      // Staff show the results on the exam's Results tab.
+      await page.goto(`/exams/${examId}/results`);
+      await expect(page.getByText("Hidden from students")).toBeVisible();
+      await page.getByRole("button", { name: "Show results to students" }).click();
+      await page
+        .getByRole("dialog", { name: "Show the results to students?" })
+        .getByRole("button", { name: "Show results" })
+        .click();
+      await expect(page.getByText("Shown to students")).toBeVisible();
       await s.goto("/student");
       await expect(s.getByRole("listitem").filter({ hasText: title })).toContainText("Score: 1 / 3");
       const [a] = await sql<{ id: string }>(`SELECT id FROM "Attempt" WHERE "examId" = $1`, [examId]);

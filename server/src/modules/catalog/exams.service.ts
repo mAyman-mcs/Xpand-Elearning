@@ -9,6 +9,7 @@ import { ExamStatus, ExamType, ScoringMode, type Prisma } from "../../generated/
 import { authorize } from "../rbac/authorize.js";
 import { examWhere, reachOf } from "../rbac/scope.js";
 import { assertMayChangeAccessTags } from "./access-tags.js";
+import { assertMayChangeBundleTags, syncTagBundles } from "../assignments/tag-bundles.service.js";
 import { assertPublishable } from "./content.service.js";
 import { defaultScoringMode, scoringProblem } from "./exam-types.js";
 
@@ -115,6 +116,8 @@ export function examDto(e: ExamRow) {
     scoringMode: e.scoringMode,
     intro: e.intro,
     showHints: e.showHints,
+    resultsReleased: e.resultsReleased,
+    resultsReleasedAt: e.resultsReleasedAt,
     createdAt: e.createdAt,
     updatedAt: e.updatedAt,
   };
@@ -197,11 +200,20 @@ export async function createExam(ctx: Ctx, input: z.infer<typeof createExamBody>
       await assertUsableCategory(tx, input.categoryId);
       await assertTagsExist(tx, input.tagIds);
       await assertMayChangeAccessTags(tx, actor, input.tagIds);
+      await assertMayChangeBundleTags(
+        tx,
+        actor,
+        { categoryId: input.categoryId, tagIds: input.tagIds },
+        input.tagIds,
+        ctx.now,
+      );
       const { tagIds, ...fields } = input;
       const exam = await tx.exam.create({
         data: { ...fields, ...scoring, tags: { create: tagIds.map((tagId) => ({ tagId })) } },
         include: examInclude,
       });
+      // Groups given one of these tags get the new exam.
+      await syncTagBundles(tx, [exam.id]);
       await audit(tx, {
         action: "catalog.exam_created",
         actorId: actor.userId,
@@ -285,7 +297,10 @@ async function assertScoringChangeable(db: DbClient, examId: string, type: ExamT
 export async function setExamTags(ctx: Ctx, examId: string, tagIds: string[]): Promise<ExamDto> {
   const actor = actorOf(ctx);
   return inTransaction(ctx.db, async (tx) => {
-    const before = await tx.exam.findUnique({ where: { id: examId }, select: { tags: { select: { tagId: true } } } });
+    const before = await tx.exam.findUnique({
+      where: { id: examId },
+      select: { categoryId: true, tags: { select: { tagId: true } } },
+    });
     if (!before) throw notFound("Exam not found.");
     await assertTagsExist(tx, tagIds);
 
@@ -293,9 +308,18 @@ export async function setExamTags(ctx: Ctx, examId: string, tagIds: string[]): P
     const added = tagIds.filter((id) => !current.has(id));
     const removed = [...current].filter((id) => !tagIds.includes(id));
     await assertMayChangeAccessTags(tx, actor, [...added, ...removed]);
+    await assertMayChangeBundleTags(
+      tx,
+      actor,
+      { examId, categoryId: before.categoryId, tagIds: [...new Set([...current, ...tagIds])] },
+      [...added, ...removed],
+      ctx.now,
+    );
     if (added.length || removed.length) {
       await tx.examTag.deleteMany({ where: { examId, tagId: { in: removed } } });
       await tx.examTag.createMany({ data: added.map((tagId) => ({ examId, tagId })) });
+      // Groups given an added tag get the exam; groups that had it only through a removed tag lose it.
+      await syncTagBundles(tx, [examId]);
       await audit(tx, {
         action: "catalog.exam_tags_set",
         actorId: actor.userId,

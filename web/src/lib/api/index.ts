@@ -13,6 +13,8 @@ import type {
   StudentExamBrief,
   StudentExamRow,
   Assignment,
+  ResultsStatus,
+  TagBundle,
   AuditEntry,
   AvailabilityRow,
   Category,
@@ -253,6 +255,10 @@ export const api = {
     setTags: (id: string, tagIds: string[]) => http.put<Exam>(`/catalog/exams/${id}/tags`, { tagIds }),
     duplicate: (id: string, code: string, title?: string) =>
       http.post<{ id: string }>(`/catalog/exams/${id}/duplicate`, { code, title }),
+    /** Whether students see this exam's results, and how far grading is. */
+    results: (id: string) => http.get<ResultsStatus>(`/catalog/exams/${id}/results`),
+    setResultsReleased: (id: string, released: boolean) =>
+      http.put<ResultsStatus>(`/catalog/exams/${id}/results-release`, { released }),
   },
   questions: {
     list: (examId: string) => http.get<QuestionList>(`/catalog/exams/${examId}/questions`),
@@ -293,6 +299,14 @@ export const api = {
     availability: (examId: string) => http.get<AvailabilityRow[]>("/assignments/availability", { examId }),
     /** "Give another attempt" to a student who used them all. */
     giveAnotherAttempt: (input: ExtraAttemptInput) => http.post<AvailabilityRow>("/assignments/extra-attempts", input),
+  },
+  /** Tags given to groups: the group gets every exam with the tag, including ones tagged later. */
+  tagBundles: {
+    list: (filter: { groupId?: string; tagId?: string } = {}) =>
+      http.get<TagBundle[]>("/assignments/tag-bundles", filter),
+    create: (input: { tagId: string; groupId: string; schedule: ScheduleInput }) =>
+      http.post<TagBundle & { assigned: number }>("/assignments/tag-bundles", input),
+    remove: (id: string) => http.del(`/assignments/tag-bundles/${id}`),
   },
   admin: {
     stats: () => http.get<AdminStats>("/admin/stats"),

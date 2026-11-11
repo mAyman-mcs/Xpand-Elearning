@@ -109,7 +109,9 @@ test("a student takes an exam: autosave, navigation, submit, and no way back in"
   await confirm.getByRole("button", { name: "Submit", exact: true }).click();
 
   await expect(page.getByRole("heading", { name: "Exam submitted" })).toBeVisible();
-  await expect(page.getByText("Your result appears on your exams page once it is released.")).toBeVisible();
+  await expect(
+    page.getByText("Your result appears on your exams page once your instructor shares the results."),
+  ).toBeVisible();
   const attemptUrl = page.url().replace(/\/done$/, "");
 
   // Back doesn't return to the questions; opening the exam URL again leads to the done page.
