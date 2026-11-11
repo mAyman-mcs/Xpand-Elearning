@@ -21,7 +21,8 @@ import {
 } from "../../lib/session";
 import { enterFullscreen } from "../student/ExamBrief";
 import { QuestionMap } from "./QuestionMap";
-import { AnswerSaver, type SaveState } from "./saver";
+import { type SaveState } from "./saver";
+import { useAnswerSaver } from "./useAnswerSaver";
 import { useProctoring } from "./useProctoring";
 
 const HEARTBEAT_MS = 10_000;
@@ -131,16 +132,12 @@ function Session({ initial }: { initial: StudentAttempt }) {
     void navigate(`/exam/${id}/done`, { replace: true, state: progress.current });
   }, [client, id, navigate]);
 
-  const saver = useMemo(
-    () =>
-      new AnswerSaver<AnswerInput>({
-        save: (questionId, answer) => api.attempts.save(id, questionId, answer),
-        onState: (questionId, state, message) => setSaveState((s) => ({ ...s, [questionId]: { state, message } })),
-        onStop: (reason) => (reason === "elsewhere" ? setElsewhere(true) : finish()),
-      }),
-    [id, finish],
-  );
-  useEffect(() => () => saver.stop(), [saver]);
+  // Created per mount, stopped on unmount (see useAnswerSaver: a remount must not lose saving).
+  const saver = useAnswerSaver<AnswerInput>(id, {
+    save: (questionId, answer) => api.attempts.save(id, questionId, answer),
+    onState: (questionId, state, message) => setSaveState((s) => ({ ...s, [questionId]: { state, message } })),
+    onStop: (reason) => (reason === "elsewhere" ? setElsewhere(true) : finish()),
+  });
 
   const { fullscreen } = useProctoring({
     attemptId: id,

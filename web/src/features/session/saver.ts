@@ -6,7 +6,7 @@ export type SaveState = "saving" | "saved" | "retrying" | "failed";
 /** Why saving stopped for good: the attempt ended, or it is open on another device. */
 export type SaveStop = "ended" | "elsewhere";
 
-interface Options<T> {
+export interface SaverOptions<T> {
   save: (questionId: string, value: T) => Promise<unknown>;
   onState: (questionId: string, state: SaveState, message?: string) => void;
   onStop: (reason: SaveStop) => void;
@@ -31,7 +31,7 @@ export class AnswerSaver<T = string[]> {
   private later = new Map<string, { timer: ReturnType<typeof setTimeout>; value: T }>();
   private stopped = false;
 
-  constructor(private readonly opts: Options<T>) {}
+  constructor(private readonly opts: SaverOptions<T>) {}
 
   set(questionId: string, value: T): void {
     if (this.stopped) return;
