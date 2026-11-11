@@ -29,7 +29,7 @@ export function ScheduleFields({ draft, onChange }: { draft: ScheduleDraft; onCh
             key={mode}
             className={cx(
               "cursor-pointer rounded-lg border p-3 text-sm",
-              draft.mode === mode ? "border-teal-500 bg-teal-50" : "border-slate-200",
+              draft.mode === mode ? "border-brand-500 bg-brand-50" : "border-slate-200",
             )}
           >
             <span className="flex items-center gap-2 font-semibold">
@@ -38,7 +38,7 @@ export function ScheduleFields({ draft, onChange }: { draft: ScheduleDraft; onCh
                 name="schedule-mode"
                 checked={draft.mode === mode}
                 onChange={() => set({ mode })}
-                className="accent-teal-600"
+                className="accent-brand-600"
               />
               {SCHEDULE_MODE[mode]}
             </span>

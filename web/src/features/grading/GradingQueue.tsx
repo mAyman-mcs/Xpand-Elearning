@@ -75,7 +75,7 @@ export function GradingQueue() {
       cell: (r) => (
         <Link
           to={`/grading/${r.attemptId}`}
-          className="font-semibold text-teal-700 hover:underline"
+          className="font-semibold text-brand-700 hover:underline"
           aria-label={`${r.reviewStatus === "REVIEWED" ? "View" : "Grade"} ${r.student.fullName}`}
         >
           {r.reviewStatus === "REVIEWED" ? "View" : "Grade"}

@@ -84,7 +84,7 @@ export function ExamBrief() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <Link to="/student" className="text-sm font-semibold text-teal-700 hover:underline">
+      <Link to="/student" className="text-sm font-semibold text-brand-700 hover:underline">
         ← My exams
       </Link>
       <PageHeader

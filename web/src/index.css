@@ -1,7 +1,49 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens (docs/FRONTEND_GUIDE.md "Colours and type"). Colours are named by role, so each
+ * means one thing everywhere:
+ *   brand    the academy; primary actions, the current item, links
+ *   success  done, passed, published
+ *   warning  needs attention
+ *   danger   failed, missed, destructive actions
+ *   info     scheduled, informational notes
+ *   neutral  inactive, closed, plain tags (Tailwind's slate)
+ * To re-brand, change the brand scale below; nothing else refers to a hue directly for the brand.
+ */
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+
+  --color-brand-50: var(--color-teal-50);
+  --color-brand-100: var(--color-teal-100);
+  --color-brand-200: var(--color-teal-200);
+  --color-brand-300: var(--color-teal-300);
+  --color-brand-400: var(--color-teal-400);
+  --color-brand-500: var(--color-teal-500);
+  --color-brand-600: var(--color-teal-600);
+  --color-brand-700: var(--color-teal-700);
+  --color-brand-800: var(--color-teal-800);
+  --color-brand-900: var(--color-teal-900);
+
+  --color-success-50: var(--color-emerald-50);
+  --color-success-200: var(--color-emerald-200);
+  --color-success-700: var(--color-emerald-700);
+  --color-success-800: var(--color-emerald-800);
+
+  --color-warning-50: var(--color-amber-50);
+  --color-warning-200: var(--color-amber-200);
+  --color-warning-800: var(--color-amber-800);
+  --color-warning-900: var(--color-amber-900);
+
+  --color-danger-50: var(--color-red-50);
+  --color-danger-200: var(--color-red-200);
+  --color-danger-600: var(--color-red-600);
+  --color-danger-700: var(--color-red-700);
+
+  --color-info-50: var(--color-sky-50);
+  --color-info-200: var(--color-sky-200);
+  --color-info-700: var(--color-sky-700);
+  --color-info-900: var(--color-sky-900);
 }
 
 /* The exam page (NEXT_PLAN F3): nothing to select or drag, and nothing to print. */

@@ -73,7 +73,7 @@ export function SortableItem({
       {...attributes}
       {...listeners}
       aria-label={`Drag ${label} to reorder`}
-      className="cursor-grab touch-none rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:outline-none active:cursor-grabbing"
+      className="cursor-grab touch-none rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none active:cursor-grabbing"
     >
       <GripVertical aria-hidden="true" className="h-4 w-4" />
     </button>
@@ -82,7 +82,7 @@ export function SortableItem({
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cx(className, isDragging && "relative z-10 shadow-lg ring-2 ring-teal-500")}
+      className={cx(className, isDragging && "relative z-10 shadow-lg ring-2 ring-brand-500")}
     >
       {children(handle)}
     </li>
@@ -149,7 +149,7 @@ export function MoveTo({
                 max={count}
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
-                className="w-20 rounded-lg border border-slate-300 px-2 py-1.5 outline-none focus:ring-2 focus:ring-teal-500"
+                className="w-20 rounded-lg border border-slate-300 px-2 py-1.5 outline-none focus:ring-2 focus:ring-brand-500"
               />
               <span className="text-slate-600">of {count}</span>
               <Button size="sm" type="submit" disabled={!valid} className="ml-auto">

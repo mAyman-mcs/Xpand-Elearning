@@ -212,7 +212,7 @@ function StatusCard({
               <li key={b}>{b}</li>
             ))}
           </ul>
-          <Link to={`/exams/${exam.id}/questions`} className="mt-2 inline-block text-teal-700 hover:underline">
+          <Link to={`/exams/${exam.id}/questions`} className="mt-2 inline-block text-brand-700 hover:underline">
             Go to the questions
           </Link>
         </div>

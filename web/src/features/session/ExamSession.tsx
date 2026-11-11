@@ -85,7 +85,7 @@ function Elsewhere() {
         You can only continue in the browser where you started it. This attempt was recorded as a violation. If you need
         help, contact your instructor.
       </p>
-      <a href="/student" className="mt-6 inline-block text-sm font-semibold text-teal-700 hover:underline">
+      <a href="/student" className="mt-6 inline-block text-sm font-semibold text-brand-700 hover:underline">
         Back to my exams
       </a>
     </div>
@@ -357,7 +357,7 @@ function Session({ initial }: { initial: StudentAttempt }) {
                 aria-valuenow={answeredCount}
               >
                 <div
-                  className="h-full rounded-full bg-teal-600 transition-[width]"
+                  className="h-full rounded-full bg-brand-600 transition-[width]"
                   style={{ width: `${(answeredCount / Math.max(1, initial.questionCount)) * 100}%` }}
                 />
               </div>
@@ -428,10 +428,10 @@ function Session({ initial }: { initial: StudentAttempt }) {
           className="space-y-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6"
         >
           {screenCase && (
-            <div className="rounded-lg border border-teal-200 bg-teal-50/50 p-4">
+            <div className="rounded-lg border border-brand-200 bg-brand-50/50 p-4">
               <p className="mb-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">
                 {screenCase.label && (
-                  <span className="rounded bg-teal-700 px-2 py-0.5 font-bold tracking-wide text-white">
+                  <span className="rounded bg-brand-700 px-2 py-0.5 font-bold tracking-wide text-white">
                     {screenCase.label}
                   </span>
                 )}
@@ -690,7 +690,7 @@ function QuestionBlock({
               aria-describedby={nearLimit ? `essay-count-${q.id}` : undefined}
               spellCheck
               autoComplete="off"
-              className="w-full rounded-lg border border-slate-300 p-3 text-sm text-slate-800 outline-none select-text focus:ring-2 focus:ring-teal-500"
+              className="w-full rounded-lg border border-slate-300 p-3 text-sm text-slate-800 outline-none select-text focus:ring-2 focus:ring-brand-500"
             />
           ) : (
             <textarea
@@ -703,7 +703,7 @@ function QuestionBlock({
               aria-describedby={nearLimit ? `essay-count-${q.id}` : undefined}
               spellCheck
               autoComplete="off"
-              className="w-full rounded-lg border border-slate-300 p-3 text-sm text-slate-800 outline-none select-text focus:ring-2 focus:ring-teal-500"
+              className="w-full rounded-lg border border-slate-300 p-3 text-sm text-slate-800 outline-none select-text focus:ring-2 focus:ring-brand-500"
             />
           )}
           {nearLimit && (
@@ -722,7 +722,7 @@ function QuestionBlock({
                 key={o.id}
                 className={cx(
                   "flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm",
-                  checked ? "border-teal-600 bg-teal-50" : "border-slate-200 hover:bg-slate-50",
+                  checked ? "border-brand-600 bg-brand-50" : "border-slate-200 hover:bg-slate-50",
                 )}
               >
                 <input

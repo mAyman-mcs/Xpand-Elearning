@@ -75,7 +75,7 @@ export function BulkAssign() {
                   key={m}
                   className={cx(
                     "flex cursor-pointer items-center gap-2 rounded-lg border p-3 text-sm",
-                    mode === m ? "border-teal-500 bg-teal-50" : "border-slate-200",
+                    mode === m ? "border-brand-500 bg-brand-50" : "border-slate-200",
                   )}
                 >
                   <input
@@ -83,7 +83,7 @@ export function BulkAssign() {
                     name="exam-mode"
                     checked={mode === m}
                     onChange={() => setMode(m)}
-                    className="accent-teal-600"
+                    className="accent-brand-600"
                   />
                   {label}
                 </label>

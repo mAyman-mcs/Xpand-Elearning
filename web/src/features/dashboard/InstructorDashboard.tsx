@@ -72,7 +72,7 @@ export function InstructorDashboard() {
           actions={
             <Link
               to="/submissions?show=awaiting-grading"
-              className="text-sm font-semibold text-teal-700 hover:underline"
+              className="text-sm font-semibold text-brand-700 hover:underline"
             >
               See all waiting
             </Link>
@@ -104,7 +104,7 @@ export function InstructorDashboard() {
       <Card
         title="Latest submissions"
         actions={
-          <Link to="/submissions" className="text-sm font-semibold text-teal-700 hover:underline">
+          <Link to="/submissions" className="text-sm font-semibold text-brand-700 hover:underline">
             See all submissions
           </Link>
         }

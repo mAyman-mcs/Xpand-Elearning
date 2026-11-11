@@ -268,7 +268,7 @@ function GroupsCard({ user: u, linkGroups }: { user: User; linkGroups: boolean }
           {u.groups.map((g) => (
             <li key={g.id} className="flex items-center justify-between py-2 text-sm">
               {linkGroups ? (
-                <Link to={`/admin/groups/${g.id}`} className="font-semibold text-teal-700 hover:underline">
+                <Link to={`/admin/groups/${g.id}`} className="font-semibold text-brand-700 hover:underline">
                   {g.name}
                 </Link>
               ) : (

@@ -31,8 +31,8 @@ const LABEL: Record<ScreenState, string> = {
 };
 
 const STYLE: Record<ScreenState, string> = {
-  current: "bg-teal-700 text-white ring-2 ring-teal-700 ring-offset-1",
-  answered: "bg-teal-50 text-teal-900 ring-1 ring-teal-300",
+  current: "bg-brand-700 text-white ring-2 ring-brand-700 ring-offset-1",
+  answered: "bg-brand-50 text-brand-900 ring-1 ring-brand-300",
   unanswered: "bg-white text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50",
   locked: "bg-slate-100 text-slate-500 ring-1 ring-slate-200",
   ahead: "border border-dashed border-slate-300 bg-white text-slate-500",

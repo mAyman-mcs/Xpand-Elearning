@@ -113,7 +113,7 @@ export function ChangePassword({ mode = "forced" }: { mode?: "forced" | "volunta
     );
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-900 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-slate-900 to-brand-900 p-4">
       <div className="w-full max-w-md space-y-4 rounded-xl bg-white p-8 shadow-2xl">
         <h1 className="text-xl font-bold text-slate-800">Set a new password</h1>
         <p className="text-sm text-slate-600">

@@ -70,7 +70,7 @@ export function ExamDone() {
           </p>
         )
       )}
-      <Link to="/student" replace className="mt-6 inline-block text-sm font-semibold text-teal-700 hover:underline">
+      <Link to="/student" replace className="mt-6 inline-block text-sm font-semibold text-brand-700 hover:underline">
         Back to my exams
       </Link>
     </div>

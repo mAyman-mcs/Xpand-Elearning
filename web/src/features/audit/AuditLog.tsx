@@ -58,7 +58,7 @@ export function AuditLog() {
       header: "Who",
       cell: (e) =>
         e.actor ? (
-          <Link to={`/admin/users/${e.actor.id}`} className="text-teal-700 hover:underline">
+          <Link to={`/admin/users/${e.actor.id}`} className="text-brand-700 hover:underline">
             {e.actor.fullName}
           </Link>
         ) : (
@@ -74,7 +74,7 @@ export function AuditLog() {
           <span className="text-slate-500">—</span>
         ) : (
           <details>
-            <summary className="cursor-pointer text-sm text-teal-700">Show</summary>
+            <summary className="cursor-pointer text-sm text-brand-700">Show</summary>
             <pre className="mt-2 max-w-md overflow-x-auto rounded bg-slate-50 p-2 text-xs">
               {JSON.stringify(e.detail, null, 2)}
             </pre>
@@ -175,7 +175,7 @@ function Target({ entry: e }: { entry: AuditEntry }) {
   const link = e.entityId ? TARGET_LINKS[e.entityType] : undefined;
   const label = `${e.entityType} ${e.entityId?.slice(0, 8) ?? ""}`;
   return link && e.entityId ? (
-    <Link to={link(e.entityId)} className="text-teal-700 hover:underline">
+    <Link to={link(e.entityId)} className="text-brand-700 hover:underline">
       {label}
     </Link>
   ) : (

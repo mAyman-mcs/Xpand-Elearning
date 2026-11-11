@@ -1,4 +1,5 @@
 import type { Role, UserDetail } from "@contracts";
+import { Upload, UserPlus } from "lucide-react";
 import { Link } from "react-router";
 import { usePageTitle } from "../../app/pages";
 import { Checkbox, SelectInput, TextInput } from "../../components/form";
@@ -35,7 +36,7 @@ export function UsersList({ mode }: { mode: "admin" | "instructor" }) {
     {
       header: "Name",
       cell: (u) => (
-        <Link to={`${base}/${u.id}`} className="font-semibold text-teal-700 hover:underline">
+        <Link to={`${base}/${u.id}`} className="font-semibold text-brand-700 hover:underline">
           {u.fullName}
           <span className="block font-mono text-xs font-normal text-slate-600">{u.username}</span>
         </Link>
@@ -64,9 +65,13 @@ export function UsersList({ mode }: { mode: "admin" | "instructor" }) {
           admin && (
             <>
               <ButtonLink to="/admin/users/import" variant="secondary">
+                <Upload aria-hidden="true" className="h-4 w-4" />
                 Import CSV
               </ButtonLink>
-              <ButtonLink to="/admin/users/new">New user</ButtonLink>
+              <ButtonLink to="/admin/users/new">
+                <UserPlus aria-hidden="true" className="h-4 w-4" />
+                New user
+              </ButtonLink>
             </>
           )
         }

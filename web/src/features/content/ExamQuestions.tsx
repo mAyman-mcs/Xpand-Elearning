@@ -1,4 +1,5 @@
 import type { QuestionImportResult, QuestionList, QuestionType, StaffCase, StaffQuestion } from "@contracts";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
@@ -133,7 +134,10 @@ export function ExamQuestions() {
                 <Button variant="secondary" onClick={() => setEditingCase("new")}>
                   Add case
                 </Button>
-                <Button onClick={() => setEditing({ start: {} })}>Add question</Button>
+                <Button onClick={() => setEditing({ start: {} })}>
+                  <Plus aria-hidden="true" className="h-4 w-4" />
+                  Add question
+                </Button>
               </>
             )}
             {!locked && (
@@ -237,6 +241,7 @@ export function ExamQuestions() {
                                 onClick={() => setEditing({ question: q })}
                                 aria-label={`Edit question ${n}`}
                               >
+                                <Pencil aria-hidden="true" className="h-4 w-4" />
                                 Edit
                               </Button>
                               {!locked && (
@@ -246,6 +251,7 @@ export function ExamQuestions() {
                                   onClick={() => setDeleting(q)}
                                   aria-label={`Delete question ${n}`}
                                 >
+                                  <Trash2 aria-hidden="true" className="h-4 w-4" />
                                   Delete
                                 </Button>
                               )}
@@ -265,7 +271,7 @@ export function ExamQuestions() {
                     id={key}
                     disabled={!sortable}
                     label={`case ${n}`}
-                    className="rounded-lg border border-teal-200 bg-teal-50 p-4"
+                    className="rounded-lg border border-brand-200 bg-brand-50 p-4"
                   >
                     {(handle) => (
                       <>
@@ -313,6 +319,7 @@ export function ExamQuestions() {
                                 onClick={() => setDeletingCase({ c, count: block.questions.length })}
                                 aria-label={`Delete case ${c.title}`}
                               >
+                                <Trash2 aria-hidden="true" className="h-4 w-4" />
                                 Delete
                               </Button>
                             )}
@@ -355,6 +362,7 @@ export function ExamQuestions() {
                                         onClick={() => setEditing({ question: q })}
                                         aria-label={`Edit question ${n}${part(qi)}`}
                                       >
+                                        <Pencil aria-hidden="true" className="h-4 w-4" />
                                         Edit
                                       </Button>
                                       {!locked && (
@@ -364,6 +372,7 @@ export function ExamQuestions() {
                                           onClick={() => setDeleting(q)}
                                           aria-label={`Delete question ${n}${part(qi)}`}
                                         >
+                                          <Trash2 aria-hidden="true" className="h-4 w-4" />
                                           Delete
                                         </Button>
                                       )}
@@ -654,7 +663,7 @@ function ImportDialog({
         }}
       />
       <details className="text-sm">
-        <summary className="cursor-pointer text-teal-700">Show the format</summary>
+        <summary className="cursor-pointer text-brand-700">Show the format</summary>
         <pre className="mt-2 max-h-56 overflow-auto rounded bg-slate-50 p-2 text-xs">{IMPORT_EXAMPLE}</pre>
         <p className="mt-1 text-xs text-slate-600">
           type: SINGLE_CHOICE, MULTI_CHOICE, TRUE_FALSE or ESSAY · points defaults to 1 · answerSize (essays): SHORT or

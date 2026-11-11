@@ -64,9 +64,9 @@ export function ExamLayout() {
             <span className="font-mono">{e.code}</span>
             <span>· {e.category.name}</span>
             <Badge tone={EXAM_STATUS[e.status].tone}>{EXAM_STATUS[e.status].label}</Badge>
-            {e.isExternal && <Badge tone="amber">External</Badge>}
-            {!e.isExternal && e.type === "MCQ_ESSAY" && <Badge tone="blue">MCQ + essay</Badge>}
-            {!e.isExternal && e.scoringMode === "MANUAL_APPROVAL" && <Badge tone="teal">Needs approval</Badge>}
+            {e.isExternal && <Badge tone="outline">External</Badge>}
+            {!e.isExternal && e.type === "MCQ_ESSAY" && <Badge tone="outline">MCQ + essay</Badge>}
+            {!e.isExternal && e.scoringMode === "MANUAL_APPROVAL" && <Badge tone="outline">Needs approval</Badge>}
           </span>
         }
       />
@@ -84,7 +84,7 @@ export function ExamLayout() {
                   cx(
                     "block border-b-2 px-4 py-2 text-sm font-semibold",
                     isActive
-                      ? "border-teal-700 text-teal-700"
+                      ? "border-brand-700 text-brand-700"
                       : "border-transparent text-slate-600 hover:text-slate-800",
                   )
                 }

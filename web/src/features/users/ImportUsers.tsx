@@ -98,7 +98,7 @@ export function ImportUsers() {
               type="file"
               accept=".csv,text/csv"
               onChange={(e) => void onFile(e)}
-              className="mt-1 block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-teal-50 file:px-4 file:py-2 file:font-semibold file:text-teal-700"
+              className="mt-1 block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-4 file:py-2 file:font-semibold file:text-brand-700"
             />
           </label>
           <div className="mt-3">

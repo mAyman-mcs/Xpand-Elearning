@@ -62,7 +62,7 @@ function Check({ done }: { done: boolean }) {
       aria-hidden="true"
       className={cx(
         "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full",
-        done ? "bg-teal-700 text-white" : "border-2 border-slate-300 bg-white",
+        done ? "bg-brand-700 text-white" : "border-2 border-slate-300 bg-white",
       )}
     >
       {done && (
@@ -118,7 +118,7 @@ export function SetupChecklist({ exam, canAssign }: { exam: Exam; canAssign: boo
   const done = steps.filter((s) => s.done).length;
 
   return (
-    <section aria-labelledby="setup-title" className="mb-6 rounded-xl border border-teal-200 bg-teal-50/60 p-4">
+    <section aria-labelledby="setup-title" className="mb-6 rounded-xl border border-brand-200 bg-brand-50/60 p-4">
       <h2 id="setup-title" className="text-sm font-bold text-slate-800">
         Getting this exam ready · {done} of {steps.length} done
       </h2>
@@ -135,7 +135,7 @@ export function SetupChecklist({ exam, canAssign }: { exam: Exam; canAssign: boo
                 <span className="block text-xs text-slate-600">
                   {s.detail}{" "}
                   {s.to && s.to !== pathname && (
-                    <Link to={s.to} className="font-semibold text-teal-700 hover:underline">
+                    <Link to={s.to} className="font-semibold text-brand-700 hover:underline">
                       {s.linkLabel}
                     </Link>
                   )}

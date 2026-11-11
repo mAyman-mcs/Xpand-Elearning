@@ -4,7 +4,7 @@ import { usePageTitle } from "../../app/pages";
 import { Button } from "../../components/ui";
 import { api, errorMessage } from "../../lib/api";
 
-const field = "w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:ring-2 focus:ring-teal-500";
+const field = "w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500";
 
 export function Login() {
   usePageTitle("Sign in");
@@ -29,11 +29,21 @@ export function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-900 p-4">
-      <form onSubmit={(e) => void submit(e)} className="w-full max-w-md space-y-5 rounded-xl bg-white p-8 shadow-2xl">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-slate-900 to-brand-900 p-4">
+      <form
+        onSubmit={(e) => void submit(e)}
+        className="w-full max-w-md space-y-5 rounded-2xl bg-white p-8 shadow-2xl sm:p-10"
+      >
         <div className="mb-6 text-center">
-          <h1 className="mb-2 text-2xl font-bold text-slate-800">Xpand CS Academy</h1>
-          <p className="font-mono text-sm text-slate-600">Secure Assessment Portal</p>
+          {/* The same mark as the sidebar, so the app feels like one place from the first screen. */}
+          <div
+            aria-hidden="true"
+            className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-700 text-xl font-bold text-white"
+          >
+            X
+          </div>
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Xpand CS Academy</h1>
+          <p className="mt-1 text-sm text-slate-600">Sign in to take your exams and see your results.</p>
         </div>
         {sessionExpired && !error && (
           <div

@@ -210,7 +210,7 @@ function NewOverrideDialog({
               key={a}
               className={cx(
                 "flex cursor-pointer items-center gap-2 rounded-lg border p-3 text-sm",
-                action === a ? "border-teal-500 bg-teal-50" : "border-slate-200",
+                action === a ? "border-brand-500 bg-brand-50" : "border-slate-200",
               )}
             >
               <input
@@ -218,7 +218,7 @@ function NewOverrideDialog({
                 name="override-action"
                 checked={action === a}
                 onChange={() => setAction(a)}
-                className="accent-teal-600"
+                className="accent-brand-600"
               />
               {a === "OPEN" ? "Open the exam" : "Close the exam"}
             </label>
@@ -233,7 +233,7 @@ function NewOverrideDialog({
               key={k}
               className={cx(
                 "flex cursor-pointer items-center gap-2 rounded-lg border p-3 text-sm",
-                kind === k ? "border-teal-500 bg-teal-50" : "border-slate-200",
+                kind === k ? "border-brand-500 bg-brand-50" : "border-slate-200",
               )}
             >
               <input
@@ -241,7 +241,7 @@ function NewOverrideDialog({
                 name="override-kind"
                 checked={kind === k}
                 onChange={() => setKind(k)}
-                className="accent-teal-600"
+                className="accent-brand-600"
               />
               {k === "group" ? "A whole group" : "One student"}
             </label>

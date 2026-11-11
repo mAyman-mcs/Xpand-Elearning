@@ -117,7 +117,7 @@ function Grader({ attempt: a }: { attempt: GradingAttempt }) {
           </span>
         }
         actions={
-          <Link to={`/exams/${a.exam.id}/grading`} className="text-sm font-semibold text-teal-700 hover:underline">
+          <Link to={`/exams/${a.exam.id}/grading`} className="text-sm font-semibold text-brand-700 hover:underline">
             Back to the grading list
           </Link>
         }
@@ -259,7 +259,7 @@ function QuestionCard({
             {!readOnly && (
               <button
                 type="button"
-                className="mt-1 text-xs font-semibold text-teal-700 underline"
+                className="mt-1 text-xs font-semibold text-brand-700 underline"
                 onClick={() => setOverriding(true)}
               >
                 Change points

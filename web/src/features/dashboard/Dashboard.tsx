@@ -159,7 +159,7 @@ function StatChip({ label, value, to }: Stat) {
   );
   const box = "inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm";
   return to ? (
-    <Link to={to} aria-label={`${label}: ${value}`} className={cx(box, "hover:border-teal-400")}>
+    <Link to={to} aria-label={`${label}: ${value}`} className={cx(box, "hover:border-brand-400")}>
       {body}
     </Link>
   ) : (
@@ -185,7 +185,7 @@ export function StatCard({ label, value, to, warn, hint }: Stat) {
       className={cx(
         box,
         warn ? "border-amber-300" : "border-slate-200",
-        "transition hover:border-teal-400 hover:shadow",
+        "transition hover:border-brand-400 hover:shadow",
       )}
     >
       {body}

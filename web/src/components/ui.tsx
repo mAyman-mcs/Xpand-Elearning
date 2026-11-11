@@ -9,9 +9,9 @@ export function cx(...classes: (string | false | null | undefined)[]): string {
 // ─────────────────────────────── Button ───────────────────────────────
 
 const variants = {
-  primary: "bg-teal-700 text-white hover:bg-teal-800 disabled:bg-slate-300",
+  primary: "bg-brand-700 text-white hover:bg-brand-800 disabled:bg-slate-300",
   secondary: "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:text-slate-500",
-  danger: "bg-red-600 text-white hover:bg-red-700 disabled:bg-slate-300",
+  danger: "bg-danger-600 text-white hover:bg-danger-700 disabled:bg-slate-300",
   ghost: "text-slate-600 hover:bg-slate-100 disabled:text-slate-300",
 };
 
@@ -46,7 +46,7 @@ export function Button({
 
 export function buttonClass(variant: keyof typeof variants = "primary", size: "sm" | "md" = "md") {
   return cx(
-    "inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:outline-none disabled:cursor-not-allowed",
+    "inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none disabled:cursor-not-allowed",
     size === "sm" ? "px-3 py-1.5 text-sm" : "px-4 py-2 text-sm",
     variants[variant],
   );
@@ -97,7 +97,7 @@ export function PageHeader({
   return (
     <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h1 className="text-2xl font-extrabold text-slate-800">{title}</h1>
+        <h1 className="text-[1.75rem] leading-tight font-extrabold tracking-tight text-slate-900">{title}</h1>
         {description && <p className="mt-1 text-sm text-slate-600">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
@@ -129,13 +129,19 @@ export function Card({
   );
 }
 
+/**
+ * One meaning per tone (see index.css): green = done/passed (success), amber = needs attention
+ * (warning), red = failed/missed (danger), blue = scheduled/info, teal = the academy's own (brand),
+ * gray = inactive or closed, outline = a plain tag that is not a status.
+ */
 const badgeTones = {
   gray: "bg-slate-100 text-slate-700",
-  green: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  amber: "bg-amber-50 text-amber-800 ring-amber-200",
-  red: "bg-red-50 text-red-700 ring-red-200",
-  blue: "bg-sky-50 text-sky-700 ring-sky-200",
-  teal: "bg-teal-50 text-teal-700 ring-teal-200",
+  green: "bg-success-50 text-success-700 ring-success-200",
+  amber: "bg-warning-50 text-warning-800 ring-warning-200",
+  red: "bg-danger-50 text-danger-700 ring-danger-200",
+  blue: "bg-info-50 text-info-700 ring-info-200",
+  teal: "bg-brand-50 text-brand-700 ring-brand-200",
+  outline: "bg-white text-slate-700 ring-slate-300",
 };
 export type BadgeTone = keyof typeof badgeTones;
 
@@ -159,7 +165,7 @@ export function ClearFilters({ show, onClear }: { show: boolean; onClear: () => 
     <button
       type="button"
       onClick={onClear}
-      className="text-sm font-semibold text-teal-700 hover:underline focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:outline-none"
+      className="text-sm font-semibold text-brand-700 hover:underline focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none"
     >
       Clear filters
     </button>

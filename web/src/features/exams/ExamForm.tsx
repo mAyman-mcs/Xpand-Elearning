@@ -219,7 +219,7 @@ export function ExamFields({
                     className={cx(
                       "rounded-full border px-3 py-1 text-xs font-semibold disabled:opacity-60",
                       on
-                        ? "border-teal-700 bg-teal-700 text-white"
+                        ? "border-brand-700 bg-brand-700 text-white"
                         : "border-slate-300 text-slate-600 hover:bg-slate-50",
                     )}
                   >

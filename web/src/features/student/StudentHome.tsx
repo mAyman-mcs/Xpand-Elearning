@@ -84,7 +84,7 @@ export function StudentHome() {
         <>
           {doNow.length > 0 && (
             <section aria-labelledby="do-now" className="mb-8">
-              <h2 id="do-now" className="mb-3 text-sm font-bold tracking-wide text-teal-800 uppercase">
+              <h2 id="do-now" className="mb-3 text-sm font-bold tracking-wide text-brand-800 uppercase">
                 Do now
               </h2>
               <ExamList rows={doNow} now={now} label="Exams to do now" highlight />
@@ -153,7 +153,7 @@ function ExamCard({ row, now, highlight }: { row: StudentExamRow; now: number; h
     (progress === "ANSWERED" || progress === "UNDER_REVIEW");
 
   return (
-    <Card className={cx("h-full", highlight && "border-2 border-teal-600")}>
+    <Card className={cx("h-full", highlight && "border-2 border-brand-600")}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h2 className="text-base font-bold text-slate-800">{exam.title}</h2>
@@ -245,7 +245,7 @@ function MaterialLink({ title, url }: { title: string; url: string }) {
             target="_blank"
             rel="noopener noreferrer"
             download
-            className="text-sm font-semibold text-teal-700 hover:underline"
+            className="text-sm font-semibold text-brand-700 hover:underline"
           >
             Download / open in a new tab
           </a>

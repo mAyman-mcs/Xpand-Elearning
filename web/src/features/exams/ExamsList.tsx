@@ -1,4 +1,5 @@
 import type { Exam, ExamStatus } from "@contracts";
+import { Plus } from "lucide-react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { usePermissions } from "../../app/auth";
@@ -47,7 +48,7 @@ export function ExamsList() {
     {
       header: "Exam",
       cell: (e) => (
-        <Link to={`/exams/${e.id}`} className="font-semibold text-teal-700 hover:underline">
+        <Link to={`/exams/${e.id}`} className="font-semibold text-brand-700 hover:underline">
           {e.title}
           <span className="block font-mono text-xs font-normal text-slate-600">{e.code}</span>
         </Link>
@@ -80,7 +81,12 @@ export function ExamsList() {
                 Assign several exams
               </ButtonLink>
             )}
-            {can(perms, "EXAM_EDIT") && <ButtonLink to="/exams/new">New exam</ButtonLink>}
+            {can(perms, "EXAM_EDIT") && (
+              <ButtonLink to="/exams/new">
+                <Plus aria-hidden="true" className="h-4 w-4" />
+                New exam
+              </ButtonLink>
+            )}
           </>
         }
       />
@@ -129,7 +135,7 @@ export function ExamsList() {
                     className={cx(
                       "rounded-full border px-3 py-1 text-xs font-semibold",
                       on
-                        ? "border-teal-700 bg-teal-700 text-white"
+                        ? "border-brand-700 bg-brand-700 text-white"
                         : "border-slate-300 text-slate-600 hover:bg-slate-50",
                     )}
                   >

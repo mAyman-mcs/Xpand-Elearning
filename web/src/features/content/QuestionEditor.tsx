@@ -259,7 +259,7 @@ export function QuestionEditor({ examId, examType, question, cases, start, locke
                     aria-label={`Option ${optionLetter(i)}`}
                     placeholder={o.imageId ? "Text (optional with a picture)" : `Option ${optionLetter(i)}`}
                     className={cx(
-                      "min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-500",
+                      "min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500",
                       o.isCorrect ? "border-emerald-400 bg-emerald-50" : "border-slate-300",
                     )}
                   />
@@ -276,7 +276,7 @@ export function QuestionEditor({ examId, examType, question, cases, start, locke
                 </div>
                 {draft.type !== "TRUE_FALSE" && (
                   <details className="mt-2 pl-10" open={!!(o.imageId || o.detail || o.explanation)}>
-                    <summary className="cursor-pointer text-xs font-semibold text-teal-700">
+                    <summary className="cursor-pointer text-xs font-semibold text-brand-700">
                       Picture, second line, explanation
                     </summary>
                     <div className="mt-2 space-y-2">
