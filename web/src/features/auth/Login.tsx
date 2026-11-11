@@ -75,6 +75,9 @@ export function Login() {
         <Button type="submit" busy={busy} className="w-full py-3">
           {busy ? "Signing in…" : "Sign in"}
         </Button>
+        <p className="text-center text-sm text-slate-600">
+          Forgot your password? Ask your instructor or the academy admin to reset it.
+        </p>
       </form>
     </div>
   );

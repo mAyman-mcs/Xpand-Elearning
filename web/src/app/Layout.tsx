@@ -1,6 +1,8 @@
 import type { MyPermissions, Role } from "@contracts";
 import { useEffect, useState } from "react";
-import { NavLink, Outlet, useLocation } from "react-router";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { ChevronDown, KeyRound, LogOut } from "lucide-react";
+import { Link, NavLink, Outlet, useLocation } from "react-router";
 import { cx } from "../components/ui";
 import { ROLE_LABEL } from "../lib/labels";
 import { hasAnyGrant } from "../lib/permissions";
@@ -97,17 +99,44 @@ export function Layout() {
 
       <div className="min-w-0 flex-1">
         <header className="flex items-center justify-end gap-4 border-b border-slate-200 bg-white px-6 py-3">
-          <div className="text-right">
-            <div className="text-sm font-bold">{user.fullName}</div>
-            <div className="font-mono text-xs text-slate-600">{ROLE_LABEL[user.role]}</div>
-          </div>
-          <button
-            type="button"
-            onClick={() => void logout()}
-            className="rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
-          >
-            Logout
-          </button>
+          {/* The account menu: who is signed in, their password, and signing out. */}
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger
+              className="flex items-center gap-3 rounded-lg px-2 py-1 text-right hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:outline-none"
+              aria-label={`Account menu for ${user.fullName}`}
+            >
+              <span>
+                <span className="block text-sm font-bold text-slate-800">{user.fullName}</span>
+                <span className="block text-xs text-slate-600">{ROLE_LABEL[user.role]}</span>
+              </span>
+              <ChevronDown aria-hidden="true" className="h-4 w-4 text-slate-500" />
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content
+                align="end"
+                sideOffset={6}
+                className="z-50 min-w-48 rounded-lg border border-slate-200 bg-white p-1 text-sm shadow-lg"
+              >
+                <DropdownMenu.Item asChild>
+                  <Link
+                    to="/account"
+                    className="flex items-center gap-2 rounded-md px-3 py-2 text-slate-700 outline-none data-[highlighted]:bg-slate-100"
+                  >
+                    <KeyRound aria-hidden="true" className="h-4 w-4" />
+                    Change password
+                  </Link>
+                </DropdownMenu.Item>
+                <DropdownMenu.Separator className="my-1 h-px bg-slate-200" />
+                <DropdownMenu.Item
+                  onSelect={() => void logout()}
+                  className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-slate-700 outline-none data-[highlighted]:bg-slate-100"
+                >
+                  <LogOut aria-hidden="true" className="h-4 w-4" />
+                  Sign out
+                </DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
         </header>
         <main id="main" className="mx-auto max-w-6xl p-4 md:p-8">
           <Outlet />

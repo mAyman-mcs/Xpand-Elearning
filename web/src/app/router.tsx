@@ -53,6 +53,8 @@ export const router = createBrowserRouter([
         element: <Layout />,
         children: [
           { index: true, element: <HomeRedirect /> },
+          // Every role: change your own password.
+          { path: "account", element: <ChangePassword mode="voluntary" /> },
           {
             path: "admin",
             element: <RequireRole roles={["SUPER_ADMIN"]} />,

@@ -40,14 +40,35 @@ test.describe("signing in", () => {
     await page.reload();
     await expect(page.getByRole("heading", { name: /Welcome back, Nadia/ })).toBeVisible();
 
-    await page.getByRole("button", { name: "Logout" }).click();
-    await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
+    const signOut = async () => {
+      await page.getByRole("button", { name: "Account menu for Nadia Newcomer" }).click();
+      await page.getByRole("menuitem", { name: "Sign out" }).click();
+      await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
+    };
+    await signOut();
     expect((await page.request.get("/api/auth/me")).status()).toBe(401);
+    await expect(page.getByText("Forgot your password? Ask your instructor")).toBeVisible();
 
     await login(page, username, temporaryPassword);
     await expect(page.getByRole("alert")).toHaveText("Invalid username or password.");
     await login(page, username, newPassword);
     await expect(page.getByRole("heading", { name: /Welcome back, Nadia/ })).toBeVisible();
+
+    // Changing the password later, from the account menu.
+    const later = "Second-choice-2027";
+    await page.getByRole("button", { name: "Account menu for Nadia Newcomer" }).click();
+    await page.getByRole("menuitem", { name: "Change password" }).click();
+    await expect(page.getByRole("heading", { name: "Change password" })).toBeVisible();
+    await page.getByRole("textbox", { name: "Current password" }).fill(newPassword);
+    await page.getByRole("textbox", { name: "New password", exact: true }).fill(later);
+    await page.getByRole("textbox", { name: "Confirm new password" }).fill(later);
+    await page.getByRole("button", { name: "Change password" }).click();
+    await expect(page.getByText("Password changed")).toBeVisible();
+    await signOut();
+    await login(page, username, later);
+    // Signing in returns to the page you were on.
+    await expect(page).toHaveURL(/\/account$/);
+    await expect(page.getByRole("heading", { name: "Change password" })).toBeVisible();
   });
 
   test("a deep link survives signing in", async ({ page }) => {
