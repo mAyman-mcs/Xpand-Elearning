@@ -125,6 +125,25 @@ export function moveBlock(blocks: ContentBlock[], index: number, by: -1 | 1): st
   return next.flatMap((b) => b.questions.map((q) => q.id));
 }
 
+/**
+ * Moves a block (a case with its questions, or a question on its own) to another position among
+ * the placed blocks, both 0-based. Returns the new question order, or null when nothing moves.
+ */
+export function moveBlockTo(blocks: ContentBlock[], from: number, to: number): string[] | null {
+  const placed = blocks.filter((b) => b.questions.length > 0);
+  if (from === to || from < 0 || to < 0 || from >= placed.length || to >= placed.length) return null;
+  const next = [...placed];
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved as ContentBlock);
+  return next.flatMap((b) => b.questions.map((q) => q.id));
+}
+
+/** The questions in the order of `ids` (an optimistic reorder, before the server answers). */
+export function inOrder<Q extends { id: string }>(questions: Q[], ids: string[]): Q[] {
+  const at = new Map(ids.map((id, i) => [id, i]));
+  return [...questions].sort((a, b) => (at.get(a.id) ?? Infinity) - (at.get(b.id) ?? Infinity));
+}
+
 export const NEW_QUESTION: QuestionInput = {
   type: "SINGLE_CHOICE",
   text: "",
