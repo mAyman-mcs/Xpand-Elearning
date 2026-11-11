@@ -100,6 +100,11 @@ These rules are why the platform is being rebuilt. A PR that breaks one is not d
 9. **Time:**
    - The API sends ISO 8601 UTC timestamps. Display them in **Africa/Cairo** with `Intl.DateTimeFormat`.
    - Countdowns are computed from server timestamps. Correct for clock skew using the server time each API response returns (planned for M1).
+10. **Colours and type** (tokens in `web/src/index.css`):
+    - Use colours by role, never a raw hue for the brand: `brand-*` (primary actions, the current item, links), `success-*`, `warning-*`, `danger-*`, `info-*`; greys stay Tailwind's `slate-*`. Re-branding means changing the `brand` scale only.
+    - Each colour means one thing. Badges (`<Badge tone>`): `green` done/passed/published, `amber` needs attention, `red` failed/missed, `blue` scheduled or informational, `teal` the academy's own, `gray` inactive or closed, `outline` a plain tag that is not a status (exam type, "Late joiner").
+    - Icons come from `lucide-react`, always with a text label or an `aria-label`; mark them `aria-hidden`.
+    - The font is Inter, bundled by Vite (`@fontsource-variable/inter`): no font requests to a third party.
 
 ## 4. Screens to build
 

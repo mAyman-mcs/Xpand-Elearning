@@ -5,6 +5,7 @@ import { useForm, type UseFormReturn } from "react-hook-form";
 import { z } from "zod";
 import { Checkbox, Radio, SelectInput, TextArea, TextInput } from "../../components/form";
 import { cx } from "../../components/ui";
+import type { ExamPatch } from "../../lib/api";
 
 // Mirrors the server's createExamBody / updateExamBody for instant feedback; the server decides.
 // In Zod 4 a schema-level `error` applies to every issue, so it is limited to the wrong-type case
@@ -87,6 +88,36 @@ export function valuesOf(e: Exam): ExamValues {
     intro: e.intro ?? "",
     showHints: e.showHints,
   };
+}
+
+/** The settings the Settings tab sends when changed. Every editable field must be listed here. */
+export const SETTINGS = [
+  "title",
+  "durationMinutes",
+  "passMark",
+  "weight",
+  "maxAttempts",
+  "strikeLimit",
+  "questionsPerAttempt",
+  "isExternal",
+  "allowBackNavigation",
+  "shuffleQuestions",
+  "shuffleOptions",
+  "requireFullscreen",
+  "type",
+  "scoringMode",
+  "intro",
+  "showHints",
+] as const satisfies readonly (keyof ExamValues)[];
+
+/** The changed settings only (omitted fields keep their value on the server). */
+export function patchOf(before: ExamValues, after: ExamValues): ExamPatch {
+  const patch: Record<string, unknown> = {};
+  for (const key of SETTINGS) if (before[key] !== after[key]) patch[key] = after[key];
+  // The form edits "no introduction" as ""; the API stores it as null.
+  if ("intro" in patch) patch.intro = after.intro.trim() || null;
+  if (before.categoryId !== after.categoryId) patch.categoryId = after.categoryId;
+  return patch as ExamPatch;
 }
 
 export function useExamForm(values: ExamValues) {
@@ -188,7 +219,7 @@ export function ExamFields({
                     className={cx(
                       "rounded-full border px-3 py-1 text-xs font-semibold disabled:opacity-60",
                       on
-                        ? "border-teal-700 bg-teal-700 text-white"
+                        ? "border-brand-700 bg-brand-700 text-white"
                         : "border-slate-300 text-slate-600 hover:bg-slate-50",
                     )}
                   >

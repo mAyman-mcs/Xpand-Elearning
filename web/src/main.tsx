@@ -5,6 +5,8 @@ import { RouterProvider } from "react-router";
 import { AuthProvider } from "./app/auth";
 import { router } from "./app/router";
 import { ToastProvider } from "./components/Toast";
+// Self-hosted (bundled) font: no request to a font service from an exam platform.
+import "@fontsource-variable/inter";
 import "./index.css";
 import { createQueryClient } from "./lib/query";
 

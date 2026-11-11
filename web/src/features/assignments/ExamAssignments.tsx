@@ -85,7 +85,7 @@ export function ExamAssignments() {
 
   return (
     <Card
-      title="Assignments"
+      title="Assigned to"
       actions={
         canAssign && exam.status !== "ARCHIVED" ? <Button onClick={() => setAssigning(true)}>Assign</Button> : undefined
       }

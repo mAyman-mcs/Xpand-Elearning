@@ -46,7 +46,7 @@ export function Picture({
           setOpen(true);
         }}
         aria-label={`Enlarge picture${alt ? `: ${alt}` : ""}`}
-        className="group relative block max-w-full cursor-zoom-in rounded focus:ring-2 focus:ring-teal-500 focus:outline-none"
+        className="group relative block max-w-full cursor-zoom-in rounded focus:ring-2 focus:ring-brand-500 focus:outline-none"
       >
         {img(false)}
         <span

@@ -90,6 +90,22 @@ test("build an exam's questions, import more, reorder, delete, and publish", asy
   await page.reload();
   // Direct children only: each question holds a nested list of options.
   await expect(questions.locator(":scope > li").nth(1)).toContainText("Which are private ranges?");
+
+  // "Move to…" jumps straight to a position.
+  await page.getByRole("button", { name: "Move question 3 to a position" }).click();
+  await page.getByRole("spinbutton", { name: "Move question 3 to position" }).fill("1");
+  await page.getByRole("button", { name: "Move", exact: true }).click();
+  await expect(questions.locator(":scope > li").first()).toContainText("A /24 network has 256 addresses.");
+
+  // Dragging works from the keyboard too: Space picks up, arrows move, Space drops.
+  await page.getByRole("button", { name: "Drag question 1 to reorder" }).focus();
+  await page.keyboard.press("Space");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Space");
+  await expect(questions.locator(":scope > li").nth(1)).toContainText("A /24 network has 256 addresses.");
+  await page.reload();
+  await expect(questions.locator(":scope > li").nth(1)).toContainText("A /24 network has 256 addresses.");
+
   await page.getByRole("button", { name: "Delete question 3" }).click();
   await confirmDialog(page, "Delete this question?", "Delete question");
   await expect(page.getByRole("heading", { name: /Questions \(2, 2 points\)/ })).toBeVisible();

@@ -1,9 +1,7 @@
-import { createBrowserRouter, Outlet } from "react-router";
+import { createBrowserRouter, Navigate, Outlet } from "react-router";
 import { Loading } from "../components/ui";
 import { BulkAssign } from "../features/assignments/BulkAssign";
-import { ExamAssignments } from "../features/assignments/ExamAssignments";
-import { ExamAvailability } from "../features/assignments/ExamAvailability";
-import { ExamOverrides } from "../features/assignments/ExamOverrides";
+import { WhoAndWhen } from "../features/assignments/WhoAndWhen";
 import { AuditLog } from "../features/audit/AuditLog";
 import { CatalogPage } from "../features/catalog/CatalogPage";
 import { ExamMaterials } from "../features/content/ExamMaterials";
@@ -53,6 +51,8 @@ export const router = createBrowserRouter([
         element: <Layout />,
         children: [
           { index: true, element: <HomeRedirect /> },
+          // Every role: change your own password.
+          { path: "account", element: <ChangePassword mode="voluntary" /> },
           {
             path: "admin",
             element: <RequireRole roles={["SUPER_ADMIN"]} />,
@@ -99,9 +99,11 @@ export const router = createBrowserRouter([
                   { index: true, element: <ExamSettings /> },
                   { path: "questions", element: <ExamQuestions /> },
                   { path: "materials", element: <ExamMaterials /> },
-                  { path: "assignments", element: <ExamAssignments /> },
-                  { path: "overrides", element: <ExamOverrides /> },
-                  { path: "availability", element: <ExamAvailability /> },
+                  { path: "access", element: <WhoAndWhen /> },
+                  // The three tabs it replaced: old links and bookmarks land on the matching section.
+                  { path: "assignments", element: <Navigate to="../access#assignments" replace /> },
+                  { path: "overrides", element: <Navigate to="../access#overrides" replace /> },
+                  { path: "availability", element: <Navigate to="../access" replace /> },
                   { path: "grading", element: <GradingQueue /> },
                 ],
               },

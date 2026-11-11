@@ -142,6 +142,8 @@ test.describe("admin builds the exam in the UI, a student takes it", () => {
     await test.step("1.3 publishing is blocked until there is a question", async () => {
       await expect(page.getByRole("button", { name: "Publish" })).toBeDisabled();
       await expect(page.getByText("Add at least one question.").first()).toBeVisible();
+      // The setup checklist shows what is left, above every tab.
+      await expect(page.getByRole("heading", { name: "Getting this exam ready · 0 of 3 done" })).toBeVisible();
     });
 
     await test.step("1.4 add a single-choice, a multiple-choice and a true/false question", async () => {
@@ -232,7 +234,7 @@ test.describe("admin builds the exam in the UI, a student takes it", () => {
       await s.getByRole("listitem").filter({ hasText: title }).getByRole("link", { name: "Start exam" }).click();
       await expect(s.getByRole("heading", { name: title })).toBeVisible();
       await expect(s.getByText("3 questions", { exact: false }).first()).toBeVisible();
-      await expect(s.getByText(/After\s+3\s+violations the exam is submitted automatically/)).toBeVisible();
+      await expect(s.getByText(/At the\s+3rd warning\s+the exam is submitted automatically/)).toBeVisible();
       await expect(s.getByText("never pauses")).toBeVisible();
       await expect(s.getByRole("button", { name: "Start exam" })).toBeDisabled();
       await s.getByRole("checkbox", { name: /I have read the rules/ }).check();
@@ -243,7 +245,8 @@ test.describe("admin builds the exam in the UI, a student takes it", () => {
       await expect(s.getByRole("timer", { name: "Time left" })).toHaveText(/^(20:00|19:5\d)$/);
       await expect(s.getByText(/Question 1 of 3/)).toBeVisible();
       await expect(s.getByTestId("watermark")).toHaveAttribute("data-text", `Lina Lifecycle · ${student.username}`);
-      await expect(s.getByText("Violations: 0 / 3")).toBeVisible();
+      // No warning counter until there is a warning.
+      await expect(s.getByText(/warnings used/)).toHaveCount(0);
       await expect(s.getByRole("navigation", { name: "Questions" }).getByRole("button")).toHaveCount(3);
     });
 
@@ -268,7 +271,7 @@ test.describe("admin builds the exam in the UI, a student takes it", () => {
       await s.reload();
       await expect(s.getByText("2 of 3 answered")).toBeVisible();
       // Reloading is not a violation (regression: unloading fired a "tab hidden" strike).
-      await expect(s.getByText("Violations: 0 / 3")).toBeVisible();
+      await expect(s.getByText(/warnings used/)).toHaveCount(0);
       const [{ strikes } = { strikes: -1 }] = await sql<{ strikes: number }>(
         `SELECT strikes FROM "Attempt" WHERE "examId" = $1`,
         [examId],
@@ -281,7 +284,9 @@ test.describe("admin builds the exam in the UI, a student takes it", () => {
     });
 
     await test.step("2.6 submitting warns about the unanswered question; Keep working stays", async () => {
-      await s.getByRole("button", { name: "Submit exam" }).click();
+      // Before the last question, submitting is a separate "finish early" action.
+      await expect(s.getByRole("button", { name: "Submit exam" })).toHaveCount(0);
+      await s.getByRole("button", { name: "Finish early and submit" }).click();
       const confirm = s.getByRole("dialog", { name: "Submit the exam?" });
       await expect(confirm).toContainText("1 of 3 questions are not answered");
       await confirm.getByRole("button", { name: "Keep working" }).click();
@@ -290,6 +295,7 @@ test.describe("admin builds the exam in the UI, a student takes it", () => {
     });
 
     await test.step("2.7 submit: the done page, no score before release", async () => {
+      await s.getByRole("button", { name: "Question 3, not answered" }).click();
       await s.getByRole("button", { name: "Submit exam" }).click();
       await s
         .getByRole("dialog", { name: "Submit the exam?" })
@@ -535,7 +541,7 @@ test.describe("anti-cheating", () => {
         { timeout: 15_000 },
       )
       .toEqual(["BLOCKED_SHORTCUT", "BLOCKED_SHORTCUT", "CLIPBOARD", "CLIPBOARD", "CONTEXT_MENU", "DEVTOOLS"]);
-    await expect(page.getByText("Violations: 0 / 3")).toBeVisible();
+    await expect(page.getByText(/warnings used/)).toHaveCount(0);
     const [a] = await sql<{ strikes: number }>(`SELECT strikes FROM "Attempt" WHERE id = $1`, [attemptId]);
     expect(a?.strikes).toBe(0);
     await context.close();
@@ -561,10 +567,10 @@ test.describe("anti-cheating", () => {
     await expect(page.getByRole("alertdialog", { name: "This exam runs in fullscreen" })).toHaveCount(0);
 
     await page.evaluate(() => document.exitFullscreen());
-    const warning = page.getByRole("dialog", { name: "Warning: violation recorded" });
-    await expect(warning).toContainText("This is violation 1 of 3.");
+    const warning = page.getByRole("dialog", { name: "Warning: you left the exam" });
+    await expect(warning).toContainText("This is warning 1 of 3.");
     await warning.getByRole("button", { name: "Return to the exam" }).click();
-    await expect(page.getByText("Violations: 1 / 3")).toBeVisible();
+    await expect(page.getByText("1 of 3 warnings used")).toBeVisible();
     await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement))).toBe(true);
     await context.close();
   });

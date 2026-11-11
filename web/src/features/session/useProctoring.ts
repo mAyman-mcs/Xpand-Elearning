@@ -1,7 +1,7 @@
 import type { EventResult } from "@contracts";
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../../lib/api";
-import { blockedShortcut, isShrunk, retryDelay, type ClientEvent } from "../../lib/session";
+import { blockedShortcut, currentDevice, isShrunk, retryDelay, type ClientEvent } from "../../lib/session";
 
 type Detail = Record<string, string | number | boolean>;
 interface Queued {
@@ -16,6 +16,8 @@ interface Options {
   active: boolean;
   onResult: (result: EventResult) => void;
   onElsewhere: () => void;
+  /** A blocked action was stopped (copy, paste, right-click, a shortcut): logged, never a strike. */
+  onBlocked?: (type: ClientEvent) => void;
 }
 
 /**
@@ -23,10 +25,10 @@ interface Options {
  * decides what a signal costs. Reports are queued and retried, so a signal sent while offline still
  * arrives. Blocked actions (copy, paste, shortcuts, right-click, print) are stopped and reported.
  */
-export function useProctoring({ attemptId, active, onResult, onElsewhere }: Options) {
+export function useProctoring({ attemptId, active, onResult, onElsewhere, onBlocked }: Options) {
   const [fullscreen, setFullscreen] = useState(() => Boolean(document.fullscreenElement));
-  const callbacks = useRef({ onResult, onElsewhere });
-  callbacks.current = { onResult, onElsewhere };
+  const callbacks = useRef({ onResult, onElsewhere, onBlocked });
+  callbacks.current = { onResult, onElsewhere, onBlocked };
   const activeRef = useRef(active);
   activeRef.current = active;
 
@@ -111,7 +113,11 @@ export function useProctoring({ attemptId, active, onResult, onElsewhere }: Opti
       { width: window.innerWidth, height: window.innerHeight },
       { width: screen.availWidth, height: screen.availHeight },
     );
+    // On phones and tablets the on-screen keyboard shrinks the window: that's typing, not cheating.
+    // (The brief page doesn't start exams on touch devices; this covers one that gets through.)
+    const touch = currentDevice().touch;
     const onResize = () => {
+      if (touch) return;
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
         const inner = { width: window.innerWidth, height: window.innerHeight };
@@ -123,18 +129,24 @@ export function useProctoring({ attemptId, active, onResult, onElsewhere }: Opti
     const onClipboard = (e: ClipboardEvent) => {
       e.preventDefault();
       report("CLIPBOARD", { action: e.type });
+      callbacks.current.onBlocked?.("CLIPBOARD");
     };
     const onContextMenu = (e: MouseEvent) => {
       e.preventDefault();
       report("CONTEXT_MENU");
+      callbacks.current.onBlocked?.("CONTEXT_MENU");
     };
     const onKey = (e: KeyboardEvent) => {
-      const type = blockedShortcut(e, e.target instanceof HTMLTextAreaElement);
+      // In an answer box (an essay or a short answer), select all only selects the student's own text.
+      const editing =
+        e.target instanceof HTMLTextAreaElement || (e.target instanceof HTMLInputElement && e.target.type === "text");
+      const type = blockedShortcut(e, editing);
       if (!type) return;
       e.preventDefault();
       report(type, {
         key: [e.ctrlKey && "Ctrl", e.metaKey && "Meta", e.shiftKey && "Shift", e.key].filter(Boolean).join("+"),
       });
+      callbacks.current.onBlocked?.(type);
     };
     const onPrint = () => report("BLOCKED_SHORTCUT", { action: "print" });
     const onDragStart = (e: DragEvent) => e.preventDefault();

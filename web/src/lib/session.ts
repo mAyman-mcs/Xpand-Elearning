@@ -20,8 +20,29 @@ export function formatCountdown(ms: number): string {
   return h ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
 }
 
-/** Under five minutes left: the timer turns red and is announced. */
+/** Under five minutes left: the timer turns red. */
 export const LOW_TIME_MS = 5 * 60_000;
+/** Under ten minutes left: the timer turns amber. */
+export const SOON_TIME_MS = 10 * 60_000;
+
+/** The time-left warnings shown and announced: 10, 5 and 1 minute. */
+export const TIME_WARNINGS_MS = [10 * 60_000, 5 * 60_000, 60_000] as const;
+
+/**
+ * The warning just crossed between two readings of the time left, if any. The first reading
+ * (`previous` null) never warns, so a student resuming with 3 minutes left isn't told "10 minutes".
+ */
+export function crossedWarning(previous: number | null, left: number | null): number | null {
+  if (previous === null || left === null) return null;
+  const crossed = TIME_WARNINGS_MS.filter((t) => previous > t && left <= t);
+  return crossed.length ? Math.min(...crossed) : null;
+}
+
+/** "10 minutes left", "1 minute left". */
+export function warningText(ms: number): string {
+  const minutes = Math.round(ms / 60_000);
+  return `${minutes} minute${minutes === 1 ? "" : "s"} left`;
+}
 
 export type ClientEvent =
   | "FULLSCREEN_EXIT"
@@ -54,6 +75,34 @@ export function blockedShortcut(e: Key, editing = false): ClientEvent | null {
 /** The window is "small" when it covers less than 85% of the screen (split screen, a second app). */
 export const isShrunk = (inner: { width: number; height: number }, screen: { width: number; height: number }) =>
   inner.width < screen.width * 0.85 || inner.height < screen.height * 0.6;
+
+/**
+ * Why this device can't take the exam, if it can't. Phones and tablets ("touch": the main pointer is a
+ * finger) are not supported: the on-screen keyboard shrinks the window, which would count as a
+ * strike. "fullscreen": the exam needs fullscreen and the browser has none (iPhone Safari).
+ */
+export type DeviceProblem = "touch" | "fullscreen";
+
+export interface DeviceInfo {
+  /** The main pointer is coarse (a finger): matchMedia("(pointer: coarse)"). */
+  touch: boolean;
+  /** document.fullscreenEnabled. */
+  fullscreenEnabled: boolean;
+}
+
+export function deviceProblem(device: DeviceInfo, requireFullscreen: boolean): DeviceProblem | null {
+  if (device.touch) return "touch";
+  if (requireFullscreen && !device.fullscreenEnabled) return "fullscreen";
+  return null;
+}
+
+/** This browser's DeviceInfo. */
+export function currentDevice(): DeviceInfo {
+  return {
+    touch: typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches,
+    fullscreenEnabled: Boolean(document.fullscreenEnabled),
+  };
+}
 
 /** Retry delays for a failed save: 1 s, 2 s, 4 s, then 8 s for good. */
 export const retryDelay = (attempt: number) => Math.min(8_000, 1_000 * 2 ** attempt);

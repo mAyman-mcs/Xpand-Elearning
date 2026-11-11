@@ -7,7 +7,8 @@ export const ROLE_LABEL: Record<Role, string> = {
   STUDENT: "Student",
 };
 
-export const ROLE_TONE: Record<Role, BadgeTone> = { SUPER_ADMIN: "red", INSTRUCTOR: "blue", STUDENT: "gray" };
+// A role is not a status: no warning or danger colours here.
+export const ROLE_TONE: Record<Role, BadgeTone> = { SUPER_ADMIN: "teal", INSTRUCTOR: "blue", STUDENT: "gray" };
 
 /** Account state for badges: deactivated, locked after failed logins, or active. */
 export function accountState(u: Pick<UserDetail, "isActive" | "lockedUntil">, now = new Date()) {
@@ -19,7 +20,7 @@ export function accountState(u: Pick<UserDetail, "isActive" | "lockedUntil">, no
 export const EXAM_STATUS: Record<ExamStatus, { label: string; tone: BadgeTone }> = {
   DRAFT: { label: "Draft", tone: "gray" },
   PUBLISHED: { label: "Published", tone: "green" },
-  ARCHIVED: { label: "Archived", tone: "amber" },
+  ARCHIVED: { label: "Archived", tone: "gray" },
 };
 
 export const AVAILABILITY: Record<AvailabilityStatus, { label: string; tone: BadgeTone }> = {
@@ -28,8 +29,8 @@ export const AVAILABILITY: Record<AvailabilityStatus, { label: string; tone: Bad
   OPEN: { label: "Open", tone: "green" },
   CLOSED: { label: "Closed", tone: "gray" },
   MISSED: { label: "Missed", tone: "red" },
-  SUBMITTED: { label: "Submitted", tone: "teal" },
-  EXTERNAL: { label: "External", tone: "amber" },
+  SUBMITTED: { label: "Submitted", tone: "green" },
+  EXTERNAL: { label: "External", tone: "blue" },
 };
 
 export const PROGRESS: Record<Progress, string> = {

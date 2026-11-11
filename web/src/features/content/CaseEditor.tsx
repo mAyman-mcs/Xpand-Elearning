@@ -1,7 +1,7 @@
 import type { StaffCase } from "@contracts";
 import { useMutation } from "@tanstack/react-query";
 import { useId, useState } from "react";
-import { Dialog } from "../../components/Dialog";
+import { Dialog, useConfirmDiscard } from "../../components/Dialog";
 import { FormError, TextArea, TextInput } from "../../components/form";
 import { ImageField } from "../../components/Picture";
 import { Button } from "../../components/ui";
@@ -25,7 +25,20 @@ export function CaseEditor({
   onClose: () => void;
   onSaved: (saved: StaffCase) => Promise<void>;
 }) {
-  const [draft, setDraft] = useState<CaseInput>(() => (existing ? { ...existing } : EMPTY));
+  const [initial] = useState<CaseInput>(() =>
+    existing
+      ? {
+          label: existing.label,
+          title: existing.title,
+          situation: existing.situation,
+          hint: existing.hint,
+          imageId: existing.imageId,
+          imageAlt: existing.imageAlt,
+        }
+      : EMPTY,
+  );
+  const [draft, setDraft] = useState<CaseInput>(initial);
+  const { requestClose, confirm } = useConfirmDiscard(JSON.stringify(draft) !== JSON.stringify(initial), onClose);
   const set = (patch: Partial<CaseInput>) => setDraft((d) => ({ ...d, ...patch }));
   const labelsId = useId();
   const missingAlt = !!draft.imageId && !draft.imageAlt?.trim();
@@ -50,13 +63,13 @@ export function CaseEditor({
   return (
     <Dialog
       open
-      onOpenChange={(o) => !o && onClose()}
+      onOpenChange={(o) => !o && requestClose()}
       title={existing ? "Edit case" : "Add a case"}
       description="A case is one situation with its questions: usually a multiple-choice question and written follow-ups. Students see them together on one screen."
       wide
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={requestClose}>
             Cancel
           </Button>
           <Button
@@ -119,6 +132,7 @@ export function CaseEditor({
         onChange={(p) => set(p)}
       />
       <FormError message={save.error ? errorMessage(save.error) : null} />
+      {confirm}
     </Dialog>
   );
 }

@@ -8,6 +8,7 @@ import { api } from "../../lib/api";
 import { EXAM_STATUS } from "../../lib/labels";
 import { can } from "../../lib/permissions";
 import { qk } from "../../lib/query";
+import { SetupChecklist } from "./SetupChecklist";
 
 export interface ExamContext {
   exam: Exam;
@@ -31,9 +32,8 @@ export const EXAM_TABS: Tab[] = [
   { to: "", label: "Settings", show: () => true },
   { to: "questions", label: "Questions", show: (p, e) => !e.isExternal && on(p, e, "EXAM_EDIT") },
   { to: "materials", label: "Materials", show: (p, e) => on(p, e, "EXAM_EDIT") },
-  { to: "assignments", label: "Assignments", show: (p, e) => on(p, e, "EXAM_ASSIGN", "EXAM_SCHEDULE") },
-  { to: "overrides", label: "Open / close", show: (p, e) => on(p, e, "EXAM_ASSIGN", "EXAM_SCHEDULE") },
-  { to: "availability", label: "Availability", show: () => true },
+  // Who can take it and when: availability, assignments and open/close overrides on one tab.
+  { to: "access", label: "Who and when", show: () => true },
   {
     to: "grading",
     label: "Grading",
@@ -63,12 +63,15 @@ export function ExamLayout() {
             <span className="font-mono">{e.code}</span>
             <span>· {e.category.name}</span>
             <Badge tone={EXAM_STATUS[e.status].tone}>{EXAM_STATUS[e.status].label}</Badge>
-            {e.isExternal && <Badge tone="amber">External</Badge>}
-            {!e.isExternal && e.type === "MCQ_ESSAY" && <Badge tone="blue">MCQ + essay</Badge>}
-            {!e.isExternal && e.scoringMode === "MANUAL_APPROVAL" && <Badge tone="teal">Needs approval</Badge>}
+            {e.isExternal && <Badge tone="outline">External</Badge>}
+            {!e.isExternal && e.type === "MCQ_ESSAY" && <Badge tone="outline">MCQ + essay</Badge>}
+            {!e.isExternal && e.scoringMode === "MANUAL_APPROVAL" && <Badge tone="outline">Needs approval</Badge>}
           </span>
         }
       />
+      {context.allowed("EXAM_EDIT") && (
+        <SetupChecklist exam={e} canAssign={context.allowed("EXAM_ASSIGN") || context.allowed("EXAM_SCHEDULE")} />
+      )}
       <nav aria-label="Exam sections" className="mb-6 border-b border-slate-200">
         <ul className="-mb-px flex flex-wrap gap-1">
           {EXAM_TABS.filter((t) => t.show(perms, e)).map((t) => (
@@ -80,7 +83,7 @@ export function ExamLayout() {
                   cx(
                     "block border-b-2 px-4 py-2 text-sm font-semibold",
                     isActive
-                      ? "border-teal-700 text-teal-700"
+                      ? "border-brand-700 text-brand-700"
                       : "border-transparent text-slate-600 hover:text-slate-800",
                   )
                 }

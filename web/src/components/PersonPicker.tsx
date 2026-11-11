@@ -44,14 +44,14 @@ export function PersonPicker({ label, role, selected, onChange, excludeIds, max 
           {selected.map((p) => (
             <li
               key={p.id}
-              className="flex items-center gap-1 rounded-full bg-teal-50 py-1 pr-1 pl-3 text-sm text-teal-800"
+              className="flex items-center gap-1 rounded-full bg-brand-50 py-1 pr-1 pl-3 text-sm text-brand-800"
             >
               {p.fullName}
               <button
                 type="button"
                 aria-label={`Remove ${p.fullName}`}
                 onClick={() => toggle(p)}
-                className="rounded-full px-1.5 text-teal-700 hover:bg-teal-100"
+                className="rounded-full px-1.5 text-brand-700 hover:bg-brand-100"
               >
                 ×
               </button>

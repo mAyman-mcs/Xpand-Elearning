@@ -1,14 +1,14 @@
 import type { Exam, ExamStatus } from "@contracts";
+import { Plus } from "lucide-react";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import { Link, useSearchParams } from "react-router";
+import { Link } from "react-router";
 import { usePermissions } from "../../app/auth";
 import { usePageTitle } from "../../app/pages";
 import { SelectInput, TextInput } from "../../components/form";
 import { Table, type Column } from "../../components/Table";
-import { Badge, ButtonLink, cx, PageHeader } from "../../components/ui";
+import { Badge, ButtonLink, ClearFilters, cx, PageHeader } from "../../components/ui";
 import { api, type ExamListFilter } from "../../lib/api";
-import { useDebounced } from "../../lib/forms";
+import { useSearchBox, useUrlFilters } from "../../lib/forms";
 import { EXAM_STATUS } from "../../lib/labels";
 import { can } from "../../lib/permissions";
 import { qk } from "../../lib/query";
@@ -18,13 +18,14 @@ import { useCategories, useTags } from "../catalog/queries";
 /** Exams in the caller's reach; filters are applied by the server inside that reach. */
 export function ExamsList() {
   usePageTitle("Exams");
-  const [params] = useSearchParams();
   const { data: perms } = usePermissions();
-  const [search, setSearch] = useState("");
-  const [categoryId, setCategoryId] = useState(params.get("categoryId") ?? "");
-  const [status, setStatus] = useState<ExamStatus | "">((params.get("status") as ExamStatus | null) ?? "");
-  const [tagIds, setTagIds] = useState<string[]>([]);
-  const q = useDebounced(search.trim());
+  // Filters live in the URL, so Back from an exam keeps them (tags as a comma-separated list).
+  const filters = useUrlFilters({ q: "", categoryId: "", status: "", tags: "" });
+  const { q, categoryId } = filters.values;
+  const status = filters.values.status as ExamStatus | "";
+  const tagIds = filters.values.tags ? filters.values.tags.split(",") : [];
+  const setTagIds = (ids: string[]) => filters.set({ tags: ids.join(",") });
+  const search = useSearchBox(q, (text) => filters.set({ q: text }));
   const categories = useCategories();
   const tags = useTags();
 
@@ -47,7 +48,7 @@ export function ExamsList() {
     {
       header: "Exam",
       cell: (e) => (
-        <Link to={`/exams/${e.id}`} className="font-semibold text-teal-700 hover:underline">
+        <Link to={`/exams/${e.id}`} className="font-semibold text-brand-700 hover:underline">
           {e.title}
           <span className="block font-mono text-xs font-normal text-slate-600">{e.code}</span>
         </Link>
@@ -80,7 +81,12 @@ export function ExamsList() {
                 Assign several exams
               </ButtonLink>
             )}
-            {can(perms, "EXAM_EDIT") && <ButtonLink to="/exams/new">New exam</ButtonLink>}
+            {can(perms, "EXAM_EDIT") && (
+              <ButtonLink to="/exams/new">
+                <Plus aria-hidden="true" className="h-4 w-4" />
+                New exam
+              </ButtonLink>
+            )}
           </>
         }
       />
@@ -90,10 +96,14 @@ export function ExamsList() {
             label="Search"
             type="search"
             placeholder="Title or code"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={search.text}
+            onChange={(e) => search.setText(e.target.value)}
           />
-          <SelectInput label="Category" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+          <SelectInput
+            label="Category"
+            value={categoryId}
+            onChange={(e) => filters.set({ categoryId: e.target.value })}
+          >
             <option value="">All categories</option>
             {categories.data?.map((c) => (
               <option key={c.id} value={c.id}>
@@ -101,7 +111,7 @@ export function ExamsList() {
               </option>
             ))}
           </SelectInput>
-          <SelectInput label="Status" value={status} onChange={(e) => setStatus(e.target.value as ExamStatus | "")}>
+          <SelectInput label="Status" value={status} onChange={(e) => filters.set({ status: e.target.value })}>
             <option value="">Any status</option>
             {(Object.keys(EXAM_STATUS) as ExamStatus[]).map((s) => (
               <option key={s} value={s}>
@@ -125,7 +135,7 @@ export function ExamsList() {
                     className={cx(
                       "rounded-full border px-3 py-1 text-xs font-semibold",
                       on
-                        ? "border-teal-700 bg-teal-700 text-white"
+                        ? "border-brand-700 bg-brand-700 text-white"
                         : "border-slate-300 text-slate-600 hover:bg-slate-50",
                     )}
                   >
@@ -135,6 +145,17 @@ export function ExamsList() {
               })}
             </div>
           </fieldset>
+        )}
+        {filters.active && (
+          <div className="text-right">
+            <ClearFilters
+              show
+              onClear={() => {
+                search.reset();
+                filters.clear();
+              }}
+            />
+          </div>
         )}
       </div>
       <Table
@@ -147,7 +168,7 @@ export function ExamsList() {
         onRetry={() => void exams.refetch()}
         empty={{
           title: "No exams match",
-          hint: search || categoryId || status || tagIds.length ? "Try other filters." : undefined,
+          hint: filters.active ? "Try other filters." : undefined,
         }}
         more={{
           hasMore: !!exams.hasNextPage,

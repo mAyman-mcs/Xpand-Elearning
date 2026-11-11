@@ -6,7 +6,15 @@ import { Badge, Button, Card, ErrorBanner, Loading, PageHeader } from "../../com
 import { api } from "../../lib/api";
 import { AVAILABILITY } from "../../lib/labels";
 import { qk } from "../../lib/query";
+import { currentDevice, deviceProblem, type DeviceProblem } from "../../lib/session";
 import { formatInstant, formatMinutes } from "../../lib/time";
+
+const DEVICE_MESSAGE: Record<DeviceProblem, string> = {
+  touch:
+    "Exams need a laptop or desktop computer: on phones and tablets, the on-screen keyboard would count as leaving the exam. Open this page on a computer to start. Nothing has started yet.",
+  fullscreen:
+    "This exam runs in fullscreen, and this browser can't switch to fullscreen. Open this page in Chrome, Edge or Firefox on a computer. Nothing has started yet.",
+};
 
 /** Asks for fullscreen; must run inside the click (browsers refuse it otherwise). Never throws. */
 export async function enterFullscreen(): Promise<boolean> {
@@ -19,6 +27,22 @@ export async function enterFullscreen(): Promise<boolean> {
   }
 }
 
+/** "1st", "2nd", "3rd", "4th"… */
+function ordinal(n: number): string {
+  const tens = n % 100;
+  if (tens >= 11 && tens <= 13) return `${n}th`;
+  return `${n}${["th", "st", "nd", "rd"][n % 10] ?? "th"}`;
+}
+
+function Fact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+      <dt className="text-xs font-semibold text-slate-600">{label}</dt>
+      <dd className="mt-0.5 text-lg font-bold text-slate-800">{value}</dd>
+    </div>
+  );
+}
+
 // The pre-check page (NEXT_PLAN F2): the rules of this exam, an agreement, then Start.
 export function ExamBrief() {
   const { id = "" } = useParams();
@@ -26,14 +50,22 @@ export function ExamBrief() {
   const client = useQueryClient();
   const brief = useQuery({ queryKey: qk.studentExam(id), queryFn: () => api.student.exam(id), staleTime: 0 });
   const [agreed, setAgreed] = useState(false);
+  const [fullscreenRefused, setFullscreenRefused] = useState(false);
+  const [device] = useState(currentDevice);
   usePageTitle(brief.data?.exam.title ?? "Exam");
 
   const start = useMutation({
     mutationFn: async () => {
-      if (brief.data?.exam.requireFullscreen) await enterFullscreen();
+      setFullscreenRefused(false);
+      // Never start the timer without fullscreen when the exam needs it.
+      if (brief.data?.exam.requireFullscreen && !(await enterFullscreen())) {
+        setFullscreenRefused(true);
+        return null;
+      }
       return api.attempts.start(id);
     },
     onSuccess: (attempt) => {
+      if (!attempt) return;
       client.setQueryData(qk.attempt(attempt.attemptId), attempt);
       void client.invalidateQueries({ queryKey: qk.studentExams });
       void navigate(`/exam/${attempt.attemptId}`);
@@ -48,10 +80,11 @@ export function ExamBrief() {
   const { exam, status } = brief.data;
   const resuming = brief.data.inProgressAttemptId !== null;
   const canStart = status === "OPEN" && !exam.isExternal;
+  const problem = deviceProblem(device, exam.requireFullscreen);
 
   return (
     <div className="mx-auto max-w-3xl">
-      <Link to="/student" className="text-sm font-semibold text-teal-700 hover:underline">
+      <Link to="/student" className="text-sm font-semibold text-brand-700 hover:underline">
         ← My exams
       </Link>
       <PageHeader
@@ -75,35 +108,69 @@ export function ExamBrief() {
         </Card>
       )}
 
-      <Card title="Before you start" className="mb-4">
-        <ul className="list-disc space-y-2 pl-5 text-sm text-slate-700">
-          <li>
-            The timer starts when you press Start and <strong>never pauses</strong>, even if you close the page or lose
-            your connection.
-            {brief.data.closesAt && <> The exam window closes {formatInstant(brief.data.closesAt)}.</>}
-          </li>
-          <li>Your answers are saved as you go. When time runs out, the exam is submitted automatically.</li>
-          <li>
-            Use one device and one browser. Signing in elsewhere doesn't move the exam: it stays on the browser where
-            you started it.
-          </li>
-          {exam.requireFullscreen && <li>The exam runs in fullscreen. Leaving fullscreen counts as a violation.</li>}
-          <li>
-            Switching tabs or windows, leaving fullscreen, or shrinking the window counts as a violation. After{" "}
-            <strong>{exam.strikeLimit}</strong> violations the exam is submitted automatically.
-          </li>
-          <li>Copying, pasting, printing and screenshots are blocked and recorded.</li>
-          {!exam.allowBackNavigation && (
-            <li>
-              <strong>You can't go back</strong> to a question once you move past it. The questions of one case are on
-              the same screen, so you can move between them until you go on.
-            </li>
-          )}
-          <li>Your name is shown on the exam screen.</li>
-        </ul>
-      </Card>
+      <section aria-labelledby="rules-title" className="mb-4">
+        <h2 id="rules-title" className="sr-only">
+          Before you start
+        </h2>
+        <dl className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Fact label="Time" value={formatMinutes(exam.durationMinutes)} />
+          <Fact label="Questions" value={String(exam.questionCount)} />
+          <Fact label="Warnings allowed" value={String(exam.strikeLimit - 1)} />
+          <Fact label="Going back" value={exam.allowBackNavigation ? "Allowed" : "Not allowed"} />
+        </dl>
 
-      {canStart && (
+        <div className="mb-4 rounded-xl border-2 border-red-200 bg-white p-5 shadow-sm">
+          <h3 className="text-base font-bold text-red-800">Can end your exam</h3>
+          <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-800">
+            <li>
+              The timer starts when you press Start and <strong>never pauses</strong>, even if you close the page or
+              lose your connection. When time runs out, the exam is submitted automatically.
+              {brief.data.closesAt && <> The exam window closes {formatInstant(brief.data.closesAt)}.</>}
+            </li>
+            <li>
+              Switching tabs or windows{exam.requireFullscreen ? ", leaving fullscreen" : ""} or shrinking the window
+              gives you a warning. At the <strong>{ordinal(exam.strikeLimit)} warning</strong> the exam is submitted
+              automatically.
+            </li>
+            {!exam.allowBackNavigation && (
+              <li>
+                <strong>You can&apos;t go back</strong> to a question once you move past it. The questions of one case
+                are on the same screen, so you can move between them until you go on.
+              </li>
+            )}
+          </ul>
+        </div>
+
+        <Card title="Good to know">
+          <ul className="list-disc space-y-2 pl-5 text-sm text-slate-700">
+            <li>
+              Use a <strong>laptop or desktop computer</strong>. Phones and tablets can&apos;t be used for exams.
+            </li>
+            {exam.requireFullscreen && <li>The exam runs in fullscreen.</li>}
+            <li>Your answers are saved as you go.</li>
+            <li>
+              Use one device and one browser. Signing in elsewhere doesn&apos;t move the exam: it stays on the browser
+              where you started it.
+            </li>
+            <li>
+              Copying, pasting and printing are turned off, and pasting into answers isn&apos;t possible. This
+              doesn&apos;t count as a warning.
+            </li>
+            <li>Your name is shown across the exam screen.</li>
+          </ul>
+        </Card>
+      </section>
+
+      {canStart && problem && (
+        <Card>
+          <div role="alert" className="text-sm text-slate-800">
+            <p className="font-semibold">You can&apos;t start this exam on this device.</p>
+            <p className="mt-1">{DEVICE_MESSAGE[problem]}</p>
+          </div>
+        </Card>
+      )}
+
+      {canStart && !problem && (
         <Card>
           <label className="flex items-start gap-3 text-sm text-slate-800">
             <input
@@ -122,6 +189,12 @@ export function ExamBrief() {
               <span className="text-xs text-slate-600">Study materials are on your exams page.</span>
             )}
           </div>
+          {fullscreenRefused && (
+            <p role="alert" className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              Your browser didn&apos;t switch to fullscreen, so the exam hasn&apos;t started. Allow fullscreen if your
+              browser asks, then press Start again.
+            </p>
+          )}
           {start.error && (
             <div className="mt-3">
               <ErrorBanner error={start.error} />

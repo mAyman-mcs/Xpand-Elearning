@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { blockedShortcut, clockOffset, formatCountdown, isShrunk, remainingMs, retryDelay } from "./session";
+import {
+  blockedShortcut,
+  clockOffset,
+  crossedWarning,
+  deviceProblem,
+  formatCountdown,
+  isShrunk,
+  remainingMs,
+  retryDelay,
+  warningText,
+} from "./session";
 
 const key = (k: string, mods: Partial<Record<"ctrlKey" | "metaKey" | "shiftKey" | "altKey", boolean>> = {}) => ({
   key: k,
@@ -57,6 +67,46 @@ describe("window size", () => {
     expect(isShrunk({ width: 1920, height: 940 }, screen)).toBe(false);
     expect(isShrunk({ width: 960, height: 1040 }, screen)).toBe(true);
     expect(isShrunk({ width: 1920, height: 500 }, screen)).toBe(true);
+  });
+});
+
+describe("time warnings", () => {
+  const min = 60_000;
+  it("warns when the time left crosses 10, 5 and 1 minute", () => {
+    expect(crossedWarning(10 * min + 400, 10 * min - 100)).toBe(10 * min);
+    expect(crossedWarning(5 * min + 1, 5 * min)).toBe(5 * min);
+    expect(crossedWarning(61_000, 59_500)).toBe(min);
+  });
+
+  it("stays quiet between thresholds and on the first reading", () => {
+    expect(crossedWarning(8 * min, 7 * min)).toBeNull();
+    expect(crossedWarning(null, 3 * min)).toBeNull();
+    expect(crossedWarning(3 * min, null)).toBeNull();
+  });
+
+  it("gives only the latest warning after a jump (a sleeping laptop)", () => {
+    expect(crossedWarning(12 * min, 4 * min)).toBe(5 * min);
+  });
+
+  it("reads naturally", () => {
+    expect(warningText(10 * min)).toBe("10 minutes left");
+    expect(warningText(min)).toBe("1 minute left");
+  });
+});
+
+describe("devices that can't take an exam", () => {
+  it("accepts a laptop or desktop", () => {
+    expect(deviceProblem({ touch: false, fullscreenEnabled: true }, true)).toBeNull();
+  });
+
+  it("refuses phones and tablets, fullscreen or not", () => {
+    expect(deviceProblem({ touch: true, fullscreenEnabled: true }, false)).toBe("touch");
+  });
+
+  it("refuses a browser without fullscreen only when the exam needs it", () => {
+    const noFullscreen = { touch: false, fullscreenEnabled: false };
+    expect(deviceProblem(noFullscreen, true)).toBe("fullscreen");
+    expect(deviceProblem(noFullscreen, false)).toBeNull();
   });
 });
 

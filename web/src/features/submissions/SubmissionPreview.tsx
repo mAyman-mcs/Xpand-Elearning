@@ -30,7 +30,7 @@ export function SubmissionPreview() {
 
   return (
     <>
-      <Link to="/submissions" className="text-sm font-semibold text-teal-700 hover:underline">
+      <Link to="/submissions" className="text-sm font-semibold text-brand-700 hover:underline">
         ← Submissions
       </Link>
       <PageHeader

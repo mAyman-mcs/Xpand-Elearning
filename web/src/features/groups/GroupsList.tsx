@@ -31,7 +31,7 @@ export function GroupsList() {
     {
       header: "Group",
       cell: (g) => (
-        <Link to={`/admin/groups/${g.id}`} className="font-semibold text-teal-700 hover:underline">
+        <Link to={`/admin/groups/${g.id}`} className="font-semibold text-brand-700 hover:underline">
           {g.name}
         </Link>
       ),

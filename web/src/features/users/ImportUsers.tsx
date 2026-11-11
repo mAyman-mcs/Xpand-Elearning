@@ -27,6 +27,12 @@ export function ImportUsers() {
   const [fileError, setFileError] = useState<string | null>(null);
   const [check, setCheck] = useState<ImportResult | null>(null);
   const [credentials, setCredentials] = useState<Credentials | null>(null);
+  const [downloaded, setDownloaded] = useState(false);
+  const [closingUnsaved, setClosingUnsaved] = useState(false);
+  const closeCredentials = () => {
+    setCredentials(null);
+    void navigate("/admin/users");
+  };
 
   const dryRun = useMutation({
     mutationFn: (r: Record<string, string>[]) => api.users.import(r, true),
@@ -92,7 +98,7 @@ export function ImportUsers() {
               type="file"
               accept=".csv,text/csv"
               onChange={(e) => void onFile(e)}
-              className="mt-1 block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-teal-50 file:px-4 file:py-2 file:font-semibold file:text-teal-700"
+              className="mt-1 block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-4 file:py-2 file:font-semibold file:text-brand-700"
             />
           </label>
           <div className="mt-3">
@@ -151,20 +157,28 @@ export function ImportUsers() {
         wide
         footer={
           <>
+            {/* Closing loses the passwords for good: only after downloading, or after asking once. */}
+            {!downloaded &&
+              (closingUnsaved ? (
+                <Button variant="danger" onClick={closeCredentials}>
+                  Close: the passwords are lost
+                </Button>
+              ) : (
+                <Button variant="ghost" onClick={() => setClosingUnsaved(true)}>
+                  Close without downloading
+                </Button>
+              ))}
             <Button
-              variant="secondary"
-              onClick={() =>
-                downloadText(`credentials-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(credentials ?? []))
-              }
+              variant={downloaded ? "secondary" : "primary"}
+              onClick={() => {
+                downloadText(`credentials-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(credentials ?? []));
+                setDownloaded(true);
+                setClosingUnsaved(false);
+              }}
             >
               Download credentials (CSV)
             </Button>
-            <Button
-              onClick={() => {
-                setCredentials(null);
-                void navigate("/admin/users");
-              }}
-            >
+            <Button disabled={!downloaded} onClick={closeCredentials}>
               I have saved them
             </Button>
           </>

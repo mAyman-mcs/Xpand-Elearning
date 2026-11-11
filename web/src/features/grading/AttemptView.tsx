@@ -24,7 +24,7 @@ export function AttemptBlocks({
         const cards = block.map(card);
         if (!c) return <li key={block[0]!.id}>{cards}</li>;
         return (
-          <li key={c.id} className="rounded-xl border border-teal-200 bg-teal-50/40 p-3 sm:p-4">
+          <li key={c.id} className="rounded-xl border border-brand-200 bg-brand-50/40 p-3 sm:p-4">
             <section aria-label={`Case: ${c.title}`} className="space-y-4">
               <div>
                 <p className="mb-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">

@@ -1,4 +1,5 @@
-import type { QuestionImportResult, QuestionType, StaffCase, StaffQuestion } from "@contracts";
+import type { QuestionImportResult, QuestionList, QuestionType, StaffCase, StaffQuestion } from "@contracts";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
@@ -12,7 +13,9 @@ import {
   ANSWER_SIZE_LABEL,
   contentBlocks,
   IMPORT_EXAMPLE,
+  inOrder,
   moveBlock,
+  moveBlockTo,
   optionLetter,
   QUESTION_TYPE_LABEL,
   uploadUrl,
@@ -21,6 +24,7 @@ import { qk } from "../../lib/query";
 import { useExam } from "../exams/ExamLayout";
 import { CaseEditor } from "./CaseEditor";
 import { QuestionEditor } from "./QuestionEditor";
+import { MoveTo, SortableItem, SortableList } from "./Reorder";
 
 type Editing = { question: StaffQuestion } | { start: { caseId?: string | null; type?: QuestionType } } | null;
 
@@ -43,10 +47,21 @@ export function ExamQuestions() {
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: qk.questions(exam.id) });
   };
+  // The list moves at once; if the server refuses, it goes back and says why.
   const reorder = useMutation({
     mutationFn: (ids: string[]) => api.questions.reorder(exam.id, ids),
-    onSuccess: refresh,
-    onError: (e) => toast(errorMessage(e), "error"),
+    onMutate: async (ids) => {
+      await queryClient.cancelQueries({ queryKey: qk.questions(exam.id) });
+      const before = queryClient.getQueryData<QuestionList>(qk.questions(exam.id));
+      if (before)
+        queryClient.setQueryData(qk.questions(exam.id), { ...before, questions: inOrder(before.questions, ids) });
+      return { before };
+    },
+    onError: (e, _ids, context) => {
+      if (context?.before) queryClient.setQueryData(qk.questions(exam.id), context.before);
+      toast(errorMessage(e), "error");
+    },
+    onSettled: refresh,
   });
 
   if (content.isPending) return <Loading />;
@@ -73,6 +88,14 @@ export function ExamQuestions() {
     const ids = moveBlock(blocks, blockIndex, by);
     if (ids) reorder.mutate(ids);
   };
+  /** Moves a whole case (or a question on its own) straight to another position (0-based). */
+  const moveTo = (from: number, to: number) => {
+    const ids = moveBlockTo(blocks, from, to);
+    if (ids) reorder.mutate(ids);
+  };
+  /** The sortable ids: one per block that has questions (empty cases stay at the end). */
+  const blockId = (b: (typeof blocks)[number]) => b.case?.id ?? b.questions[0]!.id;
+  const sortableIds = blocks.filter((b) => b.questions.length > 0).map(blockId);
 
   if (exam.isExternal)
     return (
@@ -111,7 +134,10 @@ export function ExamQuestions() {
                 <Button variant="secondary" onClick={() => setEditingCase("new")}>
                   Add case
                 </Button>
-                <Button onClick={() => setEditing({ start: {} })}>Add question</Button>
+                <Button onClick={() => setEditing({ start: {} })}>
+                  <Plus aria-hidden="true" className="h-4 w-4" />
+                  Add question
+                </Button>
               </>
             )}
             {!locked && (
@@ -148,193 +174,242 @@ export function ExamQuestions() {
             Add questions one by one, add a case (a situation with its questions), or import a list.
           </EmptyState>
         ) : (
-          <ol className="space-y-3" aria-label="Questions">
-            {blocks.map((block, bi) => {
-              const n = bi + 1;
-              const what = block.case ? "case" : "question";
-              const blockMoves = !locked && block.questions.length > 0 && (
-                <>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={bi === 0 || reorder.isPending}
-                    onClick={() => moveWhole(bi, -1)}
-                    aria-label={`Move ${what} ${n} up`}
-                  >
-                    ↑
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={bi >= placed - 1 || reorder.isPending}
-                    onClick={() => moveWhole(bi, 1)}
-                    aria-label={`Move ${what} ${n} down`}
-                  >
-                    ↓
-                  </Button>
-                </>
-              );
-
-              if (!block.case) {
-                const q = block.questions[0]!;
-                return (
-                  <li key={q.id} className="rounded-lg border border-slate-200 p-4">
-                    <QuestionRow
-                      label={`Q${n}`}
-                      q={q}
-                      actions={
-                        <>
-                          {blockMoves}
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => setEditing({ question: q })}
-                            aria-label={`Edit question ${n}`}
-                          >
-                            Edit
-                          </Button>
-                          {!locked && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => setDeleting(q)}
-                              aria-label={`Delete question ${n}`}
-                            >
-                              Delete
-                            </Button>
-                          )}
-                        </>
-                      }
-                    />
-                  </li>
-                );
-              }
-
-              const c = block.case;
-              const casePoints = block.questions.reduce((sum, q) => sum + q.points, 0);
-              return (
-                <li key={c.id} className="rounded-lg border border-teal-200 bg-teal-50/40 p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="mb-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">
-                        <span className="font-bold text-slate-700">
-                          {block.questions.length ? `Q${n}` : "No questions yet"}
-                        </span>
-                        <Badge tone="teal">Case</Badge>
-                        {c.label && <Badge>{c.label}</Badge>}
-                        <span>
-                          {block.questions.length} question{block.questions.length === 1 ? "" : "s"} · {casePoints}{" "}
-                          point{casePoints === 1 ? "" : "s"}
-                        </span>
-                      </p>
-                      <h3 className="font-bold text-slate-800">{c.title}</h3>
-                      <p className="mt-1 text-sm whitespace-pre-wrap text-slate-700">{c.situation}</p>
-                      {c.hint && (
-                        <p className="mt-1 text-sm text-amber-800">
-                          <span className="font-semibold">Hint:</span> {c.hint}
-                          {!exam.showHints && <span className="text-xs text-slate-600"> (hidden from students)</span>}
-                        </p>
-                      )}
-                      {c.imageId && <Picture src={uploadUrl(c.imageId)} alt={c.imageAlt} className="mt-2 max-h-32" />}
-                    </div>
-                    <div className="flex flex-wrap gap-1">
+          <SortableList ids={sortableIds} onMove={moveTo}>
+            <ol className="space-y-3" aria-label="Questions">
+              {blocks.map((block, bi) => {
+                const n = bi + 1;
+                const what = block.case ? "case" : "question";
+                const sortable = !locked && block.questions.length > 0;
+                const key = block.case?.id ?? block.questions[0]!.id;
+                const moveTools = (handle: ReactNode) =>
+                  sortable && (
+                    <>
+                      {handle}
+                      <MoveTo
+                        position={n}
+                        count={placed}
+                        label={`${what} ${n}`}
+                        disabled={reorder.isPending}
+                        onMove={(to) => moveTo(bi, to - 1)}
+                      />
                       {blockMoves}
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => setEditingCase(c)}
-                        aria-label={`Edit case ${c.title}`}
-                      >
-                        Edit case
-                      </Button>
-                      {!locked && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setDeletingCase({ c, count: block.questions.length })}
-                          aria-label={`Delete case ${c.title}`}
-                        >
-                          Delete
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  {block.questions.length > 0 && (
-                    <ol className="mt-3 space-y-2" aria-label={`Questions of ${c.title}`}>
-                      {block.questions.map((q, qi) => (
-                        <li key={q.id} className="rounded-lg border border-slate-200 bg-white p-3">
-                          <QuestionRow
-                            label={`Q${n}${part(qi)}`}
-                            q={q}
-                            actions={
-                              <>
-                                {!locked && (
-                                  <>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      disabled={qi === 0 || reorder.isPending}
-                                      onClick={() => moveWithin(q.id, -1)}
-                                      aria-label={`Move question ${n}${part(qi)} up`}
-                                    >
-                                      ↑
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      disabled={qi === block.questions.length - 1 || reorder.isPending}
-                                      onClick={() => moveWithin(q.id, 1)}
-                                      aria-label={`Move question ${n}${part(qi)} down`}
-                                    >
-                                      ↓
-                                    </Button>
-                                  </>
-                                )}
+                    </>
+                  );
+                const blockMoves = (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={bi === 0 || reorder.isPending}
+                      onClick={() => moveWhole(bi, -1)}
+                      aria-label={`Move ${what} ${n} up`}
+                    >
+                      ↑
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={bi >= placed - 1 || reorder.isPending}
+                      onClick={() => moveWhole(bi, 1)}
+                      aria-label={`Move ${what} ${n} down`}
+                    >
+                      ↓
+                    </Button>
+                  </>
+                );
+
+                if (!block.case) {
+                  const q = block.questions[0]!;
+                  return (
+                    <SortableItem
+                      key={key}
+                      id={key}
+                      disabled={!sortable}
+                      label={`question ${n}`}
+                      className="rounded-lg border border-slate-200 bg-white p-4"
+                    >
+                      {(handle) => (
+                        <QuestionRow
+                          label={`Q${n}`}
+                          q={q}
+                          actions={
+                            <>
+                              {moveTools(handle)}
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => setEditing({ question: q })}
+                                aria-label={`Edit question ${n}`}
+                              >
+                                <Pencil aria-hidden="true" className="h-4 w-4" />
+                                Edit
+                              </Button>
+                              {!locked && (
                                 <Button
                                   size="sm"
-                                  variant="secondary"
-                                  onClick={() => setEditing({ question: q })}
-                                  aria-label={`Edit question ${n}${part(qi)}`}
+                                  variant="ghost"
+                                  onClick={() => setDeleting(q)}
+                                  aria-label={`Delete question ${n}`}
                                 >
-                                  Edit
+                                  <Trash2 aria-hidden="true" className="h-4 w-4" />
+                                  Delete
                                 </Button>
-                                {!locked && (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => setDeleting(q)}
-                                    aria-label={`Delete question ${n}${part(qi)}`}
-                                  >
-                                    Delete
-                                  </Button>
-                                )}
-                              </>
-                            }
-                          />
-                        </li>
-                      ))}
-                    </ol>
-                  )}
-                  {!locked && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <Button size="sm" variant="secondary" onClick={() => setEditing({ start: { caseId: c.id } })}>
-                        Add multiple-choice question
-                      </Button>
-                      {essays && (
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => setEditing({ start: { caseId: c.id, type: "ESSAY" } })}
-                        >
-                          Add written follow-up
-                        </Button>
+                              )}
+                            </>
+                          }
+                        />
                       )}
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ol>
+                    </SortableItem>
+                  );
+                }
+
+                const c = block.case;
+                const casePoints = block.questions.reduce((sum, q) => sum + q.points, 0);
+                return (
+                  <SortableItem
+                    key={key}
+                    id={key}
+                    disabled={!sortable}
+                    label={`case ${n}`}
+                    className="rounded-lg border border-brand-200 bg-brand-50 p-4"
+                  >
+                    {(handle) => (
+                      <>
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <p className="mb-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                              <span className="font-bold text-slate-700">
+                                {block.questions.length ? `Q${n}` : "No questions yet"}
+                              </span>
+                              <Badge tone="teal">Case</Badge>
+                              {c.label && <Badge>{c.label}</Badge>}
+                              <span>
+                                {block.questions.length} question{block.questions.length === 1 ? "" : "s"} ·{" "}
+                                {casePoints} point{casePoints === 1 ? "" : "s"}
+                              </span>
+                            </p>
+                            <h3 className="font-bold text-slate-800">{c.title}</h3>
+                            <p className="mt-1 text-sm whitespace-pre-wrap text-slate-700">{c.situation}</p>
+                            {c.hint && (
+                              <p className="mt-1 text-sm text-amber-800">
+                                <span className="font-semibold">Hint:</span> {c.hint}
+                                {!exam.showHints && (
+                                  <span className="text-xs text-slate-600"> (hidden from students)</span>
+                                )}
+                              </p>
+                            )}
+                            {c.imageId && (
+                              <Picture src={uploadUrl(c.imageId)} alt={c.imageAlt} className="mt-2 max-h-32" />
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {moveTools(handle)}
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => setEditingCase(c)}
+                              aria-label={`Edit case ${c.title}`}
+                            >
+                              Edit case
+                            </Button>
+                            {!locked && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setDeletingCase({ c, count: block.questions.length })}
+                                aria-label={`Delete case ${c.title}`}
+                              >
+                                <Trash2 aria-hidden="true" className="h-4 w-4" />
+                                Delete
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                        {block.questions.length > 0 && (
+                          <ol className="mt-3 space-y-2" aria-label={`Questions of ${c.title}`}>
+                            {block.questions.map((q, qi) => (
+                              <li key={q.id} className="rounded-lg border border-slate-200 bg-white p-3">
+                                <QuestionRow
+                                  label={`Q${n}${part(qi)}`}
+                                  q={q}
+                                  actions={
+                                    <>
+                                      {!locked && (
+                                        <>
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            disabled={qi === 0 || reorder.isPending}
+                                            onClick={() => moveWithin(q.id, -1)}
+                                            aria-label={`Move question ${n}${part(qi)} up`}
+                                          >
+                                            ↑
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            disabled={qi === block.questions.length - 1 || reorder.isPending}
+                                            onClick={() => moveWithin(q.id, 1)}
+                                            aria-label={`Move question ${n}${part(qi)} down`}
+                                          >
+                                            ↓
+                                          </Button>
+                                        </>
+                                      )}
+                                      <Button
+                                        size="sm"
+                                        variant="secondary"
+                                        onClick={() => setEditing({ question: q })}
+                                        aria-label={`Edit question ${n}${part(qi)}`}
+                                      >
+                                        <Pencil aria-hidden="true" className="h-4 w-4" />
+                                        Edit
+                                      </Button>
+                                      {!locked && (
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          onClick={() => setDeleting(q)}
+                                          aria-label={`Delete question ${n}${part(qi)}`}
+                                        >
+                                          <Trash2 aria-hidden="true" className="h-4 w-4" />
+                                          Delete
+                                        </Button>
+                                      )}
+                                    </>
+                                  }
+                                />
+                              </li>
+                            ))}
+                          </ol>
+                        )}
+                        {!locked && (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => setEditing({ start: { caseId: c.id } })}
+                            >
+                              Add multiple-choice question
+                            </Button>
+                            {essays && (
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => setEditing({ start: { caseId: c.id, type: "ESSAY" } })}
+                              >
+                                Add written follow-up
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </SortableItem>
+                );
+              })}
+            </ol>
+          </SortableList>
         )}
       </Card>
 
@@ -588,7 +663,7 @@ function ImportDialog({
         }}
       />
       <details className="text-sm">
-        <summary className="cursor-pointer text-teal-700">Show the format</summary>
+        <summary className="cursor-pointer text-brand-700">Show the format</summary>
         <pre className="mt-2 max-h-56 overflow-auto rounded bg-slate-50 p-2 text-xs">{IMPORT_EXAMPLE}</pre>
         <p className="mt-1 text-xs text-slate-600">
           type: SINGLE_CHOICE, MULTI_CHOICE, TRUE_FALSE or ESSAY · points defaults to 1 · answerSize (essays): SHORT or

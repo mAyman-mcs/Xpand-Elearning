@@ -1,9 +1,9 @@
 import type { GradingAttempt, GradingQuestion } from "@contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { QueryErrorPage, usePageTitle } from "../../app/pages";
-import { ConfirmDialog } from "../../components/Dialog";
+import { ConfirmDialog, LeavePageDialog } from "../../components/Dialog";
 import { FormError, TextArea, TextInput } from "../../components/form";
 import { useToast } from "../../components/Toast";
 import { Badge, Button, Card, Loading, PageHeader } from "../../components/ui";
@@ -17,6 +17,7 @@ import {
   isOverride,
   type Draft,
 } from "../../lib/grading";
+import { useUnsavedChanges } from "../../lib/forms";
 import { qk } from "../../lib/query";
 import { formatInstant } from "../../lib/time";
 import { AttemptBlocks, QuestionBody } from "./AttemptView";
@@ -51,13 +52,8 @@ function Grader({ attempt: a }: { attempt: GradingAttempt }) {
   const invalid = a.questions.some((q) => drafts[q.id] && draftProblem(q, drafts[q.id]!));
   const dirty = changes.length > 0;
 
-  // Leaving with unsaved grading asks first (the browser's own prompt).
-  useEffect(() => {
-    if (!dirty) return;
-    const onUnload = (e: BeforeUnloadEvent) => e.preventDefault();
-    window.addEventListener("beforeunload", onUnload);
-    return () => window.removeEventListener("beforeunload", onUnload);
-  }, [dirty]);
+  // Leaving with unsaved grading asks first: the browser's prompt for the tab, a dialog in the app.
+  const blocker = useUnsavedChanges(dirty);
 
   const done = async (next: GradingAttempt) => {
     client.setQueryData(qk.grading(a.attemptId), next);
@@ -94,6 +90,13 @@ function Grader({ attempt: a }: { attempt: GradingAttempt }) {
         void client.invalidateQueries({ queryKey: qk.grading(a.attemptId) });
     },
   });
+  // "Save and continue" when leaving: saves without updating this page's data, which would remount
+  // the grader (it is keyed by version) and drop the navigation that is waiting.
+  const saveBeforeLeaving = async () => {
+    await api.grading.save(a.attemptId, a.gradingVersion, changes);
+    await client.invalidateQueries({ queryKey: qk.grading(a.attemptId), refetchType: "none" });
+    await client.invalidateQueries({ queryKey: qk.gradingQueue(a.exam.id) });
+  };
   const busy = save.isPending || approve.isPending;
   const error = save.error ?? approve.error;
 
@@ -114,7 +117,7 @@ function Grader({ attempt: a }: { attempt: GradingAttempt }) {
           </span>
         }
         actions={
-          <Link to={`/exams/${a.exam.id}/grading`} className="text-sm font-semibold text-teal-700 hover:underline">
+          <Link to={`/exams/${a.exam.id}/grading`} className="text-sm font-semibold text-brand-700 hover:underline">
             Back to the grading list
           </Link>
         }
@@ -192,12 +195,7 @@ function Grader({ attempt: a }: { attempt: GradingAttempt }) {
               </>
             )}
             {a.nextUngradedId && (
-              <Button
-                variant="ghost"
-                disabled={busy}
-                onClick={() => void navigate(`/grading/${a.nextUngradedId}`)}
-                title={dirty ? "Save first: unsaved grading is lost." : undefined}
-              >
+              <Button variant="ghost" disabled={busy} onClick={() => void navigate(`/grading/${a.nextUngradedId}`)}>
                 Next ungraded →
               </Button>
             )}
@@ -206,6 +204,7 @@ function Grader({ attempt: a }: { attempt: GradingAttempt }) {
         <FormError message={error && !conflict ? errorMessage(error) : null} />
       </div>
 
+      <LeavePageDialog blocker={blocker} onSave={invalid ? undefined : saveBeforeLeaving} />
       <ConfirmDialog
         open={reopening}
         onOpenChange={setReopening}
@@ -260,7 +259,7 @@ function QuestionCard({
             {!readOnly && (
               <button
                 type="button"
-                className="mt-1 text-xs font-semibold text-teal-700 underline"
+                className="mt-1 text-xs font-semibold text-brand-700 underline"
                 onClick={() => setOverriding(true)}
               >
                 Change points

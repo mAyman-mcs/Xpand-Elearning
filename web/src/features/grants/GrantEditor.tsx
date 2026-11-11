@@ -111,10 +111,10 @@ export function GrantEditor({ open, onClose, instructor, grant, names, onSaved }
     <label
       className={cx(
         "flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm",
-        checked ? "border-teal-500 bg-teal-50" : "border-slate-200",
+        checked ? "border-brand-500 bg-brand-50" : "border-slate-200",
       )}
     >
-      <input type="radio" name={name} value={value} checked={checked} onChange={onPick} className="accent-teal-600" />
+      <input type="radio" name={name} value={value} checked={checked} onChange={onPick} className="accent-brand-600" />
       {label}
     </label>
   );

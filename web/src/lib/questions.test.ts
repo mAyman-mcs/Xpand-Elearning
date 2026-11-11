@@ -3,7 +3,9 @@ import {
   blocksOf,
   changeType,
   contentBlocks,
+  inOrder,
   moveBlock,
+  moveBlockTo,
   NEW_QUESTION,
   optionLetter,
   questionProblems,
@@ -121,5 +123,18 @@ describe("case blocks", () => {
     expect(moveBlock(blocks, 1, -1)).toEqual(["2", "3", "1", "4"]);
     expect(moveBlock(blocks, 1, 1)).toEqual(["1", "4", "2", "3"]);
     expect(moveBlock(blocks, 0, -1)).toBeNull();
+  });
+
+  it("moves a block straight to any position, the case as a whole", () => {
+    const blocks = contentBlocks(questions, [caseA, caseB]);
+    // Blocks: [1], [2, 3], [4] (case B has no questions and doesn't count).
+    expect(moveBlockTo(blocks, 2, 0)).toEqual(["4", "1", "2", "3"]);
+    expect(moveBlockTo(blocks, 0, 2)).toEqual(["2", "3", "4", "1"]);
+    expect(moveBlockTo(blocks, 1, 1)).toBeNull();
+    expect(moveBlockTo(blocks, 0, 3)).toBeNull();
+  });
+
+  it("orders questions by a new id list", () => {
+    expect(inOrder([{ id: "a" }, { id: "b" }, { id: "c" }], ["c", "a", "b"]).map((x) => x.id)).toEqual(["c", "a", "b"]);
   });
 });

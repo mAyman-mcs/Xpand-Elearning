@@ -87,16 +87,17 @@ test("an essay exam: chosen type, essay answer, grading, approval", async ({
   await s.page.getByRole("button", { name: "Start exam" }).click();
 
   await s.page.getByRole("radio", { name: "443" }).check();
-  await expect(s.page.getByRole("status").filter({ hasText: "Saved" })).toBeVisible();
+  await expect(s.page.getByRole("status").filter({ hasText: /^Saved$/ })).toBeVisible();
   await s.page.getByRole("button", { name: "Next" }).click();
   await expect(s.page.getByRole("heading", { name: "Explain what TLS protects." })).toBeVisible();
   const answer = s.page.getByRole("textbox", { name: "Your answer" });
   await answer.fill("TLS keeps traffic private and unchanged in transit.");
-  await expect(s.page.getByText(/^51 \/ 10,000 characters/)).toBeVisible();
-  await expect(s.page.getByRole("status").filter({ hasText: "Saved" })).toBeVisible();
-  // Select all works in the essay box and is not recorded as a violation.
+  await expect(s.page.getByRole("status").filter({ hasText: /^Saved$/ })).toBeVisible();
+  // The character counter only appears near the limit.
+  await expect(s.page.getByText(/10,000 characters/)).toHaveCount(0);
+  // Select all works in the essay box and is not recorded as a warning.
   await answer.press("Control+a");
-  await expect(s.page.getByText("Violations: 0 / 3")).toBeVisible();
+  await expect(s.page.getByText(/warnings used/)).toHaveCount(0);
 
   await s.page.getByRole("button", { name: "Submit exam" }).click();
   await s.page
@@ -120,6 +121,13 @@ test("an essay exam: chosen type, essay answer, grading, approval", async ({
   await page.getByLabel("Points (0–5)").fill("4");
   await page.getByLabel("Feedback (optional)").fill("Good, mention authentication too.");
   await expect(page.getByText(/Total: 5/)).toBeVisible();
+
+  // Leaving with unsaved grading asks first; staying keeps it.
+  await page.getByRole("link", { name: "Back to the grading list" }).click();
+  const leave = page.getByRole("dialog", { name: "Leave without saving?" });
+  await leave.getByRole("button", { name: "Stay on this page" }).click();
+  await expect(leave).toBeHidden();
+  await expect(page.getByLabel("Points (0–5)")).toHaveValue("4");
   await page.getByRole("button", { name: "Approve" }).click();
   await expect(page.getByText("Approved: 5 / 6")).toBeVisible();
   await expect(page.getByRole("button", { name: "Reopen" })).toBeVisible();

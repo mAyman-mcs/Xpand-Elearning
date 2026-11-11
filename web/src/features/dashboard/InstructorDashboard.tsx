@@ -11,6 +11,7 @@ import { SubmissionsTable } from "../submissions/SubmissionsTable";
 import { StatCard, type Stat } from "./Dashboard";
 
 const RECENT = 8;
+const TO_GRADE = 5;
 
 /**
  * /instructor: an instructor's own start page. Always available, grants or not: the numbers and
@@ -24,6 +25,12 @@ export function InstructorDashboard() {
   const recent = useQuery({
     queryKey: [...qk.submissions, "recent"],
     queryFn: () => api.submissions.list({}, undefined, RECENT),
+    staleTime: 0,
+  });
+  // What needs this instructor today: attempts waiting for their grading, first on the page.
+  const toGrade = useQuery({
+    queryKey: [...qk.submissions, "awaiting", TO_GRADE],
+    queryFn: () => api.submissions.list({ show: "awaiting-grading" }, undefined, TO_GRADE),
     staleTime: 0,
   });
   const granted = hasAnyGrant(perms);
@@ -59,6 +66,29 @@ export function InstructorDashboard() {
         </p>
       )}
 
+      {!!toGrade.data?.items.length && (
+        <Card
+          title={`Waiting for grading (${s?.submissions.awaitingGrading ?? toGrade.data.items.length})`}
+          actions={
+            <Link
+              to="/submissions?show=awaiting-grading"
+              className="text-sm font-semibold text-brand-700 hover:underline"
+            >
+              See all waiting
+            </Link>
+          }
+          className="mb-8 border-2 border-amber-300"
+        >
+          <SubmissionsTable
+            rows={toGrade.data.items}
+            loading={false}
+            error={null}
+            onRetry={() => void toGrade.refetch()}
+            empty={{ title: "Nothing to grade" }}
+          />
+        </Card>
+      )}
+
       {stats.isPending && <Loading />}
       <ErrorBanner error={stats.error} onRetry={() => void stats.refetch()} />
       {s && (
@@ -74,7 +104,7 @@ export function InstructorDashboard() {
       <Card
         title="Latest submissions"
         actions={
-          <Link to="/submissions" className="text-sm font-semibold text-teal-700 hover:underline">
+          <Link to="/submissions" className="text-sm font-semibold text-brand-700 hover:underline">
             See all submissions
           </Link>
         }

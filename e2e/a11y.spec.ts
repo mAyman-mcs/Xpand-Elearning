@@ -159,7 +159,7 @@ test.describe("student", () => {
     await expect(page.getByRole("timer", { name: "Time left" })).toBeVisible();
     const session = new URL(page.url()).pathname;
     await page.getByRole("radio").first().check();
-    await expect(page.getByRole("status").filter({ hasText: "Saved" })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: /^Saved$/ })).toBeVisible();
     await checkPages(page, [session]);
 
     await page.getByRole("button", { name: "Submit exam" }).click();

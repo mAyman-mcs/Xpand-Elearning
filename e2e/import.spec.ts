@@ -64,6 +64,11 @@ test("a valid file creates the students and a new group; credentials are shown o
   await expect(dialog.getByTestId("secret-value")).toHaveCount(2);
   const password = (await dialog.getByTestId("secret-value").first().textContent()) ?? "";
 
+  // The passwords can't be lost by accident: closing needs the download first (or asking twice).
+  await expect(dialog.getByRole("button", { name: "I have saved them" })).toBeDisabled();
+  await dialog.getByRole("button", { name: "Close without downloading" }).click();
+  await expect(dialog.getByRole("button", { name: "Close: the passwords are lost" })).toBeVisible();
+
   const download = page.waitForEvent("download");
   await dialog.getByRole("button", { name: "Download credentials (CSV)" }).click();
   const file = await readFile((await (await download).path()) ?? "", "utf8");

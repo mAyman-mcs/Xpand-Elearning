@@ -65,6 +65,16 @@ test.describe("users (super admin)", () => {
     await page.getByRole("combobox", { name: "Group" }).selectOption({ label: WORLD.groups.b.name });
     await expect(table).toContainText(WORLD.users.studentB1.fullName);
     await expect(table).not.toContainText(WORLD.users.studentA1.fullName);
+
+    // Filters live in the URL: Back from a user keeps them; Clear filters resets them.
+    await table.getByRole("link", { name: new RegExp(WORLD.users.studentB1.fullName) }).click();
+    await expect(page.getByRole("heading", { level: 1, name: WORLD.users.studentB1.fullName })).toBeVisible();
+    await page.goBack();
+    await expect(page.getByRole("combobox", { name: "Group" })).toHaveValue(/.+/);
+    await expect(table).not.toContainText(WORLD.users.studentA1.fullName);
+    await page.getByRole("button", { name: "Clear filters" }).click();
+    await expect(page.getByRole("combobox", { name: "Group" })).toHaveValue("");
+    await expect(page).toHaveURL(/\/admin\/users$/);
   });
 
   test("edit details", async ({ page, apiAs }) => {
@@ -172,8 +182,9 @@ test("an expired session returns to login, then back to the same page", async ({
   await page.getByRole("searchbox", { name: "Search" }).fill("anything");
   await expect(page.getByText("Your session expired.")).toBeVisible();
   await login(page, WORLD.users.admin.username, E2E_PASSWORD);
-  await expect(page).toHaveURL(/\/admin\/users$/);
-  await expect(page.getByRole("table", { name: "Users" })).toBeVisible();
+  // Back on the same page, with the search that was typed (filters live in the URL).
+  await expect(page).toHaveURL(/\/admin\/users\?q=anything$/);
+  await expect(page.getByRole("searchbox", { name: "Search" })).toHaveValue("anything");
   await context.close();
 });
 

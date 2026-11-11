@@ -18,7 +18,7 @@ beforeEach(async () => {
 afterAll(() => db.$disconnect());
 
 interface StudentExam {
-  exam: { id: string; title: string };
+  exam: { id: string; title: string; passMark: number };
   status: string;
   progress: string;
   opensAt: string | null;
@@ -43,7 +43,10 @@ describe("assigning one exam", () => {
       schedule: { mode: "MANUAL", opensAt: null },
     });
 
-    expect(statusOf(await studentView(w.studentB), w.e2.id)).toBe("CLOSED"); // manual: closed until opened
+    const rowsB = await studentView(w.studentB);
+    expect(statusOf(rowsB, w.e2.id)).toBe("CLOSED"); // manual: closed until opened
+    // Students see the pass mark, to read their score against it.
+    expect(rowsB.find((r) => r.exam.id === w.e2.id)?.exam.passMark).toBe(80);
     expect(statusOf(await studentView(w.users.student), w.e2.id)).toBeUndefined();
 
     const again = await admin

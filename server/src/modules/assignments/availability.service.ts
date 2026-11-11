@@ -57,6 +57,7 @@ export async function studentExams(ctx: Ctx) {
         durationMinutes: exam.durationMinutes,
         isExternal: exam.isExternal,
         scoringMode: exam.scoringMode,
+        passMark: exam.passMark.toNumber(),
         materials: exam.materials,
       },
       // Students see status, progress, window and a readable reason — not internal sources.

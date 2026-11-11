@@ -1,16 +1,18 @@
-import type { AvailabilityRow, AvailabilityStatus } from "@contracts";
-import { useQuery } from "@tanstack/react-query";
+import type { AvailabilityRow, AvailabilityStatus, OverrideAction, PersonRef } from "@contracts";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { usePermissions } from "../../app/auth";
 import { SelectInput, TextInput } from "../../components/form";
 import { Table, type Column } from "../../components/Table";
-import { Badge, Button, Card } from "../../components/ui";
+import { useToast } from "../../components/Toast";
+import { Badge, Button, Card, cx } from "../../components/ui";
 import { api } from "../../lib/api";
 import { AVAILABILITY, PROGRESS } from "../../lib/labels";
 import { can } from "../../lib/permissions";
 import { qk } from "../../lib/query";
 import { formatInstant } from "../../lib/time";
 import { useExam } from "../exams/ExamLayout";
+import { NewOverrideDialog } from "./ExamOverrides";
 import { GiveAnotherAttempt } from "./GiveAnotherAttempt";
 
 const SOURCE: Record<string, string> = {
@@ -34,7 +36,11 @@ export function ExamAvailability() {
   const { data: perms } = usePermissions();
   const ref = { id: exam.id, categoryId: exam.category.id, tagIds: exam.tags.map((t) => t.id) };
   const mayAssign = can(perms, "EXAM_ASSIGN", ref);
+  const maySchedule = can(perms, "EXAM_SCHEDULE", ref);
+  const queryClient = useQueryClient();
+  const toast = useToast();
   const [another, setAnother] = useState<AvailabilityRow | null>(null);
+  const [override, setOverride] = useState<{ action: OverrideAction; student: PersonRef } | null>(null);
   const [status, setStatus] = useState<AvailabilityStatus | "">("");
   const [search, setSearch] = useState("");
 
@@ -86,21 +92,46 @@ export function ExamAvailability() {
         </span>
       ),
     },
-    ...(mayAssign
+    ...(mayAssign || maySchedule
       ? [
           {
-            header: "Action",
-            cell: (r: AvailabilityRow) =>
-              r.status === "SUBMITTED" ? (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  aria-label={`Give ${r.student.fullName} another attempt`}
-                  onClick={() => setAnother(r)}
-                >
-                  Another attempt
-                </Button>
-              ) : null,
+            header: "Actions",
+            className: "text-right",
+            cell: (r: AvailabilityRow) => (
+              <div className="flex flex-wrap justify-end gap-2">
+                {/* A used-up attempt needs another attempt; an override can't reopen it. */}
+                {mayAssign && r.status === "SUBMITTED" && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    aria-label={`Give ${r.student.fullName} another attempt`}
+                    onClick={() => setAnother(r)}
+                  >
+                    Another attempt
+                  </Button>
+                )}
+                {maySchedule && r.status === "OPEN" && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-label={`Close now for ${r.student.fullName}`}
+                    onClick={() => setOverride({ action: "CLOSE", student: r.student })}
+                  >
+                    Close now
+                  </Button>
+                )}
+                {maySchedule && (r.status === "CLOSED" || r.status === "SCHEDULED" || r.status === "MISSED") && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    aria-label={`Open now for ${r.student.fullName}`}
+                    onClick={() => setOverride({ action: "OPEN", student: r.student })}
+                  >
+                    Open now
+                  </Button>
+                )}
+              </div>
+            ),
           },
         ]
       : []),
@@ -108,10 +139,30 @@ export function ExamAvailability() {
 
   return (
     <Card title="Who can take it, and why">
-      <p className="mb-4 text-sm text-slate-600">
-        Computed now by the same rules students see. Statuses:{" "}
-        {[...counts.entries()].map(([s, n]) => `${AVAILABILITY[s].label} ${n}`).join(" · ") || "—"}
-      </p>
+      <p className="mb-3 text-sm text-slate-600">Computed now by the same rules students see.</p>
+      {counts.size > 0 && (
+        <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Show students by status">
+          {[...counts.entries()].map(([s, n]) => {
+            const on = status === s;
+            return (
+              <button
+                key={s}
+                type="button"
+                aria-pressed={on}
+                onClick={() => setStatus(on ? "" : s)}
+                className={cx(
+                  "rounded-full border px-3 py-1 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none",
+                  on
+                    ? "border-brand-700 bg-brand-700 text-white"
+                    : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50",
+                )}
+              >
+                {AVAILABILITY[s].label} · {n}
+              </button>
+            );
+          })}
+        </div>
+      )}
       <div className="mb-4 grid gap-3 sm:grid-cols-2">
         <TextInput
           label="Search"
@@ -145,9 +196,22 @@ export function ExamAvailability() {
         onRetry={() => void rows.refetch()}
         empty={{
           title: rows.data?.length ? "Nobody matches" : "Not assigned to any student you can see",
-          hint: rows.data?.length ? undefined : "Assign it on the Assignments tab.",
+          hint: rows.data?.length ? undefined : "Assign it under “Assigned to” below.",
         }}
       />
+      {override && (
+        <NewOverrideDialog
+          examId={exam.id}
+          initial={override}
+          onClose={() => setOverride(null)}
+          onSaved={async (action) => {
+            await queryClient.invalidateQueries({ queryKey: qk.overrides(exam.id) });
+            await queryClient.invalidateQueries({ queryKey: qk.availability(exam.id) });
+            await queryClient.invalidateQueries({ queryKey: qk.stats });
+            toast(action === "OPEN" ? "Exam opened" : "Exam closed");
+          }}
+        />
+      )}
       {another && (
         <GiveAnotherAttempt
           target={{ exam: { ...ref, title: exam.title }, student: another.student }}

@@ -76,7 +76,7 @@ export function ExamMaterials() {
                 href={m.url}
                 target="_blank"
                 rel="noreferrer noopener"
-                className="font-semibold text-teal-700 hover:underline"
+                className="font-semibold text-brand-700 hover:underline"
               >
                 {m.title}
               </a>

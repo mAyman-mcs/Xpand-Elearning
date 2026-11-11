@@ -84,7 +84,7 @@ export function SubmissionsTable({
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <Link
             to={`/submissions/${r.attemptId}`}
-            className="font-semibold text-teal-700 hover:underline"
+            className="font-semibold text-brand-700 hover:underline"
             aria-label={`Preview ${r.student.fullName}'s ${r.exam.title}`}
           >
             Preview
@@ -92,7 +92,7 @@ export function SubmissionsTable({
           {r.awaitingGrading && mayGrade && (
             <Link
               to={`/grading/${r.attemptId}`}
-              className="font-semibold text-teal-700 hover:underline"
+              className="font-semibold text-brand-700 hover:underline"
               aria-label={`Grade ${r.student.fullName}'s ${r.exam.title}`}
             >
               Grade

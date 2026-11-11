@@ -137,7 +137,7 @@ function Categories() {
       header: "Category",
       cell: (c) => (
         <span>
-          <span className="font-semibold">{c.name}</span> {c.archived && <Badge tone="amber">Archived</Badge>}
+          <span className="font-semibold">{c.name}</span> {c.archived && <Badge tone="gray">Archived</Badge>}
           <span className="block font-mono text-xs text-slate-600">{c.slug}</span>
         </span>
       ),
@@ -146,7 +146,7 @@ function Categories() {
       header: "Exams",
       cell: (c) =>
         c.examCount ? (
-          <Link to={`/exams?categoryId=${c.id}`} className="text-teal-700 hover:underline">
+          <Link to={`/exams?categoryId=${c.id}`} className="text-brand-700 hover:underline">
             {c.examCount}
           </Link>
         ) : (

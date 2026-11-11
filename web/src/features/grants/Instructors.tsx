@@ -51,7 +51,7 @@ export function InstructorsList() {
     {
       header: "Instructor",
       cell: (u) => (
-        <Link to={`/admin/instructors/${u.id}`} className="font-semibold text-teal-700 hover:underline">
+        <Link to={`/admin/instructors/${u.id}`} className="font-semibold text-brand-700 hover:underline">
           {u.fullName}
           <span className="block font-mono text-xs font-normal text-slate-600">{u.username}</span>
         </Link>
@@ -131,7 +131,7 @@ export function InstructorDetail() {
       <Card>
         <EmptyState title={`${u.fullName} is not an instructor`}>
           Only instructors receive grants.{" "}
-          <Link to={`/admin/users/${u.id}`} className="text-teal-700 underline">
+          <Link to={`/admin/users/${u.id}`} className="text-brand-700 underline">
             Open the user
           </Link>{" "}
           to change the role.
@@ -146,7 +146,7 @@ export function InstructorDetail() {
         description={
           <>
             Instructor ·{" "}
-            <Link to={`/admin/users/${u.id}`} className="text-teal-700 hover:underline">
+            <Link to={`/admin/users/${u.id}`} className="text-brand-700 hover:underline">
               account details
             </Link>
           </>
