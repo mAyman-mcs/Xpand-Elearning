@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../../app/auth";
 import { usePageTitle } from "../../app/pages";
 import { Dialog } from "../../components/Dialog";
-import { Badge, ButtonLink, Button, Card, EmptyState, ErrorBanner, Loading, PageHeader } from "../../components/ui";
+import { Badge, ButtonLink, Button, Card, cx, EmptyState, ErrorBanner, Loading, PageHeader } from "../../components/ui";
 import { api } from "../../lib/api";
 import { AVAILABILITY, PROGRESS } from "../../lib/labels";
 import { qk } from "../../lib/query";
@@ -62,6 +62,9 @@ export function StudentHome() {
 
   const rows = [...exams.data].sort((a, b) => ORDER[a.status] - ORDER[b.status]);
   const count = (s: StudentExamRow["status"]) => rows.filter((r) => r.status === s).length;
+  // What the student can act on today comes first, apart from the rest.
+  const doNow = rows.filter((r) => r.status === "OPEN" && !r.exam.isExternal);
+  const others = rows.filter((r) => !doNow.includes(r));
 
   return (
     <>
@@ -78,16 +81,55 @@ export function StudentHome() {
       {rows.length === 0 ? (
         <EmptyState title="No exams yet">When an exam is assigned to you, it appears here.</EmptyState>
       ) : (
-        <ul className="grid gap-4 lg:grid-cols-2" aria-label="My exams">
-          {rows.map((row) => (
-            <li key={row.exam.id}>
-              <ExamCard row={row} now={now} />
-            </li>
-          ))}
-        </ul>
+        <>
+          {doNow.length > 0 && (
+            <section aria-labelledby="do-now" className="mb-8">
+              <h2 id="do-now" className="mb-3 text-sm font-bold tracking-wide text-teal-800 uppercase">
+                Do now
+              </h2>
+              <ExamList rows={doNow} now={now} label="Exams to do now" highlight />
+            </section>
+          )}
+          {others.length > 0 && (
+            <section aria-labelledby="all-exams">
+              <h2 id="all-exams" className="mb-3 text-sm font-bold tracking-wide text-slate-600 uppercase">
+                {doNow.length > 0 ? "Your other exams" : "Your exams"}
+              </h2>
+              <ExamList rows={others} now={now} label="My exams" />
+            </section>
+          )}
+        </>
       )}
     </>
   );
+}
+
+function ExamList({
+  rows,
+  now,
+  label,
+  highlight,
+}: {
+  rows: StudentExamRow[];
+  now: number;
+  label: string;
+  highlight?: boolean;
+}) {
+  return (
+    <ul className="grid gap-4 lg:grid-cols-2" aria-label={label}>
+      {rows.map((row) => (
+        <li key={row.exam.id}>
+          <ExamCard row={row} now={now} highlight={highlight} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** "14 / 20 · 70%" and whether it reaches the pass mark. */
+export function scoreSummary(score: number, maxScore: number, passMark: number) {
+  const percent = maxScore > 0 ? (score / maxScore) * 100 : 0;
+  return { percent: Math.round(percent), passed: percent >= passMark };
 }
 
 function Summary({ label, value }: { label: string; value: number }) {
@@ -99,7 +141,7 @@ function Summary({ label, value }: { label: string; value: number }) {
   );
 }
 
-function ExamCard({ row, now }: { row: StudentExamRow; now: number }) {
+function ExamCard({ row, now, highlight }: { row: StudentExamRow; now: number; highlight?: boolean }) {
   const { exam, status, progress } = row;
   const tone = AVAILABILITY[status];
   const opensIn = status === "SCHEDULED" && row.opensAt ? Date.parse(row.opensAt) - now : null;
@@ -111,7 +153,7 @@ function ExamCard({ row, now }: { row: StudentExamRow; now: number }) {
     (progress === "ANSWERED" || progress === "UNDER_REVIEW");
 
   return (
-    <Card className="h-full">
+    <Card className={cx("h-full", highlight && "border-2 border-teal-600")}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h2 className="text-base font-bold text-slate-800">{exam.title}</h2>
@@ -148,9 +190,7 @@ function ExamCard({ row, now }: { row: StudentExamRow; now: number }) {
       {status === "SUBMITTED" && (
         <p className="mt-3 text-sm text-slate-700">
           {row.result ? (
-            <>
-              Score: <span className="font-semibold">{row.result.score}</span> / {row.result.maxScore}
-            </>
+            <Score result={row.result} passMark={exam.passMark} />
           ) : awaitingGrading ? (
             "Submitted. Your answers are being graded; your result appears here once it is released."
           ) : (
@@ -171,6 +211,19 @@ function ExamCard({ row, now }: { row: StudentExamRow; now: number }) {
         ))}
       </div>
     </Card>
+  );
+}
+
+function Score({ result, passMark }: { result: { score: number; maxScore: number }; passMark: number }) {
+  const { percent, passed } = scoreSummary(result.score, result.maxScore, passMark);
+  return (
+    <span className="flex flex-wrap items-center gap-2">
+      <span>
+        Score: <span className="font-semibold">{result.score}</span> / {result.maxScore} · {percent}%
+      </span>
+      <Badge tone={passed ? "green" : "red"}>{passed ? "Passed" : "Not passed"}</Badge>
+      <span className="text-xs text-slate-600">Pass mark {passMark}%</span>
+    </span>
   );
 }
 

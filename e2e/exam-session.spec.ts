@@ -84,13 +84,13 @@ test("a student takes an exam: autosave, navigation, submit, and no way back in"
   // Question 1, saved on choosing.
   await expect(page.getByRole("heading", { name: "The exam has a question." })).toBeVisible();
   await page.getByRole("radio", { name: "True" }).check();
-  await expect(page.getByRole("status").filter({ hasText: "Saved" })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: /^Saved$/ })).toBeVisible();
   await page.getByRole("button", { name: "Next" }).click();
 
   // Question 2; then back to 1 with the navigator: the answer is still there.
   await expect(page.getByRole("heading", { name: "Which port does HTTPS use?" })).toBeVisible();
   await page.getByRole("radio", { name: "443" }).check();
-  await expect(page.getByRole("status").filter({ hasText: "Saved" })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: /^Saved$/ })).toBeVisible();
   await page.getByRole("button", { name: "Question 1, answered" }).click();
   await expect(page.getByRole("radio", { name: "True" })).toBeChecked();
 
@@ -101,7 +101,7 @@ test("a student takes an exam: autosave, navigation, submit, and no way back in"
 
   // Copy and right-click are blocked and recorded, but don't count as violations.
   await page.getByRole("heading", { name: "The exam has a question." }).click({ button: "right" });
-  await expect(page.getByText("Violations: 0 / 3")).toBeVisible();
+  await expect(page.getByText(/warnings used/)).toHaveCount(0);
 
   await page.getByRole("button", { name: "Submit exam" }).click();
   const confirm = page.getByRole("dialog", { name: "Submit the exam?" });
@@ -138,19 +138,19 @@ test("violations warn, and the limit submits the exam automatically", async ({
   const { context, page } = await asUser(browser, "/student", student.username, PASSWORD);
   await startFromDashboard(page, exam.title);
   await page.getByRole("radio", { name: "True" }).check();
-  await expect(page.getByRole("status").filter({ hasText: "Saved" })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: /^Saved$/ })).toBeVisible();
 
   await hideTab(page);
-  const warning = page.getByRole("dialog", { name: "Warning: violation recorded" });
-  await expect(warning).toContainText("This is violation 1 of 2.");
+  const warning = page.getByRole("dialog", { name: "Warning: you left the exam" });
+  await expect(warning).toContainText("This is warning 1 of 2.");
   await warning.getByRole("button", { name: "Return to the exam" }).click();
-  await expect(page.getByText("Violations: 1 / 2")).toBeVisible();
+  await expect(page.getByText("1 of 2 warnings used")).toBeVisible();
 
   // Signals within 3 s are one action; the next one, later, reaches the limit.
   await page.waitForTimeout(3_200);
   await hideTab(page);
   await expect(page.getByRole("heading", { name: "Exam submitted" })).toBeVisible();
-  await expect(page.getByText(/submitted automatically because the violation limit was reached/)).toBeVisible();
+  await expect(page.getByText(/submitted automatically because the warning limit was reached/)).toBeVisible();
   await context.close();
 });
 
@@ -167,13 +167,16 @@ test("an exam in progress can't be continued from a second browser", async ({
   await startFromDashboard(first.page, exam.title);
   const attemptUrl = first.page.url();
 
-  // Without back navigation: no navigator, no Previous, and Next asks first.
-  await expect(first.page.getByRole("navigation", { name: "Questions" })).toHaveCount(0);
-  await first.page.getByRole("button", { name: "Next" }).click();
+  // Without back navigation: the map shows what is left but opens nothing, there is no Previous,
+  // and Next says it can't return (asking first only when this screen has a blank answer).
+  const map = first.page.getByRole("navigation", { name: "Questions" });
+  await expect(map.getByRole("button", { name: "Question 2, not reached yet" })).toBeDisabled();
+  await first.page.getByRole("button", { name: "Next (can't return)" }).click();
   await first.page
-    .getByRole("dialog", { name: "Move to the next question?" })
-    .getByRole("button", { name: "Next question" })
+    .getByRole("dialog", { name: "Move on with blank answers?" })
+    .getByRole("button", { name: "Move on" })
     .click();
+  await expect(map.getByRole("button", { name: "Question 1, locked" })).toBeDisabled();
   await expect(first.page.getByRole("heading", { name: "Which port does HTTPS use?" })).toBeVisible();
   await expect(first.page.getByRole("button", { name: "Previous" })).toHaveCount(0);
 
@@ -187,8 +190,8 @@ test("an exam in progress can't be continued from a second browser", async ({
 
   // The first browser carries on; the refused tries were recorded as a violation.
   await first.page.getByRole("radio", { name: "443" }).check();
-  await expect(first.page.getByRole("status").filter({ hasText: "Saved" })).toBeVisible();
-  await expect(first.page.getByText(/Violations: [1-9] \/ 3/)).toBeVisible({ timeout: 15_000 });
+  await expect(first.page.getByRole("status").filter({ hasText: /^Saved$/ })).toBeVisible();
+  await expect(first.page.getByText(/[1-9] of 3 warnings used/)).toBeVisible({ timeout: 15_000 });
   await first.context.close();
   await second.context.close();
 });

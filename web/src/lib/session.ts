@@ -20,8 +20,29 @@ export function formatCountdown(ms: number): string {
   return h ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
 }
 
-/** Under five minutes left: the timer turns red and is announced. */
+/** Under five minutes left: the timer turns red. */
 export const LOW_TIME_MS = 5 * 60_000;
+/** Under ten minutes left: the timer turns amber. */
+export const SOON_TIME_MS = 10 * 60_000;
+
+/** The time-left warnings shown and announced: 10, 5 and 1 minute. */
+export const TIME_WARNINGS_MS = [10 * 60_000, 5 * 60_000, 60_000] as const;
+
+/**
+ * The warning just crossed between two readings of the time left, if any. The first reading
+ * (`previous` null) never warns, so a student resuming with 3 minutes left isn't told "10 minutes".
+ */
+export function crossedWarning(previous: number | null, left: number | null): number | null {
+  if (previous === null || left === null) return null;
+  const crossed = TIME_WARNINGS_MS.filter((t) => previous > t && left <= t);
+  return crossed.length ? Math.min(...crossed) : null;
+}
+
+/** "10 minutes left", "1 minute left". */
+export function warningText(ms: number): string {
+  const minutes = Math.round(ms / 60_000);
+  return `${minutes} minute${minutes === 1 ? "" : "s"} left`;
+}
 
 export type ClientEvent =
   | "FULLSCREEN_EXIT"

@@ -129,8 +129,9 @@ test("a use case: case editor, picture options, one screen per case, grading", a
   await s.page.getByRole("radio", { name: "Option A: Power, firmware, bootloader, kernel, login" }).check();
   const short = s.page.getByRole("textbox", { name: /Your answer to question 2/ });
   await short.fill("Secure Boot");
-  await expect(s.page.getByText(/^11 \/ 300 characters/)).toBeVisible();
-  await expect(s.page.getByRole("status").filter({ hasText: "Saved" })).toHaveCount(2);
+  // The counter only appears near the 300-character limit.
+  await expect(s.page.getByText(/300 characters/)).toHaveCount(0);
+  await expect(s.page.getByRole("status").filter({ hasText: /^Saved$/ })).toHaveCount(2);
   const width = await s.page.evaluate(() => document.documentElement.scrollWidth);
   expect(width, "no sideways scrolling on a phone").toBeLessThanOrEqual(390);
   await noSeriousA11yProblems(s.page, "case screen");

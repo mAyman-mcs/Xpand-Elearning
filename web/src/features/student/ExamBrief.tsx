@@ -27,6 +27,22 @@ export async function enterFullscreen(): Promise<boolean> {
   }
 }
 
+/** "1st", "2nd", "3rd", "4th"… */
+function ordinal(n: number): string {
+  const tens = n % 100;
+  if (tens >= 11 && tens <= 13) return `${n}th`;
+  return `${n}${["th", "st", "nd", "rd"][n % 10] ?? "th"}`;
+}
+
+function Fact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+      <dt className="text-xs font-semibold text-slate-600">{label}</dt>
+      <dd className="mt-0.5 text-lg font-bold text-slate-800">{value}</dd>
+    </div>
+  );
+}
+
 // The pre-check page (NEXT_PLAN F2): the rules of this exam, an agreement, then Start.
 export function ExamBrief() {
   const { id = "" } = useParams();
@@ -92,36 +108,58 @@ export function ExamBrief() {
         </Card>
       )}
 
-      <Card title="Before you start" className="mb-4">
-        <ul className="list-disc space-y-2 pl-5 text-sm text-slate-700">
-          <li>
-            Use a <strong>laptop or desktop computer</strong>. Phones and tablets can&apos;t be used for exams.
-          </li>
-          <li>
-            The timer starts when you press Start and <strong>never pauses</strong>, even if you close the page or lose
-            your connection.
-            {brief.data.closesAt && <> The exam window closes {formatInstant(brief.data.closesAt)}.</>}
-          </li>
-          <li>Your answers are saved as you go. When time runs out, the exam is submitted automatically.</li>
-          <li>
-            Use one device and one browser. Signing in elsewhere doesn't move the exam: it stays on the browser where
-            you started it.
-          </li>
-          {exam.requireFullscreen && <li>The exam runs in fullscreen. Leaving fullscreen counts as a violation.</li>}
-          <li>
-            Switching tabs or windows, leaving fullscreen, or shrinking the window counts as a violation. After{" "}
-            <strong>{exam.strikeLimit}</strong> violations the exam is submitted automatically.
-          </li>
-          <li>Copying, pasting, printing and screenshots are blocked and recorded.</li>
-          {!exam.allowBackNavigation && (
+      <section aria-labelledby="rules-title" className="mb-4">
+        <h2 id="rules-title" className="sr-only">
+          Before you start
+        </h2>
+        <dl className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Fact label="Time" value={formatMinutes(exam.durationMinutes)} />
+          <Fact label="Questions" value={String(exam.questionCount)} />
+          <Fact label="Warnings allowed" value={String(exam.strikeLimit - 1)} />
+          <Fact label="Going back" value={exam.allowBackNavigation ? "Allowed" : "Not allowed"} />
+        </dl>
+
+        <div className="mb-4 rounded-xl border-2 border-red-200 bg-white p-5 shadow-sm">
+          <h3 className="text-base font-bold text-red-800">Can end your exam</h3>
+          <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-800">
             <li>
-              <strong>You can't go back</strong> to a question once you move past it. The questions of one case are on
-              the same screen, so you can move between them until you go on.
+              The timer starts when you press Start and <strong>never pauses</strong>, even if you close the page or
+              lose your connection. When time runs out, the exam is submitted automatically.
+              {brief.data.closesAt && <> The exam window closes {formatInstant(brief.data.closesAt)}.</>}
             </li>
-          )}
-          <li>Your name is shown on the exam screen.</li>
-        </ul>
-      </Card>
+            <li>
+              Switching tabs or windows{exam.requireFullscreen ? ", leaving fullscreen" : ""} or shrinking the window
+              gives you a warning. At the <strong>{ordinal(exam.strikeLimit)} warning</strong> the exam is submitted
+              automatically.
+            </li>
+            {!exam.allowBackNavigation && (
+              <li>
+                <strong>You can&apos;t go back</strong> to a question once you move past it. The questions of one case
+                are on the same screen, so you can move between them until you go on.
+              </li>
+            )}
+          </ul>
+        </div>
+
+        <Card title="Good to know">
+          <ul className="list-disc space-y-2 pl-5 text-sm text-slate-700">
+            <li>
+              Use a <strong>laptop or desktop computer</strong>. Phones and tablets can&apos;t be used for exams.
+            </li>
+            {exam.requireFullscreen && <li>The exam runs in fullscreen.</li>}
+            <li>Your answers are saved as you go.</li>
+            <li>
+              Use one device and one browser. Signing in elsewhere doesn&apos;t move the exam: it stays on the browser
+              where you started it.
+            </li>
+            <li>
+              Copying, pasting and printing are turned off, and pasting into answers isn&apos;t possible. This
+              doesn&apos;t count as a warning.
+            </li>
+            <li>Your name is shown across the exam screen.</li>
+          </ul>
+        </Card>
+      </section>
 
       {canStart && problem && (
         <Card>

@@ -16,6 +16,8 @@ interface Options {
   active: boolean;
   onResult: (result: EventResult) => void;
   onElsewhere: () => void;
+  /** A blocked action was stopped (copy, paste, right-click, a shortcut): logged, never a strike. */
+  onBlocked?: (type: ClientEvent) => void;
 }
 
 /**
@@ -23,10 +25,10 @@ interface Options {
  * decides what a signal costs. Reports are queued and retried, so a signal sent while offline still
  * arrives. Blocked actions (copy, paste, shortcuts, right-click, print) are stopped and reported.
  */
-export function useProctoring({ attemptId, active, onResult, onElsewhere }: Options) {
+export function useProctoring({ attemptId, active, onResult, onElsewhere, onBlocked }: Options) {
   const [fullscreen, setFullscreen] = useState(() => Boolean(document.fullscreenElement));
-  const callbacks = useRef({ onResult, onElsewhere });
-  callbacks.current = { onResult, onElsewhere };
+  const callbacks = useRef({ onResult, onElsewhere, onBlocked });
+  callbacks.current = { onResult, onElsewhere, onBlocked };
   const activeRef = useRef(active);
   activeRef.current = active;
 
@@ -127,18 +129,24 @@ export function useProctoring({ attemptId, active, onResult, onElsewhere }: Opti
     const onClipboard = (e: ClipboardEvent) => {
       e.preventDefault();
       report("CLIPBOARD", { action: e.type });
+      callbacks.current.onBlocked?.("CLIPBOARD");
     };
     const onContextMenu = (e: MouseEvent) => {
       e.preventDefault();
       report("CONTEXT_MENU");
+      callbacks.current.onBlocked?.("CONTEXT_MENU");
     };
     const onKey = (e: KeyboardEvent) => {
-      const type = blockedShortcut(e, e.target instanceof HTMLTextAreaElement);
+      // In an answer box (an essay or a short answer), select all only selects the student's own text.
+      const editing =
+        e.target instanceof HTMLTextAreaElement || (e.target instanceof HTMLInputElement && e.target.type === "text");
+      const type = blockedShortcut(e, editing);
       if (!type) return;
       e.preventDefault();
       report(type, {
         key: [e.ctrlKey && "Ctrl", e.metaKey && "Meta", e.shiftKey && "Shift", e.key].filter(Boolean).join("+"),
       });
+      callbacks.current.onBlocked?.(type);
     };
     const onPrint = () => report("BLOCKED_SHORTCUT", { action: "print" });
     const onDragStart = (e: DragEvent) => e.preventDefault();

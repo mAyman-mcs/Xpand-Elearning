@@ -237,6 +237,8 @@ export interface StudentExamRow {
     isExternal: boolean;
     /** MANUAL_APPROVAL: a submitted attempt waits for grading before it has a score. */
     scoringMode: ScoringMode;
+    /** Percent of the maximum score needed to pass. */
+    passMark: number;
     materials: { title: string; url: string }[];
   };
   status: AvailabilityStatus;

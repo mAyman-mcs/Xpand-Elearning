@@ -9,12 +9,40 @@ import { Button, cx, ErrorBanner, Loading } from "../../components/ui";
 import { api, ApiError, type AnswerInput } from "../../lib/api";
 import { blocksOf, optionLetter, SHORT_ANSWER_MAX_CHARS } from "../../lib/questions";
 import { qk } from "../../lib/query";
-import { clockOffset, formatCountdown, LOW_TIME_MS, remainingMs } from "../../lib/session";
+import {
+  clockOffset,
+  crossedWarning,
+  formatCountdown,
+  LOW_TIME_MS,
+  remainingMs,
+  SOON_TIME_MS,
+  warningText,
+  type ClientEvent,
+} from "../../lib/session";
 import { enterFullscreen } from "../student/ExamBrief";
+import { QuestionMap } from "./QuestionMap";
 import { AnswerSaver, type SaveState } from "./saver";
 import { useProctoring } from "./useProctoring";
 
 const HEARTBEAT_MS = 10_000;
+/** How long a time warning stays on screen. */
+const TIME_NOTICE_MS = 8_000;
+/** How long a "that's turned off" notice stays, and the quiet time before the next one. */
+const BLOCKED_NOTICE_MS = 3_000;
+const BLOCKED_QUIET_MS = 10_000;
+/** The essay counter appears near the limit only. */
+const COUNTER_FROM = 0.8;
+
+const BLOCKED_TEXT: Partial<Record<ClientEvent, string>> = {
+  CLIPBOARD: "Copying and pasting are turned off during the exam.",
+  CONTEXT_MENU: "Right-click is turned off during the exam.",
+};
+
+/** What the done page shows about the attempt (passed with the navigation; nothing is stored). */
+export interface DoneState {
+  answered: number;
+  total: number;
+}
 /** Essays are saved after this pause in typing (and always before submitting). */
 const TYPING_SAVE_MS = 1_500;
 /** The server's limit for one essay answer. */
@@ -85,8 +113,13 @@ function Session({ initial }: { initial: StudentAttempt }) {
   const [offline, setOffline] = useState(false);
   const [confirmSubmit, setConfirmSubmit] = useState(false);
   const [confirmNext, setConfirmNext] = useState(false);
+  const [timeNotice, setTimeNotice] = useState<string | null>(null);
+  const [blockedNotice, setBlockedNotice] = useState<string | null>(null);
+  const lastBlockedAt = useRef(0);
   const offset = useRef(clockOffset(initial.serverNow));
   const [now, setNow] = useState(() => Date.now());
+  /** Answered and total, for the done page (kept in a ref so `finish` stays stable). */
+  const progress = useRef<DoneState>({ answered: 0, total: initial.questionCount });
 
   const live = ending === null && !elsewhere;
 
@@ -95,7 +128,7 @@ function Session({ initial }: { initial: StudentAttempt }) {
     setEnding((e) => e ?? "ended");
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
     void client.invalidateQueries({ queryKey: qk.studentExams });
-    void navigate(`/exam/${id}/done`, { replace: true });
+    void navigate(`/exam/${id}/done`, { replace: true, state: progress.current });
   }, [client, id, navigate]);
 
   const saver = useMemo(
@@ -118,7 +151,21 @@ function Session({ initial }: { initial: StudentAttempt }) {
       if (r.action === "AUTO_SUBMITTED" || r.action === "ENDED") finish();
     },
     onElsewhere: () => setElsewhere(true),
+    // Blocked actions are only logged: say so once in a while, so a habit (Ctrl+S, Ctrl+C) isn't a mystery.
+    onBlocked: (type) => {
+      const at = Date.now();
+      if (at - lastBlockedAt.current < BLOCKED_QUIET_MS) return;
+      lastBlockedAt.current = at;
+      setBlockedNotice(
+        `${BLOCKED_TEXT[type] ?? "That shortcut is turned off during the exam."} It doesn't count as a warning.`,
+      );
+    },
   });
+  useEffect(() => {
+    if (!blockedNotice) return;
+    const t = setTimeout(() => setBlockedNotice(null), BLOCKED_NOTICE_MS);
+    return () => clearTimeout(t);
+  }, [blockedNotice]);
 
   // ─── The clock: the server's deadline, shown with the server's time ───
   useEffect(() => {
@@ -126,6 +173,19 @@ function Session({ initial }: { initial: StudentAttempt }) {
     return () => clearInterval(t);
   }, []);
   const left = remainingMs(initial.deadlineAt, offset.current, now);
+
+  // ─── Time warnings at 10, 5 and 1 minute: shown, and announced to screen readers ───
+  const previousLeft = useRef<number | null>(null);
+  useEffect(() => {
+    const crossed = crossedWarning(previousLeft.current, left);
+    previousLeft.current = left;
+    if (crossed !== null) setTimeNotice(warningText(crossed));
+  }, [left]);
+  useEffect(() => {
+    if (!timeNotice) return;
+    const t = setTimeout(() => setTimeNotice(null), TIME_NOTICE_MS);
+    return () => clearTimeout(t);
+  }, [timeNotice]);
 
   // Time's up: send what's pending (the server accepts it for 5 s more), then wait for the server
   // to close the attempt.
@@ -194,6 +254,15 @@ function Session({ initial }: { initial: StudentAttempt }) {
     q.type === "ESSAY" ? { text: essays[q.id] ?? "" } : { selectedOptionIds: answers[q.id] ?? [] };
   const isLast = (lastOfScreen?.index ?? index) >= initial.questionCount - 1;
   const screenIndex = screen ? blocks.indexOf(screen) : 0;
+  const screenUnanswered = screen?.filter((q) => !isAnswered(q)).length ?? 0;
+  const allDone = unanswered === 0;
+  progress.current = { answered: answeredCount, total: initial.questionCount };
+
+  // Without going back, "Next" says so on the button; it only asks when this screen has blanks.
+  const onNext = () => {
+    if (exam.allowBackNavigation || screenUnanswered === 0) void goNext();
+    else setConfirmNext(true);
+  };
 
   const choose = (q: StudentQuestion, optionId: string, checked: boolean) => {
     if (!live) return;
@@ -246,7 +315,17 @@ function Session({ initial }: { initial: StudentAttempt }) {
   if (!current || !screen) return <Loading />;
 
   const low = left !== null && left < LOW_TIME_MS;
-  const pendingSaves = Object.values(saveState).some((s) => s.state === "saving" || s.state === "retrying");
+  const soon = left !== null && left < SOON_TIME_MS;
+  const saveStates = Object.values(saveState).map((s) => s.state);
+  const overallSave = saveStates.includes("failed")
+    ? { text: "Some answers aren't saved", tone: "text-red-700 font-semibold" }
+    : saveStates.includes("retrying")
+      ? { text: "Connection problem, retrying…", tone: "text-amber-700" }
+      : saveStates.includes("saving")
+        ? { text: "Saving…", tone: "text-slate-600" }
+        : saveStates.length
+          ? { text: "All answers saved", tone: "text-slate-600" }
+          : null;
   // A browser without fullscreen (iPhone Safari, an attempt resumed elsewhere) gets a banner, never an
   // overlay it could not leave while the timer runs.
   const fullscreenMissing = exam.requireFullscreen && !document.fullscreenEnabled;
@@ -264,9 +343,33 @@ function Session({ initial }: { initial: StudentAttempt }) {
               {exam.code} · {initial.student.fullName}
             </p>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-xs text-slate-600" aria-live="polite">
-              Violations: {strikes} / {exam.strikeLimit}
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="min-w-36 text-sm">
+              <p className="font-semibold text-slate-800">
+                {answeredCount} of {initial.questionCount} answered
+              </p>
+              <div
+                className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-200"
+                role="progressbar"
+                aria-label="Questions answered"
+                aria-valuemin={0}
+                aria-valuemax={initial.questionCount}
+                aria-valuenow={answeredCount}
+              >
+                <div
+                  className="h-full rounded-full bg-teal-600 transition-[width]"
+                  style={{ width: `${(answeredCount / Math.max(1, initial.questionCount)) * 100}%` }}
+                />
+              </div>
+              {overallSave && (
+                <p role="status" className={cx("mt-0.5 text-xs", overallSave.tone)}>
+                  {overallSave.text}
+                </p>
+              )}
+            </div>
+            {/* Only once there is something to say: a counter of zero warnings only makes students nervous. */}
+            <span aria-live="polite" className={cx("text-sm font-semibold text-amber-800", strikes === 0 && "sr-only")}>
+              {strikes > 0 && `${strikes} of ${exam.strikeLimit} warnings used`}
             </span>
             {left !== null && (
               <span
@@ -274,7 +377,7 @@ function Session({ initial }: { initial: StudentAttempt }) {
                 aria-label="Time left"
                 className={cx(
                   "rounded-lg px-3 py-1 font-mono text-lg font-bold tabular-nums",
-                  low ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-800",
+                  low ? "bg-red-50 text-red-700" : soon ? "bg-amber-50 text-amber-800" : "bg-slate-100 text-slate-800",
                 )}
               >
                 {formatCountdown(left)}
@@ -282,6 +385,16 @@ function Session({ initial }: { initial: StudentAttempt }) {
             )}
           </div>
         </div>
+        {timeNotice && (
+          <p
+            className={cx(
+              "px-4 py-1.5 text-center text-sm font-semibold",
+              low ? "bg-red-600 text-white" : "bg-amber-100 text-amber-900",
+            )}
+          >
+            {timeNotice}
+          </p>
+        )}
         {fullscreenMissing && live && (
           <p role="status" className="bg-amber-50 px-4 py-1 text-center text-xs text-amber-800">
             This browser can&apos;t show the exam in fullscreen. Keep this page open and don&apos;t switch away from it.
@@ -302,37 +415,13 @@ function Session({ initial }: { initial: StudentAttempt }) {
           </details>
         )}
 
-        {exam.allowBackNavigation && (
-          <nav aria-label="Questions" className="mb-4 flex flex-wrap gap-1.5">
-            {blocks.map((b, i) => {
-              const first = b[0]!;
-              const last = b.at(-1)!;
-              const done = b.every(isAnswered);
-              const here = b === screen;
-              const range = b.length > 1 ? `${first.index + 1}–${last.index + 1}` : `${first.index + 1}`;
-              return (
-                <button
-                  key={first.id}
-                  type="button"
-                  onClick={() => setIndex(first.index)}
-                  aria-current={here ? "step" : undefined}
-                  aria-label={`${b.length > 1 ? "Questions" : "Question"} ${range}${done ? ", answered" : ""}`}
-                  className={cx(
-                    "h-8 min-w-8 rounded-md px-1.5 text-xs font-semibold",
-                    here
-                      ? "bg-teal-700 text-white"
-                      : done
-                        ? "bg-teal-50 text-teal-800 ring-1 ring-teal-200"
-                        : "bg-white text-slate-700 ring-1 ring-slate-200",
-                  )}
-                  data-screen={i}
-                >
-                  {range}
-                </button>
-              );
-            })}
-          </nav>
-        )}
+        <QuestionMap
+          blocks={blocks}
+          current={screen}
+          allowBack={exam.allowBackNavigation}
+          isAnswered={isAnswered}
+          onOpen={setIndex}
+        />
 
         <section
           aria-labelledby="screen-title"
@@ -394,23 +483,45 @@ function Session({ initial }: { initial: StudentAttempt }) {
           </div>
           <div className="flex gap-2">
             {!isLast && (
-              <Button
-                variant={isLast ? "secondary" : "primary"}
-                disabled={!live}
-                onClick={() => (exam.allowBackNavigation ? void goNext() : setConfirmNext(true))}
-              >
-                Next
+              <Button variant={allDone ? "secondary" : "primary"} disabled={!live} onClick={onNext}>
+                {exam.allowBackNavigation ? "Next" : "Next (can't return)"}
               </Button>
             )}
-            <Button variant={isLast ? "primary" : "secondary"} disabled={!live} onClick={() => setConfirmSubmit(true)}>
-              Submit exam
-            </Button>
+            {/* Submitting is the main action on the last screen, or once everything is answered;
+                before that it is a quiet "finish early" link, away from Next. */}
+            {(isLast || allDone) && (
+              <Button disabled={!live} onClick={() => setConfirmSubmit(true)}>
+                Submit exam
+              </Button>
+            )}
           </div>
         </div>
-        <p className="mt-3 text-xs text-slate-600">
-          {answeredCount} of {initial.questionCount} answered{pendingSaves && " · saving…"}
-        </p>
+        {!isLast && !allDone && (
+          <p className="mt-6 text-right text-sm">
+            <button
+              type="button"
+              disabled={!live}
+              onClick={() => setConfirmSubmit(true)}
+              className="font-semibold text-slate-600 underline hover:text-slate-800 disabled:no-underline disabled:opacity-60"
+            >
+              Finish early and submit
+            </button>
+          </p>
+        )}
       </main>
+
+      {/* ─── Short notices: time warnings are announced right away; blocked actions politely ─── */}
+      <div aria-live="assertive" className="sr-only">
+        {timeNotice}
+      </div>
+      {blockedNotice && (
+        <div
+          role="status"
+          className="fixed bottom-4 left-1/2 z-40 w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 rounded-lg bg-slate-800 px-4 py-3 text-center text-sm text-white shadow-lg"
+        >
+          {blockedNotice}
+        </div>
+      )}
 
       {/* ─── Dialogs and overlays ─── */}
       <Dialog
@@ -438,24 +549,24 @@ function Session({ initial }: { initial: StudentAttempt }) {
       <Dialog
         open={confirmNext}
         onOpenChange={setConfirmNext}
-        title="Move to the next question?"
-        description="In this exam you can't come back to these questions once you move past them."
+        title="Move on with blank answers?"
+        description={`${screenUnanswered === 1 ? "A question on this screen is" : `${screenUnanswered} questions on this screen are`} not answered. In this exam you can't come back once you move on.`}
         footer={
           <>
             <Button variant="secondary" onClick={() => setConfirmNext(false)}>
               Stay here
             </Button>
-            <Button onClick={() => void goNext()}>Next question</Button>
+            <Button onClick={() => void goNext()}>Move on</Button>
           </>
         }
       />
       <Dialog
         open={warning !== null && live}
         onOpenChange={(o) => !o && setWarning(null)}
-        title="Warning: violation recorded"
+        title="Warning: you left the exam"
         description={
           warning
-            ? `This is violation ${warning.strikes} of ${warning.strikeLimit}. At ${warning.strikeLimit} the exam is submitted automatically. Stay on this page${exam.requireFullscreen ? " in fullscreen" : ""}.`
+            ? `This is warning ${warning.strikes} of ${warning.strikeLimit}. At warning ${warning.strikeLimit} the exam is submitted automatically. Stay on this page${exam.requireFullscreen ? " in fullscreen" : ""}.`
             : undefined
         }
         footer={
@@ -542,6 +653,7 @@ function QuestionBlock({
   const essay = q.type === "ESSAY";
   const short = essay && q.answerSize === "SHORT";
   const max = short ? SHORT_ANSWER_MAX_CHARS : ESSAY_MAX_CHARS;
+  const nearLimit = text.length >= max * COUNTER_FROM;
   const headingId = titleId ?? `q-title-${q.id}`;
   const pictureOptions = q.options.some((o) => o.imageUrl);
   return (
@@ -575,8 +687,8 @@ function QuestionBlock({
               value={text}
               disabled={!live}
               onChange={(e) => onWrite(e.target.value)}
-              aria-describedby={`essay-count-${q.id}`}
-              spellCheck={false}
+              aria-describedby={nearLimit ? `essay-count-${q.id}` : undefined}
+              spellCheck
               autoComplete="off"
               className="w-full rounded-lg border border-slate-300 p-3 text-sm text-slate-800 outline-none select-text focus:ring-2 focus:ring-teal-500"
             />
@@ -588,15 +700,17 @@ function QuestionBlock({
               value={text}
               disabled={!live}
               onChange={(e) => onWrite(e.target.value)}
-              aria-describedby={`essay-count-${q.id}`}
-              spellCheck={false}
+              aria-describedby={nearLimit ? `essay-count-${q.id}` : undefined}
+              spellCheck
               autoComplete="off"
               className="w-full rounded-lg border border-slate-300 p-3 text-sm text-slate-800 outline-none select-text focus:ring-2 focus:ring-teal-500"
             />
           )}
-          <p id={`essay-count-${q.id}`} className="mt-1 text-right text-xs text-slate-600">
-            {text.length.toLocaleString()} / {max.toLocaleString()} characters · pasting is not allowed
-          </p>
+          {nearLimit && (
+            <p id={`essay-count-${q.id}`} className="mt-1 text-right text-xs font-medium text-amber-800">
+              {text.length.toLocaleString()} / {max.toLocaleString()} characters
+            </p>
+          )}
         </div>
       ) : (
         <fieldset className={cx("mt-3 gap-2", pictureOptions ? "grid sm:grid-cols-2" : "space-y-2")}>
