@@ -43,7 +43,11 @@ export function setupSteps(o: {
     done: o.assigned === true,
     ...(o.assigned === null
       ? { detail: "Someone with the Assign permission does this." }
-      : { detail: "No students or groups yet.", to: `/exams/${o.examId}/assignments`, linkLabel: "Choose students" }),
+      : {
+          detail: "No students or groups yet.",
+          to: `/exams/${o.examId}/access#assignments`,
+          linkLabel: "Choose students",
+        }),
   });
   steps.push({
     key: "published",
@@ -100,7 +104,7 @@ export function SetupChecklist({ exam, canAssign }: { exam: Exam; canAssign: boo
     return (
       <p className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
         Published, but no student or group has it yet, so nobody can take it.{" "}
-        <Link to={`/exams/${exam.id}/assignments`} className="font-semibold underline">
+        <Link to={`/exams/${exam.id}/access#assignments`} className="font-semibold underline">
           Assign it
         </Link>
       </p>

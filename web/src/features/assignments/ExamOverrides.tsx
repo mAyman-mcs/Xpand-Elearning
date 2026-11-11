@@ -85,8 +85,8 @@ export function ExamOverrides() {
         title="Open or close now"
         actions={canSchedule ? <Button onClick={() => setCreating(true)}>Open or close now</Button> : undefined}
       >
-        <div className="mb-4 rounded-lg bg-sky-50 p-3 text-sm text-sky-900">
-          <p className="font-semibold">Which rule wins</p>
+        <details className="mb-4 rounded-lg bg-info-50 p-3 text-sm text-info-900">
+          <summary className="cursor-pointer font-semibold">Which rule wins</summary>
           <ol className="mt-1 list-decimal pl-5">
             <li>The student&apos;s own newest override.</li>
             <li>Otherwise group overrides; a group close beats a group open.</li>
@@ -96,7 +96,7 @@ export function ExamOverrides() {
             An override never reopens an exam whose attempts are used up, and doesn&apos;t make an unassigned exam
             visible.
           </p>
-        </div>
+        </details>
         <Checkbox
           className="mb-3"
           label="Show ended overrides"
@@ -142,20 +142,23 @@ export function ExamOverrides() {
   );
 }
 
-function NewOverrideDialog({
+/** Open or close now; `initial` fills it in for one student (from a row of the availability table). */
+export function NewOverrideDialog({
   examId,
+  initial,
   onClose,
   onSaved,
 }: {
   examId: string;
+  initial?: { action: OverrideAction; student: PersonRef };
   onClose: () => void;
   onSaved: (action: OverrideAction) => Promise<void>;
 }) {
   const groups = useGroups();
-  const [action, setAction] = useState<OverrideAction>("OPEN");
-  const [kind, setKind] = useState<"group" | "user">("group");
+  const [action, setAction] = useState<OverrideAction>(initial?.action ?? "OPEN");
+  const [kind, setKind] = useState<"group" | "user">(initial ? "user" : "group");
   const [groupId, setGroupId] = useState("");
-  const [person, setPerson] = useState<PersonRef[]>([]);
+  const [person, setPerson] = useState<PersonRef[]>(initial ? [initial.student] : []);
   const [untilDate, setUntilDate] = useState("");
   const [untilTime, setUntilTime] = useState("");
   const [reason, setReason] = useState("");

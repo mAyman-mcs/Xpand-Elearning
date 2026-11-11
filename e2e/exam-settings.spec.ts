@@ -29,15 +29,32 @@ test("the introduction and case hints are saved", async ({ page, apiAs }) => {
 test("leaving the tab with unsaved settings asks first", async ({ page, apiAs }) => {
   const admin = await apiAs("admin");
   const exam = await createExam(admin, "cloud");
+  const tabs = page.getByRole("navigation", { name: "Exam sections" });
 
   await page.goto(`/exams/${exam.id}`);
   await page.getByLabel("Introduction (optional)").fill("Not saved yet");
-  await page.getByRole("navigation", { name: "Exam sections" }).getByRole("link", { name: "Availability" }).click();
+  await tabs.getByRole("link", { name: "Who and when" }).click();
   const leave = page.getByRole("dialog", { name: "Leave without saving?" });
   await leave.getByRole("button", { name: "Stay on this page" }).click();
   await expect(page.getByLabel("Introduction (optional)")).toHaveValue("Not saved yet");
 
-  await page.getByRole("navigation", { name: "Exam sections" }).getByRole("link", { name: "Availability" }).click();
+  await tabs.getByRole("link", { name: "Who and when" }).click();
   await leave.getByRole("button", { name: "Discard changes" }).click();
-  await expect(page).toHaveURL(new RegExp(`/exams/${exam.id}/availability$`));
+  await expect(page).toHaveURL(new RegExp(`/exams/${exam.id}/access$`));
+});
+
+test("the old Assignments, Open / close and Availability addresses land on Who and when", async ({ page, apiAs }) => {
+  const admin = await apiAs("admin");
+  const exam = await createExam(admin, "cloud");
+  const tabs = page.getByRole("navigation", { name: "Exam sections" });
+
+  for (const old of ["assignments", "overrides", "availability"]) {
+    await page.goto(`/exams/${exam.id}/${old}`);
+    await expect(page).toHaveURL(new RegExp(`/exams/${exam.id}/access(#\\w+)?$`));
+    await expect(tabs.getByRole("link", { name: "Who and when" })).toHaveAttribute("aria-current", "page");
+  }
+  // All three parts are on the one page.
+  await expect(page.getByRole("heading", { name: "Assigned to" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Open or close now" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Who can take it, and why" })).toBeVisible();
 });

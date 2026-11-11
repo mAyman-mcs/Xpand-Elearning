@@ -57,8 +57,7 @@ test("open a manual exam for a group, close it for one student, end the override
   expect((await studentExam(ben.api, exam.id))?.status).toBe("CLOSED");
   expect((await studentExam(anna.api, exam.id))?.status).toBe("OPEN");
 
-  // The availability view explains each student's state.
-  await page.getByRole("link", { name: "Availability" }).click();
+  // The availability table, on the same "Who and when" page, explains each student's state.
   const availability = page.getByRole("table", { name: "Availability" });
   await expect(availability.getByRole("row", { name: new RegExp(anna.fullName) })).toContainText("Open");
   await expect(availability.getByRole("row", { name: new RegExp(anna.fullName) })).toContainText(
@@ -69,9 +68,12 @@ test("open a manual exam for a group, close it for one student, end the override
   );
   await page.getByRole("combobox", { name: "Status" }).selectOption("CLOSED");
   await expect(availability.getByRole("row")).toHaveCount(2);
+  // Each row offers the action that fits it: Ben is closed, so he can be opened from his row.
+  await expect(availability.getByRole("button", { name: `Open now for ${ben.fullName}` })).toBeVisible();
+  await page.getByRole("combobox", { name: "Status" }).selectOption("");
+  await expect(availability.getByRole("button", { name: `Close now for ${anna.fullName}` })).toBeVisible();
 
   // End Ben's override: he follows the group again.
-  await page.getByRole("link", { name: "Open / close" }).click();
   await table.getByRole("button", { name: `End the override for ${ben.fullName}` }).click();
   await confirmDialog(page, "End this override now?", "End now");
   await expect(table.getByRole("row", { name: new RegExp(ben.fullName) })).toHaveCount(0);

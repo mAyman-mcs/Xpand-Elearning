@@ -169,7 +169,6 @@ test("exit test: import → grant → exam → instructor schedules → student 
   await override.getByRole("button", { name: "Open now" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Exam opened" })).toBeVisible();
   expect((await studentExam(studentApi, examIdValue))?.status).toBe("OPEN");
-  await page.getByRole("link", { name: "Availability" }).click();
   await expect(
     page.getByRole("table", { name: "Availability" }).getByRole("row", { name: new RegExp(`Student 9 ${id}`) }),
   ).toContainText("Decided by: Student override");
