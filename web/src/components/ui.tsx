@@ -152,6 +152,20 @@ export function Badge({ tone = "gray", children }: { tone?: BadgeTone; children:
   );
 }
 
+/** "Clear filters", shown only while a list filter is set. */
+export function ClearFilters({ show, onClear }: { show: boolean; onClear: () => void }) {
+  if (!show) return null;
+  return (
+    <button
+      type="button"
+      onClick={onClear}
+      className="text-sm font-semibold text-teal-700 hover:underline focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:outline-none"
+    >
+      Clear filters
+    </button>
+  );
+}
+
 // ─────────────────────────────── States ───────────────────────────────
 
 export function Loading({ label = "Loading…" }: { label?: string }) {

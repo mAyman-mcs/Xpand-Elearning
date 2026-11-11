@@ -1,10 +1,10 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { useSearchParams } from "react-router";
 import { usePageTitle } from "../../app/pages";
 import { SelectInput, TextInput } from "../../components/form";
 import { Card, PageHeader } from "../../components/ui";
 import { api, type SubmissionFilter } from "../../lib/api";
+import { useUrlFilters } from "../../lib/forms";
 import { qk } from "../../lib/query";
 import { SubmissionsTable } from "./SubmissionsTable";
 
@@ -13,10 +13,11 @@ type Show = NonNullable<SubmissionFilter["show"]>;
 /** /submissions: every submitted exam the caller may see, newest first, across all exams. */
 export function Submissions() {
   usePageTitle("Submissions");
-  const [params, setParams] = useSearchParams();
-  const show: Show = params.get("show") === "awaiting-grading" ? "awaiting-grading" : "all";
-  const [search, setSearch] = useState("");
-  const [q, setQ] = useState("");
+  // Filters live in the URL (the dashboard links to ?show=awaiting-grading), so Back keeps them.
+  const filters = useUrlFilters({ show: "all", q: "" });
+  const show: Show = filters.values.show === "awaiting-grading" ? "awaiting-grading" : "all";
+  const { q } = filters.values;
+  const [search, setSearch] = useState(q);
 
   const filter: SubmissionFilter = { show, q: q || undefined };
   const list = useInfiniteQuery({
@@ -38,7 +39,7 @@ export function Submissions() {
           className="mb-4 grid gap-3 sm:grid-cols-[1fr_14rem_auto] sm:items-end"
           onSubmit={(e) => {
             e.preventDefault();
-            setQ(search.trim());
+            filters.set({ q: search.trim() });
           }}
         >
           <TextInput
@@ -48,14 +49,10 @@ export function Submissions() {
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
-              if (!e.target.value) setQ("");
+              if (!e.target.value) filters.set({ q: "" });
             }}
           />
-          <SelectInput
-            label="Show"
-            value={show}
-            onChange={(e) => setParams(e.target.value === "all" ? {} : { show: e.target.value }, { replace: true })}
-          >
+          <SelectInput label="Show" value={show} onChange={(e) => filters.set({ show: e.target.value })}>
             <option value="all">All submissions</option>
             <option value="awaiting-grading">Awaiting grading</option>
           </SelectInput>

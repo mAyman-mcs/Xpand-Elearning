@@ -34,6 +34,12 @@ export function cairoWallTime(date: Date, offsetDays: number, time: string): Dat
   return new Date(local.getTime());
 }
 
+/** Midnight in Cairo at the start of the day that contains `date`, as a UTC instant. */
+export function cairoStartOfDay(date: Date): Date {
+  const local = new TZDate(date.getTime(), APP_TIME_ZONE);
+  return new Date(new TZDate(local.getFullYear(), local.getMonth(), local.getDate(), 0, 0, APP_TIME_ZONE).getTime());
+}
+
 export function addMinutes(date: Date, minutes: number): Date {
   return new Date(date.getTime() + minutes * 60_000);
 }

@@ -8,6 +8,7 @@ import { api } from "../../lib/api";
 import { EXAM_STATUS } from "../../lib/labels";
 import { can } from "../../lib/permissions";
 import { qk } from "../../lib/query";
+import { SetupChecklist } from "./SetupChecklist";
 
 export interface ExamContext {
   exam: Exam;
@@ -69,6 +70,9 @@ export function ExamLayout() {
           </span>
         }
       />
+      {context.allowed("EXAM_EDIT") && (
+        <SetupChecklist exam={e} canAssign={context.allowed("EXAM_ASSIGN") || context.allowed("EXAM_SCHEDULE")} />
+      )}
       <nav aria-label="Exam sections" className="mb-6 border-b border-slate-200">
         <ul className="-mb-px flex flex-wrap gap-1">
           {EXAM_TABS.filter((t) => t.show(perms, e)).map((t) => (

@@ -142,6 +142,8 @@ test.describe("admin builds the exam in the UI, a student takes it", () => {
     await test.step("1.3 publishing is blocked until there is a question", async () => {
       await expect(page.getByRole("button", { name: "Publish" })).toBeDisabled();
       await expect(page.getByText("Add at least one question.").first()).toBeVisible();
+      // The setup checklist shows what is left, above every tab.
+      await expect(page.getByRole("heading", { name: "Getting this exam ready · 0 of 3 done" })).toBeVisible();
     });
 
     await test.step("1.4 add a single-choice, a multiple-choice and a true/false question", async () => {

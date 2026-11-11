@@ -1,7 +1,9 @@
 import { z } from "zod";
 import type { Ctx } from "../../core/context.js";
 import { uuid } from "../../core/schemas.js";
+import { cairoStartOfDay } from "../../core/time.js";
 import type { Prisma } from "../../generated/prisma/client.js";
+import { SUBMITTED_STATUSES } from "../rbac/scope.js";
 
 // ─────────────────────────────── Dashboard numbers ───────────────────────────────
 
@@ -21,6 +23,18 @@ export async function adminStats(ctx: Ctx, idleMinutes: number) {
     }),
     db.session.count({ where: { revokedAt: null, expiresAt: { gt: now }, lastSeenAt: { gt: idleSince } } }),
   ]);
+  const [inProgress, awaitingGrading, submittedToday, publishedUnassigned] = await Promise.all([
+    db.attempt.findMany({ where: { status: "IN_PROGRESS" }, select: { examId: true } }),
+    db.attempt.count({
+      where: {
+        status: { in: SUBMITTED_STATUSES },
+        exam: { is: { scoringMode: "MANUAL_APPROVAL" } },
+        reviewStatus: { not: "REVIEWED" },
+      },
+    }),
+    db.attempt.count({ where: { status: { in: SUBMITTED_STATUSES }, submittedAt: { gte: cairoStartOfDay(now) } } }),
+    db.exam.count({ where: { status: "PUBLISHED", isExternal: false, assignments: { none: {} } } }),
+  ]);
   const role = (r: string) => roles.find((x) => x.role === r)?._count._all ?? 0;
   const status = (s: string) => exams.find((x) => x.status === s)?._count._all ?? 0;
   return {
@@ -36,6 +50,16 @@ export async function adminStats(ctx: Ctx, idleMinutes: number) {
     assignments,
     activeOverrides,
     activeSessions,
+    /** What is happening today: the top of the dashboard. */
+    today: {
+      examsRunning: new Set(inProgress.map((a) => a.examId)).size,
+      attemptsInProgress: inProgress.length,
+      awaitingGrading,
+      /** Since midnight, Cairo time. */
+      submittedToday,
+    },
+    /** Things someone should look at (zero = nothing to do). */
+    attention: { lockedAccounts: locked, publishedUnassigned },
   };
 }
 

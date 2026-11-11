@@ -1,11 +1,10 @@
 import type { Role, UserDetail } from "@contracts";
-import { useState } from "react";
-import { Link, useSearchParams } from "react-router";
+import { Link } from "react-router";
 import { usePageTitle } from "../../app/pages";
 import { Checkbox, SelectInput, TextInput } from "../../components/form";
 import { Table, type Column } from "../../components/Table";
-import { Badge, ButtonLink, PageHeader } from "../../components/ui";
-import { useDebounced } from "../../lib/forms";
+import { Badge, ButtonLink, ClearFilters, PageHeader } from "../../components/ui";
+import { useSearchBox, useUrlFilters } from "../../lib/forms";
 import { accountState, ROLE_LABEL, ROLE_TONE } from "../../lib/labels";
 import { formatDate } from "../../lib/time";
 import { useGroups, useUsers } from "./queries";
@@ -17,13 +16,12 @@ import { useGroups, useUsers } from "./queries";
 export function UsersList({ mode }: { mode: "admin" | "instructor" }) {
   const admin = mode === "admin";
   usePageTitle(admin ? "Users" : "Students");
-  // Initial filters may come from the URL (dashboard cards link to e.g. ?role=STUDENT).
-  const [params] = useSearchParams();
-  const [search, setSearch] = useState("");
-  const [role, setRole] = useState<Role | "">((params.get("role") as Role | null) ?? "");
-  const [groupId, setGroupId] = useState(params.get("groupId") ?? "");
-  const [includeInactive, setIncludeInactive] = useState(params.get("includeInactive") === "true");
-  const q = useDebounced(search.trim());
+  // Filters live in the URL: dashboard cards link to e.g. ?role=STUDENT, and Back keeps them.
+  const filters = useUrlFilters({ q: "", role: "", groupId: "", includeInactive: "" });
+  const { q, groupId } = filters.values;
+  const role = filters.values.role as Role | "";
+  const includeInactive = filters.values.includeInactive === "true";
+  const search = useSearchBox(q, (text) => filters.set({ q: text }));
   const groups = useGroups();
   const users = useUsers({
     q: q || undefined,
@@ -78,11 +76,11 @@ export function UsersList({ mode }: { mode: "admin" | "instructor" }) {
           label="Search"
           type="search"
           placeholder="Name or username"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          value={search.text}
+          onChange={(e) => search.setText(e.target.value)}
         />
         {admin && (
-          <SelectInput label="Role" value={role} onChange={(e) => setRole(e.target.value as Role | "")}>
+          <SelectInput label="Role" value={role} onChange={(e) => filters.set({ role: e.target.value })}>
             <option value="">All roles</option>
             {(Object.keys(ROLE_LABEL) as Role[]).map((r) => (
               <option key={r} value={r}>
@@ -91,7 +89,7 @@ export function UsersList({ mode }: { mode: "admin" | "instructor" }) {
             ))}
           </SelectInput>
         )}
-        <SelectInput label="Group" value={groupId} onChange={(e) => setGroupId(e.target.value)}>
+        <SelectInput label="Group" value={groupId} onChange={(e) => filters.set({ groupId: e.target.value })}>
           <option value="">All groups</option>
           {groups.data?.map((g) => (
             <option key={g.id} value={g.id}>
@@ -99,11 +97,18 @@ export function UsersList({ mode }: { mode: "admin" | "instructor" }) {
             </option>
           ))}
         </SelectInput>
-        <div className="flex items-end pb-2">
+        <div className="flex items-end justify-between gap-3 pb-2">
           <Checkbox
             label="Include deactivated"
             checked={includeInactive}
-            onChange={(e) => setIncludeInactive(e.target.checked)}
+            onChange={(e) => filters.set({ includeInactive: e.target.checked ? "true" : "" })}
+          />
+          <ClearFilters
+            show={filters.active}
+            onClear={() => {
+              search.reset();
+              filters.clear();
+            }}
           />
         </div>
       </div>
@@ -115,7 +120,7 @@ export function UsersList({ mode }: { mode: "admin" | "instructor" }) {
         loading={users.isPending}
         error={users.error}
         onRetry={() => void users.refetch()}
-        empty={{ title: "No users match", hint: search || role || groupId ? "Try other filters." : undefined }}
+        empty={{ title: "No users match", hint: filters.active ? "Try other filters." : undefined }}
         more={{
           hasMore: !!users.hasNextPage,
           loading: users.isFetchingNextPage,

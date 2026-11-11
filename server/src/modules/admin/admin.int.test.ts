@@ -26,7 +26,35 @@ describe("GET /api/admin/stats", () => {
       assignments: 2,
       activeOverrides: 1,
       activeSessions: 1,
+      today: { examsRunning: 0, attemptsInProgress: 0, awaitingGrading: 0, submittedToday: 0 },
+      attention: { lockedAccounts: 0, publishedUnassigned: 1 },
     });
+  });
+
+  it("counts today's activity: exams being taken, grading backlog, submissions since Cairo midnight", async () => {
+    const now = clock.now();
+    await db.attempt.create({ data: { examId: w.e1.id, userId: w.users.student.id, status: "IN_PROGRESS" } });
+    await db.attempt.create({ data: { examId: w.e2.id, userId: w.studentB.id, status: "IN_PROGRESS" } });
+    // A needs-approval exam: one attempt waiting, one approved; one submitted two days ago.
+    await db.exam.update({ where: { id: w.e3.id }, data: { scoringMode: "MANUAL_APPROVAL" } });
+    await db.attempt.create({
+      data: { examId: w.e3.id, userId: w.users.student.id, status: "SUBMITTED", submittedAt: now },
+    });
+    await db.attempt.create({
+      data: { examId: w.e3.id, userId: w.studentB.id, status: "SUBMITTED", submittedAt: now, reviewStatus: "REVIEWED" },
+    });
+    await db.attempt.create({
+      data: {
+        examId: w.e3.id,
+        userId: w.studentB.id,
+        attemptNo: 2,
+        status: "AUTO_SUBMITTED",
+        submittedAt: new Date(now.getTime() - 2 * 24 * 3_600_000),
+      },
+    });
+
+    const body = (await admin.get("/api/admin/stats")).body as { today: Record<string, number> };
+    expect(body.today).toEqual({ examsRunning: 2, attemptsInProgress: 2, awaitingGrading: 2, submittedToday: 2 });
   });
 
   it("counts deactivated and locked accounts, ended overrides and idle sessions correctly", async () => {

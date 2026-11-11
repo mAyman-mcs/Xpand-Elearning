@@ -11,6 +11,9 @@ const statValue = async (page: import("@playwright/test").Page, label: string) =
 test("the numbers match the server and link to the lists behind them", async ({ page, apiAs }) => {
   const stats = await call<{ users: { students: number } }>(await apiAs("admin"), "get", "/admin/stats");
   await page.goto("/admin");
+  // Today's activity comes first; the totals follow.
+  await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Needs attention" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "People" })).toBeVisible();
   // Other specs run in parallel and create students: the dashboard shows at least what the API said.
   expect(await statValue(page, "Students")).toBeGreaterThanOrEqual(stats.users.students);

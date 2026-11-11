@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cairoWallTime } from "./time.js";
+import { cairoStartOfDay, cairoWallTime } from "./time.js";
 
 const day = (iso: string) => new Date(`${iso}T00:00:00Z`);
 const utc = (d: Date) => d.toISOString();
@@ -33,5 +33,17 @@ describe("cairoWallTime", () => {
   it("rejects malformed times", () => {
     expect(() => cairoWallTime(day("2026-07-05"), 0, "24:00")).toThrow();
     expect(() => cairoWallTime(day("2026-07-05"), 0, "9:00")).toThrow();
+  });
+});
+
+describe("cairoStartOfDay", () => {
+  it("is Cairo midnight, not UTC midnight", () => {
+    // 23:30 UTC on 14 Jan is already 15 Jan in Cairo (UTC+2).
+    expect(utc(cairoStartOfDay(new Date("2026-01-14T23:30:00Z")))).toBe("2026-01-14T22:00:00.000Z");
+    expect(utc(cairoStartOfDay(new Date("2026-01-15T10:00:00Z")))).toBe("2026-01-14T22:00:00.000Z");
+  });
+
+  it("follows summer time", () => {
+    expect(utc(cairoStartOfDay(new Date("2026-07-05T12:00:00Z")))).toBe("2026-07-04T21:00:00.000Z");
   });
 });

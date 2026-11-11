@@ -386,6 +386,8 @@ export interface AdminStats {
   assignments: number;
   activeOverrides: number;
   activeSessions: number;
+  today: { examsRunning: number; attemptsInProgress: number; awaitingGrading: number; submittedToday: number };
+  attention: { lockedAccounts: number; publishedUnassigned: number };
 }
 
 export interface AuditEntry {
