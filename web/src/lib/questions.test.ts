@@ -76,7 +76,7 @@ describe("essay questions", () => {
 });
 
 describe("pictures", () => {
-  it("an option may be a picture, with alt text", () => {
+  it("an option may be a picture, described or not", () => {
     const pic = {
       ...filled,
       options: [{ text: "", imageId: "p", imageAlt: "Diagram", isCorrect: true }, filled.options[1]!],
@@ -84,7 +84,7 @@ describe("pictures", () => {
     expect(questionProblems(pic)).toEqual([]);
     expect(
       questionProblems({ ...pic, options: [{ text: "", imageId: "p", isCorrect: true }, filled.options[1]!] }),
-    ).toEqual(["Describe every option picture (alt text)."]);
+    ).toEqual([]);
   });
   it("letters options A, B, C", () => {
     expect([0, 1, 2, 25].map(optionLetter)).toEqual(["A", "B", "C", "Z"]);

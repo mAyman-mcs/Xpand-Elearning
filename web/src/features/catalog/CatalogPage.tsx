@@ -7,7 +7,7 @@ import { ConfirmDialog, Dialog } from "../../components/Dialog";
 import { Checkbox, FormError, TextInput } from "../../components/form";
 import { Table, type Column } from "../../components/Table";
 import { useToast } from "../../components/Toast";
-import { Badge, Button, Card, PageHeader } from "../../components/ui";
+import { Badge, Button, buttonClass, Card, PageHeader } from "../../components/ui";
 import { api, errorMessage } from "../../lib/api";
 import { qk } from "../../lib/query";
 import { useCategories, useTags } from "./queries";
@@ -158,6 +158,13 @@ function Categories() {
       className: "text-right",
       cell: (c) => (
         <div className="flex justify-end gap-1">
+          <Link
+            to={`/materials#category-${c.id}`}
+            className={buttonClass("ghost", "sm")}
+            aria-label={`Materials of ${c.name}`}
+          >
+            Materials
+          </Link>
           <Button size="sm" variant="ghost" onClick={() => setRenaming(c)} aria-label={`Rename ${c.name}`}>
             Rename
           </Button>

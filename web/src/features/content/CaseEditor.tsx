@@ -41,7 +41,6 @@ export function CaseEditor({
   const { requestClose, confirm } = useConfirmDiscard(JSON.stringify(draft) !== JSON.stringify(initial), onClose);
   const set = (patch: Partial<CaseInput>) => setDraft((d) => ({ ...d, ...patch }));
   const labelsId = useId();
-  const missingAlt = !!draft.imageId && !draft.imageAlt?.trim();
   const save = useMutation({
     mutationFn: () => {
       const body: CaseInput = {
@@ -74,7 +73,7 @@ export function CaseEditor({
           </Button>
           <Button
             busy={save.isPending}
-            disabled={!draft.title.trim() || !draft.situation.trim() || missingAlt}
+            disabled={!draft.title.trim() || !draft.situation.trim()}
             onClick={() => save.mutate()}
           >
             {existing ? "Save case" : "Add case"}

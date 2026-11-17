@@ -14,6 +14,7 @@ import {
   updateAssignment,
 } from "./assignments.service.js";
 import { examAvailability, studentExams } from "./availability.service.js";
+import { studentMaterials } from "../catalog/category-materials.service.js";
 import { giveExtraAttempt } from "./extra-attempts.service.js";
 import { createOverride, endOverride, listOverrides, overrideScope } from "./overrides.service.js";
 import {
@@ -163,6 +164,8 @@ export function overridesRoutes(deps: AppDeps): ApiRouter {
 export function studentRoutes(deps: AppDeps): ApiRouter {
   const api = new ApiRouter(deps);
   api.get("/exams", { access: access.roles("STUDENT"), handler: (ctx) => studentExams(ctx) });
+  // Training links of the categories of the student's exams (docs/FIXES_PLAN.md fix 2).
+  api.get("/materials", { access: access.roles("STUDENT"), handler: (ctx) => studentMaterials(ctx) });
   // The pre-check page of one exam (rules, duration, whether it can start now).
   api.get("/exams/:id", {
     access: access.roles("STUDENT"),

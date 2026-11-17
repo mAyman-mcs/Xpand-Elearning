@@ -77,7 +77,7 @@ test("soc tag grant: the instructor sees the soc exam and only students who subm
 
   // The tag is now an access tag.
   await page.goto("/admin/catalog");
-  await expect(page.getByRole("table", { name: "Tags" }).getByRole("row", { name: /soc/ })).toContainText(
+  await expect(page.getByRole("table", { name: "Tags" }).getByRole("row", { name: /^soc / })).toContainText(
     "Access · 1 grant",
   );
 

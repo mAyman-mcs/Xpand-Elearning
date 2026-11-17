@@ -35,9 +35,10 @@ export async function caseScope(db: DbClient, caseId: string): Promise<Scope> {
 }
 
 export async function materialScope(db: DbClient, materialId: string): Promise<Scope> {
-  const m = await db.material.findUnique({ where: { id: materialId }, select: { examId: true } });
+  const m = await db.material.findUnique({ where: { id: materialId }, select: { examId: true, categoryId: true } });
   if (!m) throw notFound("Material not found.");
-  return examScope(db, m.examId);
+  // A category's material: the rights on the category, like creating an exam in it.
+  return m.examId ? examScope(db, m.examId) : categoryScope(db, m.categoryId ?? "");
 }
 
 export async function categoryScope(db: DbClient, categoryId: string): Promise<Scope> {

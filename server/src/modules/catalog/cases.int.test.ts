@@ -251,7 +251,7 @@ describe("building a use case", () => {
     expect(list.body.cases).toEqual([]);
   });
 
-  it("a picture needs alt text; a case picture too", async () => {
+  it("a picture may have no description; a case picture too", async () => {
     const examId = await newExam("UC-3");
     const picture = (await upload(admin, examId, png())).body.id as string;
     const q = await admin.post(`/api/catalog/exams/${examId}/questions`).send({
@@ -262,12 +262,13 @@ describe("building a use case", () => {
         { text: "b", isCorrect: false },
       ],
     });
-    expect(q.status).toBe(400);
-    expect(q.body.message).toMatch(/alt text/);
+    expect(q.status).toBe(201);
+    expect(q.body.options[0]).toMatchObject({ imageId: picture, imageAlt: null });
     const c = await admin
       .post(`/api/catalog/exams/${examId}/cases`)
       .send({ title: "T", situation: "S", imageId: picture });
-    expect(c.status).toBe(400);
+    expect(c.status).toBe(201);
+    expect(c.body).toMatchObject({ imageId: picture, imageAlt: null });
   });
 });
 
@@ -525,10 +526,10 @@ describe("refusals", () => {
     ]);
   });
 
-  it("picture descriptions stay required when editing, even on a locked exam", async () => {
+  it("picture descriptions can be cleared when editing, even on a locked exam", async () => {
     const examId = await newExam("RF-4");
     const uc = await buildUseCase(examId);
-    expect((await admin.patch(`/api/catalog/cases/${uc.caseId}`).send({ imageAlt: null })).status).toBe(400);
+    expect((await admin.patch(`/api/catalog/cases/${uc.caseId}`).send({ imageAlt: null })).status).toBe(200);
     await publishForGroupA(examId);
     await student.post("/api/attempts").send({ examId });
     const list = await admin.get(`/api/catalog/exams/${examId}/questions`);
@@ -536,11 +537,10 @@ describe("refusals", () => {
       i === 0 ? { ...o, imageAlt: null } : o,
     );
     const res = await admin.patch(`/api/catalog/questions/${uc.mcq.id}`).send({ options });
-    expect(res.status).toBe(400);
-    expect(res.body.message).toMatch(/alt text/);
+    expect(res.status).toBe(200);
   });
 
-  it("an import reports bad cases, case pictures without alt text, stray caseIds and unknown pictures", async () => {
+  it("an import reports bad cases, stray caseIds and unknown pictures (a case picture needs no description)", async () => {
     const examId = await newExam("RF-5");
     const res = await admin.post(`/api/catalog/exams/${examId}/questions/import`).send({
       questions: [{ type: "ESSAY", text: "Q", imageId: "00000000-0000-4000-8000-000000000001", imageAlt: "x" }],
@@ -559,7 +559,6 @@ describe("refusals", () => {
     expect(messages).toEqual(
       expect.arrayContaining([
         expect.stringMatching(/^Case 1: title: /),
-        "Case 3: Describe the case's picture (alt text).",
         expect.stringMatching(/^Case 3: question 1: caseId: leave it out/),
         expect.stringMatching(/^Case 2: case: /),
         "A picture isn't uploaded to this exam: upload it first and use its id.",

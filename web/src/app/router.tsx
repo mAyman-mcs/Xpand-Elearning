@@ -23,6 +23,8 @@ import { GroupsList } from "../features/groups/GroupsList";
 import { ExamDone } from "../features/session/ExamDone";
 import { ExamSession } from "../features/session/ExamSession";
 import { ExamBrief } from "../features/student/ExamBrief";
+import { MaterialsPage } from "../features/materials/MaterialsPage";
+import { StudentMaterials } from "../features/materials/StudentMaterials";
 import { StudentHome } from "../features/student/StudentHome";
 import { ImportUsers } from "../features/users/ImportUsers";
 import { NewUser } from "../features/users/NewUser";
@@ -96,6 +98,7 @@ export const router = createBrowserRouter([
             children: [
               { path: "students", element: <UsersList mode="instructor" /> },
               { path: "exams", element: <ExamsList /> },
+              { path: "materials", element: <MaterialsPage /> },
               { path: "exams/new", element: <NewExam /> },
               { path: "assignments/new", element: <BulkAssign /> },
               {
@@ -124,6 +127,7 @@ export const router = createBrowserRouter([
             children: [
               { index: true, element: <StudentHome /> },
               { path: "exams/:id", element: <ExamBrief /> },
+              { path: "materials", element: <StudentMaterials /> },
             ],
           },
           { path: "*", element: <NotFound /> },

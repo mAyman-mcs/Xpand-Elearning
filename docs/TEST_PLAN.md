@@ -296,6 +296,16 @@ Use a test exam with 5 questions, 10 minutes, strike limit 3, fullscreen require
 - [ ] The total % and ranking match a hand calculation (weights 75% technical, 25% CTF)
 - [ ] An instructor's results list contains only students from groups in scope (see §5.1)
 
+### 5.5a Fixes of November 2026 ([FIXES_PLAN.md](FIXES_PLAN.md))
+
+- [ ] A question, option and case picture can be saved and published without a description; a screen reader skips it
+- [ ] A student with **My exams** open sees a newly assigned, published exam within a minute, or at once on returning to the tab
+- [ ] A draft exam's **Who and when** tab says students won't see it until it is published
+- [ ] The Users list (admin) and Students list (instructor) show **Exams taken**; an instructor's count covers only exams in their access
+- [ ] A student's page shows **Exam history** with score, pass/fail and whether results are shown; Preview opens the submission
+- [ ] A link added to a category on **Materials** shows on the student's **Materials** page only when they have a published exam in that category
+- [ ] An instructor without `EXAM_EDIT` on a category sees its links but no Add or Remove
+
 ### 5.6 Proctoring and operations (M2)
 
 - [ ] The live board shows in-progress students, time left, heartbeat (it goes red within about 30 s of disconnecting a student's network) and strikes

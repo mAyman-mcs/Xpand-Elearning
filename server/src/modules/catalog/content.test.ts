@@ -187,7 +187,7 @@ describe("pictures (CASE_QUESTIONS_PLAN C6)", () => {
       ),
     ).toEqual([]);
   });
-  it("needs text or a picture, and alt text for every picture", () => {
+  it("needs text or a picture; a picture's description is optional", () => {
     expect(
       questionProblems(
         q({
@@ -197,10 +197,8 @@ describe("pictures (CASE_QUESTIONS_PLAN C6)", () => {
           ],
         }),
       ),
-    ).toEqual(["An option has no text or picture.", "Describe every option picture (alt text)."]);
-    expect(questionProblems(q({ imageId: pic, imageAlt: null }))).toEqual([
-      "Describe the question's picture (alt text).",
-    ]);
+    ).toEqual(["An option has no text or picture."]);
+    expect(questionProblems(q({ imageId: pic, imageAlt: null }))).toEqual([]);
   });
 });
 

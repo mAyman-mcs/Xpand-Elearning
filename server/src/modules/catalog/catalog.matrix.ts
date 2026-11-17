@@ -203,6 +203,19 @@ export const catalogRows: MatrixRow[] = [
     expect: statuses(404, { superAdmin: 201, student: 403, instCategory: 201 }),
   },
   {
+    route: "GET /api/catalog/materials",
+    request: () => ({ path: "/api/catalog/materials" }),
+    expect: staffOnly(200),
+  },
+  {
+    route: "POST /api/catalog/categories/:id/materials",
+    request: (w) => ({
+      path: `/api/catalog/categories/${w.cloud.id}/materials`,
+      body: { title: "Cloud reading list", url: "https://example.com/cloud" },
+    }),
+    expect: statuses(404, { superAdmin: 201, student: 403, instCategory: 201 }),
+  },
+  {
     route: "PATCH /api/catalog/materials/:id",
     request: (w) => ({ path: `/api/catalog/materials/${w.materialE3.id}`, body: { title: "Slides v2" } }),
     expect: scoped({ instCategory: 200 }),

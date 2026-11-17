@@ -41,12 +41,25 @@ const ORDER: Record<StudentExamRow["status"], number> = {
   NOT_ASSIGNED: 6,
 };
 
+/** How often My exams asks the server again for newly assigned exams. */
+export const REFRESH_MS = 60_000;
+
 // The student dashboard (FRONTEND_GUIDE §4.2): what is open now, what comes next, what is done.
 export function StudentHome() {
   usePageTitle("My exams");
   const { user } = useAuth();
   const client = useQueryClient();
-  const exams = useQuery({ queryKey: qk.studentExams, queryFn: api.student.exams, staleTime: 15_000 });
+  // Asks again every minute and when the student comes back to the tab, so an exam assigned while
+  // this page is open shows up without a reload (docs/FIXES_PLAN.md fix 3).
+  const exams = useQuery({
+    queryKey: qk.studentExams,
+    queryFn: api.student.exams,
+    staleTime: 15_000,
+    refetchInterval: REFRESH_MS,
+    // "always": even when the list was loaded seconds ago (staleTime would otherwise skip it).
+    refetchOnWindowFocus: "always",
+    refetchOnReconnect: true,
+  });
   const now = useNow();
 
   // When a window opens or closes, ask the server again: it decides the status, not this clock.

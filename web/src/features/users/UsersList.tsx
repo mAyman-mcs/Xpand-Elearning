@@ -1,4 +1,4 @@
-import type { Role, UserDetail } from "@contracts";
+import type { Role, UserListRow as UserDetail } from "@contracts";
 import { Upload, UserPlus } from "lucide-react";
 import { Link } from "react-router";
 import { usePageTitle } from "../../app/pages";
@@ -62,6 +62,11 @@ export function UsersList({ mode }: { mode: "admin" | "instructor" }) {
       : []),
     { header: "Groups", cell: (u) => u.groups.map((g) => g.name).join(", ") || "—" },
     { header: "Join date", cell: (u) => formatDate(u.joinDate) },
+    // Different exams the student submitted (within the caller's reach); the user page lists them.
+    {
+      header: "Exams taken",
+      cell: (u) => (u.examsTaken === null ? "—" : <span className="tabular-nums">{u.examsTaken}</span>),
+    },
     {
       header: "Status",
       cell: (u) => {

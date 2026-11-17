@@ -180,6 +180,7 @@ model Category {
 
   exams       Exam[]
   grantScopes GrantCategory[]
+  materials   Material[]
 }
 
 // Cross-cutting labels; the list is managed by super admins (decision D4).
@@ -380,13 +381,19 @@ model Upload {
   @@index([examId])
 }
 
+// A training link for one exam, or for every exam of a category (docs/FIXES_PLAN.md fix 2).
+// Exactly one of examId / categoryId is set (enforced by a CHECK constraint in the migration).
 model Material {
-  id       String @id @default(uuid()) @db.Uuid
-  examId   String @db.Uuid
-  exam     Exam   @relation(fields: [examId], references: [id], onDelete: Cascade)
-  title    String
-  url      String
-  position Int    @default(0)
+  id         String    @id @default(uuid()) @db.Uuid
+  examId     String?   @db.Uuid
+  exam       Exam?     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  categoryId String?   @db.Uuid
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  title      String
+  url        String
+  position   Int       @default(0)
+
+  @@index([categoryId])
 }
 
 // ─────────────────────── Assignment & schedule ───────────────────────

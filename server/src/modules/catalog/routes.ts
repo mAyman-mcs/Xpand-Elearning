@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { releaseBody, resultsStatus, setResultsRelease } from "./results-release.service.js";
+import { createCategoryMaterial, staffMaterials } from "./category-materials.service.js";
 import type { AppDeps } from "../../core/context.js";
 import { pageQuery } from "../../core/pagination.js";
 import { access, ApiRouter, created, noContent } from "../../core/route.js";
@@ -244,6 +245,18 @@ export function catalogRoutes(deps: AppDeps): ApiRouter {
     body: materialBody,
     scope: onExam,
     handler: async (ctx, { params, body }) => created(await createMaterial(ctx, params.id, body)),
+  });
+  // Materials of a whole category (docs/FIXES_PLAN.md fix 2): the staff Materials page.
+  api.get("/materials", {
+    access: access.roles("SUPER_ADMIN", "INSTRUCTOR"),
+    handler: (ctx) => staffMaterials(ctx),
+  });
+  api.post("/categories/:id/materials", {
+    access: edit,
+    params: idParams,
+    body: materialBody,
+    scope: (ctx, { params }) => categoryScope(ctx.db, params.id),
+    handler: async (ctx, { params, body }) => created(await createCategoryMaterial(ctx, params.id, body)),
   });
   api.patch("/materials/:id", {
     access: edit,

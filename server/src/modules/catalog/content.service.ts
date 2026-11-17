@@ -36,14 +36,11 @@ export function questionProblems(q: QuestionShape): string[] {
   const correct = q.options.filter((o) => o.isCorrect).length;
   if (!q.text.trim()) problems.push("The question has no text.");
   if (!(q.points > 0)) problems.push("Points must be more than 0.");
-  if (q.imageId && !q.imageAlt?.trim()) problems.push("Describe the question's picture (alt text).");
   if (q.type === "ESSAY") {
     if (q.options.length) problems.push("Essay questions have no options.");
     return problems;
   }
   if (q.options.some((o) => !o.text.trim() && !o.imageId)) problems.push("An option has no text or picture.");
-  if (q.options.some((o) => o.imageId && !o.imageAlt?.trim()))
-    problems.push("Describe every option picture (alt text).");
   if (q.type === "TRUE_FALSE") {
     if (q.options.length !== 2) problems.push("True/false questions have exactly 2 options.");
     if (correct !== 1) problems.push("Mark exactly one option as correct.");
@@ -247,7 +244,7 @@ export function caseDto(c: CaseRow) {
 }
 type CaseDto = ReturnType<typeof caseDto>;
 
-const materialDto = (m: { id: string; title: string; url: string; position: number }) => ({
+export const materialDto = (m: { id: string; title: string; url: string; position: number }) => ({
   id: m.id,
   title: m.title,
   url: m.url,
@@ -605,8 +602,6 @@ export async function importQuestions(ctx: Ctx, examId: string, input: z.infer<t
         errors.push({ index: 0, message: `${where}${issue.path.join(".") || "case"}: ${issue.message}` });
       return null;
     }
-    if (parsed.data.imageId && !parsed.data.imageAlt)
-      errors.push({ index: 0, message: `${where}Describe the case's picture (alt text).` });
     const questions = parsed.data.questions.map((q, i) => parseQuestion(q, `${where}question ${i + 1}: `));
     return { ...parsed.data, questions };
   });
@@ -655,7 +650,6 @@ export async function importQuestions(ctx: Ctx, examId: string, input: z.infer<t
 // ─────────────────────────────── Cases ───────────────────────────────
 
 export async function createCase(ctx: Ctx, examId: string, input: z.infer<typeof caseBody>): Promise<CaseDto> {
-  if (input.imageId && !input.imageAlt) throw invalid(["Describe the case's picture (alt text)."], "imageAlt");
   return inTransaction(ctx.db, async (tx) => {
     await examTypeOf(tx, examId);
     if (await isLocked(tx, examId)) throw lockedError();
@@ -676,7 +670,6 @@ export async function updateCase(ctx: Ctx, caseId: string, patch: z.infer<typeof
     if (!before) throw notFound("Case not found.");
     const imageId = patch.imageId !== undefined ? patch.imageId : before.imageId;
     const imageAlt = patch.imageAlt !== undefined ? patch.imageAlt : before.imageAlt;
-    if (imageId && !imageAlt) throw invalid(["Describe the case's picture (alt text)."], "imageAlt");
     await assertUploadsOf(tx, before.examId, [patch.imageId]);
     const c = await tx.questionCase.update({
       where: { id: caseId },
@@ -713,6 +706,24 @@ export async function deleteCase(ctx: Ctx, caseId: string): Promise<void> {
 
 // ─────────────────────────────── Materials ───────────────────────────────
 
+/** Audited on its owner: the exam, or the category (docs/FIXES_PLAN.md fix 2). */
+export async function auditMaterial(
+  ctx: Ctx,
+  tx: Prisma.TransactionClient,
+  action: string,
+  owner: { examId: string | null; categoryId: string | null },
+  detail: Prisma.InputJsonObject,
+) {
+  await audit(tx, {
+    action,
+    actorId: actorOf(ctx).userId,
+    entityType: owner.examId ? "Exam" : "Category",
+    entityId: owner.examId ?? owner.categoryId ?? "",
+    detail,
+    ip: ctx.ip,
+  });
+}
+
 export async function listMaterials(ctx: Ctx, examId: string) {
   const rows = await ctx.db.material.findMany({ where: { examId }, orderBy: [{ position: "asc" }, { title: "asc" }] });
   return rows.map(materialDto);
@@ -732,7 +743,7 @@ export async function updateMaterial(ctx: Ctx, materialId: string, patch: z.infe
     const before = await tx.material.findUnique({ where: { id: materialId } });
     if (!before) throw notFound("Material not found.");
     const m = await tx.material.update({ where: { id: materialId }, data: patch });
-    await auditContent(ctx, tx, "catalog.material_updated", m.examId, { materialId, fields: Object.keys(patch) });
+    await auditMaterial(ctx, tx, "catalog.material_updated", m, { materialId, fields: Object.keys(patch) });
     return materialDto(m);
   });
 }
@@ -742,7 +753,7 @@ export async function deleteMaterial(ctx: Ctx, materialId: string): Promise<void
     const m = await tx.material.findUnique({ where: { id: materialId } });
     if (!m) throw notFound("Material not found.");
     await tx.material.delete({ where: { id: materialId } });
-    await auditContent(ctx, tx, "catalog.material_deleted", m.examId, { materialId, title: m.title });
+    await auditMaterial(ctx, tx, "catalog.material_deleted", m, { materialId, title: m.title });
   });
 }
 

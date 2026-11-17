@@ -41,14 +41,11 @@ export function questionProblems(
   const correct = q.options.filter((o) => o.isCorrect).length;
   if (!q.text.trim()) problems.push("The question has no text.");
   if (!(q.points > 0)) problems.push("Points must be more than 0.");
-  if (q.imageId && !q.imageAlt?.trim()) problems.push("Describe the question's picture (alt text).");
   if (q.type === "ESSAY") {
     if (q.options.length) problems.push("Essay questions have no options.");
     return problems;
   }
   if (q.options.some((o) => !o.text.trim() && !o.imageId)) problems.push("An option has no text or picture.");
-  if (q.options.some((o) => o.imageId && !o.imageAlt?.trim()))
-    problems.push("Describe every option picture (alt text).");
   if (q.type === "TRUE_FALSE") {
     if (q.options.length !== 2) problems.push("True/false questions have exactly 2 options.");
     if (correct !== 1) problems.push("Mark exactly one option as correct.");

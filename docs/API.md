@@ -111,9 +111,12 @@ Only active (unexpired) grants are listed. Super admins and students get `grants
 |---|---|---|
 | GET | `/api/student/exams` | Students only |
 | GET | `/api/student/exams/:id` | Students only (assigned exams) |
+| GET | `/api/student/materials` | Students only |
 | POST, GET, PUT | `/api/attempts…` | Students only (their own attempts) |
 
 Students also use everything in section 2. **`GET /api/student/exams`** is described with the exam endpoints in §6.5, and the exam session in §6.7.
+
+**`GET /api/student/materials`** → `StudentMaterialSection[]`: one entry per category of the student's **published**, assigned exams that has any link: `{ category: { id, name }, materials: [{ title, url }], exams: [{ id, code, title, materials }] }`. `materials` are the category's links (every exam of it); `exams` lists the exams with links of their own. Categories with no links are left out.
 
 Students get `403 FORBIDDEN` on every staff endpoint.
 
@@ -157,7 +160,7 @@ Super admins pass every permission check, including all exam endpoints (§6). Th
 | GET | `/api/users/lookup` | Super admin (instructors: §4) |
 | POST | `/api/users/import` | Super admin |
 
-**`GET /api/users`** (*paginated*): returns `{ items: UserDetail[], nextCursor }`.
+**`GET /api/users`** (*paginated*): returns `{ items: UserListRow[], nextCursor }`. A `UserListRow` is a `UserDetail` plus `examsTaken`: for a student, the number of different exams they submitted that the caller may see results of (as in `GET /api/submissions`); `null` for staff.
 
 | Query | Meaning |
 |---|---|
@@ -415,6 +418,8 @@ All need **Perm `EXAM_EDIT`** on the exam (SA always). These responses **include
 | DELETE | `/api/catalog/cases/:id` | `204`; deletes the case **and its questions** |
 | GET | `/api/catalog/exams/:id/materials` | `Material[]` |
 | POST | `/api/catalog/exams/:id/materials` | `{ title, url }` (https only) → `201 Material` |
+| GET | `/api/catalog/materials` | `CategoryMaterials[]`: every category the caller reaches (staff, no grant needed) |
+| POST | `/api/catalog/categories/:id/materials` | `{ title, url }` (https only) → `201 Material`. Perm `EXAM_EDIT` on the category |
 | PATCH | `/api/catalog/materials/:id` | `{ title?, url? }` → `Material` |
 | DELETE | `/api/catalog/materials/:id` | `204` |
 | POST | `/api/catalog/exams/:id/duplicate` | `{ code, title? }` → `201 { id }`: a DRAFT copy (settings, tags, cases, questions, materials; pictures are shared). Also needs `EXAM_EDIT` on the exam's **category** (`403` otherwise); `409` if the code is taken. |
@@ -427,7 +432,7 @@ All need **Perm `EXAM_EDIT`** on the exam (SA always). These responses **include
 - `type`: `SINGLE_CHOICE` (2–10 options, exactly 1 correct), `MULTI_CHOICE` (2–10 options, at least 1 correct), `TRUE_FALSE` (exactly 2 options, 1 correct) or `ESSAY` (no options; only in `MCQ_ESSAY` exams, otherwise `400` on `type`).
 - `guidance` (essays only, ≤ 5,000 characters): notes for graders. Staff only, never sent to students; ignored on other types.
 - `points` defaults to 1 (more than 0, at most 100); `imageUrl` is optional and must be https (older questions: prefer an upload).
-- `imageId` + `imageAlt`: an uploaded picture (§6.1b) and its description; `imageAlt` is required with a picture.
+- `imageId` + `imageAlt`: an uploaded picture (§6.1b) and its optional description. A picture without one is shown as decorative (`alt=""`).
 - `answerSize` (essays): `SHORT` (one line, ≤ 300 characters) or `LONG` (default, ≤ 10,000).
 - `caseId`: the case the question belongs to (`null` = on its own). Moving a question into a case places it after the case's last question; out of a case, right after it.
 - Options: `text` (may be empty when the option has a picture), `isCorrect`, and optional `detail` (a neutral second line students see), `imageId` + `imageAlt`, `explanation` (why it is right or wrong: **staff only**).
@@ -447,6 +452,8 @@ Errors inside a case are reported as `"Case 1: question 2: …"`.
 - **PATCH** sends any of the fields; `options` replaces the whole list (each may carry its `id`). The result is validated as a whole.
 
 **Locked exams.** Once any student has an attempt, only **wording** can change: the question `text`, pictures and alt text, `guidance`; option `text`, `detail`, pictures, alt text and `explanation` (options identified by `id`, same correct answers); and every case field. Changing the type, points, case, answer size, options or correct answers, adding, deleting or importing questions or cases → `409 CONFLICT`. Duplicate the exam to change more.
+
+**Category materials.** A material belongs to an exam **or** to a category (every exam of it). `GET /api/catalog/materials` returns `{ category: { id, name }, canEdit, materials: Material[] }` per category: super admins see every category that isn't archived; instructors see the categories their grants cover and those of any exam they can see. `canEdit` is `EXAM_EDIT` on the category; `PATCH` and `DELETE /api/catalog/materials/:id` need the same for a category's link. Changes are audited on the category (`entityType: "Category"`).
 
 ### 6.1b Pictures (uploads)
 
@@ -749,8 +756,9 @@ for one attempt. These responses include the answer key and grader guidance: sta
 
 - **List:** *paginated*, newest first → `Page<SubmissionRow>`: submitted attempts (never in progress or
   voided) whose exam and student **one same grant** with `RESULTS_VIEW` or `ATTEMPT_REVIEW` covers.
-  Filters: `examId`, `show=all|awaiting-grading` (needs-approval exams not approved yet), `q` (student
+  Filters: `examId`, `userId` (one student's exam history, the user page), `show=all|awaiting-grading` (needs-approval exams not approved yet), `q` (student
   name or username, exam title or code). `isLatest` marks each student's latest attempt on the exam.
+  `exam` carries `passMark` (percent) and `resultsReleased` (shown to students or not).
 - **Preview:** `SubmissionPreview`: the `GradingAttempt` shape (any scoring mode, read only, with the
   answer key) without `nextUngradedId`, plus `canGrade` (needs-approval exam, `ATTEMPT_REVIEW`) and
   `canGiveAnotherAttempt` (the latest attempt, `EXAM_ASSIGN`). In progress → `409`.
@@ -776,7 +784,7 @@ Legend: ✅ allowed · 🔑 instructors with the named permission on the exam/ta
 | `GET /api/auth/me`, `POST /api/auth/change-password`, `GET /api/me/permissions` | — | ✅ | ✅ | ✅ |
 | `GET /api/me/dashboard`, `GET /api/submissions` | — | ❌ | 👁 (no grant needed) | ✅ |
 | `GET /api/submissions/:id` | — | ❌ | 🔑 `RESULTS_VIEW` or `ATTEMPT_REVIEW` (exam and student) | ✅ |
-| `GET /api/student/exams` | — | ✅ | ❌ | ❌ |
+| `GET /api/student/exams`, `GET /api/student/materials` | — | ✅ | ❌ | ❌ |
 | `GET /api/users`, `GET /api/users/:id` | — | ❌ | 👁 students | ✅ |
 | `GET /api/users/lookup` | — | ❌ | 👁 students | ✅ |
 | `POST/PATCH /api/users…`, `POST /api/users/:id/reset-password`, `POST /api/users/import` | — | ❌ | ❌ | ✅ |
@@ -789,6 +797,8 @@ Legend: ✅ allowed · 🔑 instructors with the named permission on the exam/ta
 | `GET /api/catalog/exams/:id` | — | ❌ | 🔑 any | ✅ |
 | `POST /api/catalog/exams`, `PATCH …/:id`, `PUT …/:id/tags` | — | ❌ | 🔑 `EXAM_EDIT` | ✅ |
 | Exam content: questions, cases, materials, duplicate (§6.1a) | — | ❌ | 🔑 `EXAM_EDIT` | ✅ |
+| `GET /api/catalog/materials` (§6.1a) | — | ❌ | 👁 (no grant needed) | ✅ |
+| `POST /api/catalog/categories/:id/materials` | — | ❌ | 🔑 `EXAM_EDIT` on the category | ✅ |
 | `POST /api/uploads` (§6.1b) | — | ❌ | 🔑 `EXAM_EDIT` | ✅ |
 | `GET /api/uploads/:id` | — | during an attempt using it | 🔑 any, on an exam using it | ✅ |
 | `GET /api/assignments`, `GET /api/overrides` | — | ❌ | 🔑 `EXAM_ASSIGN` or `EXAM_SCHEDULE` | ✅ |

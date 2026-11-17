@@ -17,6 +17,8 @@ const READ: ["RESULTS_VIEW", "ATTEMPT_REVIEW"] = ["RESULTS_VIEW", "ATTEMPT_REVIE
 
 export const submissionsQuery = z.object({
   examId: uuid.optional(),
+  /** One student's exam history (the user page). */
+  userId: uuid.optional(),
   /** `awaiting-grading`: needs-approval exams not approved yet. */
   show: z.enum(["all", "awaiting-grading"]).default("all"),
   /** Student name or username, or exam code or title. */
@@ -53,11 +55,17 @@ export async function listSubmissions(ctx: Ctx, filter: z.infer<typeof submissio
       AND: [
         inScope(ctx),
         filter.examId ? { examId: filter.examId } : {},
+        filter.userId ? { userId: filter.userId } : {},
         filter.show === "awaiting-grading" ? AWAITING : {},
         search,
       ],
     },
-    include: { user: person, exam: { select: { id: true, code: true, title: true, scoringMode: true } } },
+    include: {
+      user: person,
+      exam: {
+        select: { id: true, code: true, title: true, scoringMode: true, passMark: true, resultsReleased: true },
+      },
+    },
     orderBy: [{ submittedAt: { sort: "desc", nulls: "last" } }, { id: "asc" }],
     ...pageArgs(page),
   });
@@ -74,7 +82,7 @@ export async function listSubmissions(ctx: Ctx, filter: z.infer<typeof submissio
     attemptId: r.id,
     attemptNo: r.attemptNo,
     isLatest: latestNo.get(`${r.examId}:${r.userId}`) === r.attemptNo,
-    exam: r.exam,
+    exam: { ...r.exam, passMark: r.exam.passMark.toNumber() },
     student: r.user,
     status: r.status,
     submittedAt: r.submittedAt,
@@ -83,6 +91,21 @@ export async function listSubmissions(ctx: Ctx, filter: z.infer<typeof submissio
     score: num(r.score),
     maxScore: num(r.maxScore),
   }));
+}
+
+/**
+ * For each student, how many different exams they submitted, counted within the caller's reach
+ * (the "Exams taken" column of the users list). Students with none are left out.
+ */
+export async function examsTakenBy(ctx: Ctx, userIds: string[]): Promise<Map<string, number>> {
+  if (!userIds.length) return new Map();
+  const pairs = await ctx.db.attempt.groupBy({
+    by: ["userId", "examId"],
+    where: { AND: [inScope(ctx), { userId: { in: userIds } }] },
+  });
+  const counts = new Map<string, number>();
+  for (const p of pairs) counts.set(p.userId, (counts.get(p.userId) ?? 0) + 1);
+  return counts;
 }
 
 /** One submitted exam, read only: every question, the student's answers, the key and the points. */

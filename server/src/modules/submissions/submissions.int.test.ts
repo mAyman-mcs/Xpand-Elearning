@@ -255,6 +255,44 @@ describe("submissions list", () => {
   });
 });
 
+describe("a student's exam history", () => {
+  it("filters by student, carries the pass mark and release, and counts exams taken on the users list", async () => {
+    const { exam } = await seedExam({ title: "History exam" });
+    await db.exam.update({ where: { id: exam.id }, data: { passMark: 60, resultsReleased: true } });
+    const own = await take(exam.id);
+    const e1A = await db.attempt.create({ data: { examId: w.e1.id, userId: w.users.student.id, status: "SUBMITTED" } });
+    // A second attempt at the same exam counts once in "exams taken".
+    await db.attempt.create({
+      data: { examId: w.e1.id, userId: w.users.student.id, status: "SUBMITTED", attemptNo: 2 },
+    });
+    const e2A = await db.attempt.create({ data: { examId: w.e2.id, userId: w.users.student.id, status: "SUBMITTED" } });
+    await student.post("/api/attempts").send({ examId: (await seedExam({ title: "Not yet" })).exam.id });
+
+    const history = (await list(admin, { userId: w.users.student.id })).items;
+    expect(history.map((r) => r.student.id)).toEqual(history.map(() => w.users.student.id));
+    expect(ids(history)).toEqual(expect.arrayContaining([own, e1A.id, e2A.id]));
+    expect(history.find((r) => r.attemptId === own)?.exam).toMatchObject({ passMark: 60, resultsReleased: true });
+
+    const taken = async (agent: request.Agent) => {
+      const rows = (await agent.get("/api/users").query({ limit: 100 })).body.items as {
+        id: string;
+        examsTaken: number | null;
+      }[];
+      return (id: string) => rows.find((r) => r.id === id)?.examsTaken;
+    };
+    const byAdmin = await taken(admin);
+    expect(byAdmin(w.users.student.id)).toBe(3); // History exam, E1, E2; the one in progress doesn't count
+    expect(byAdmin(w.users.superAdmin.id)).toBeNull();
+    // instSplit sees results of E1 for group A only: student A's E2 attempt is outside its reach.
+    const split = await loginAs(app, w.users.instSplit);
+    expect((await taken(split))(w.users.student.id)).toBe(1);
+    expect(ids((await list(split, { userId: w.users.student.id })).items).sort()).toEqual(
+      expect.arrayContaining([e1A.id]),
+    );
+    expect(ids((await list(split, { userId: w.users.student.id })).items)).not.toContain(e2A.id);
+  });
+});
+
 // ─────────────────────────────── Preview ───────────────────────────────
 
 describe("preview of a submitted exam", () => {

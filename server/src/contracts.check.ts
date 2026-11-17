@@ -5,6 +5,11 @@ import type { Page } from "./core/pagination.js";
 import type { adminStats, listAudit } from "./modules/admin/service.js";
 import type { assignmentDto, previewAssignments } from "./modules/assignments/assignments.service.js";
 import type { examAvailability, studentExams } from "./modules/assignments/availability.service.js";
+import type {
+  createCategoryMaterial,
+  staffMaterials,
+  studentMaterials,
+} from "./modules/catalog/category-materials.service.js";
 import type { overrideDto } from "./modules/assignments/overrides.service.js";
 import type { tagBundleDto } from "./modules/assignments/tag-bundles.service.js";
 import type { resultsStatus } from "./modules/catalog/results-release.service.js";
@@ -26,7 +31,7 @@ import type { categoryDto, tagDto } from "./modules/catalog/taxonomy.service.js"
 import type { getGroup, groupDto } from "./modules/groups/service.js";
 import type { grantDto } from "./modules/rbac/grants.service.js";
 import type { importUsers } from "./modules/users/import.js";
-import type { lookupUsers, userDto } from "./modules/users/service.js";
+import type { listUsers, lookupUsers, userDto } from "./modules/users/service.js";
 
 /** What JSON.stringify makes of a value: Dates become ISO strings. */
 export type Wire<T> = T extends Date
@@ -46,6 +51,7 @@ type Item<F extends (...args: never[]) => unknown> = Out<F> extends (infer U)[] 
 export type Checks = [
   Assert<Same<Out<typeof publicUser>, C.SessionUser>>,
   Assert<Same<Out<typeof userDto>, C.UserDetail>>,
+  Assert<Same<Out<typeof listUsers>, C.Page<C.UserListRow>>>,
   Assert<Same<Out<typeof groupDto>, C.Group>>,
   Assert<Same<Out<typeof getGroup>, C.GroupDetail>>,
   Assert<Same<Out<typeof grantDto>, C.Grant>>,
@@ -59,6 +65,9 @@ export type Checks = [
   Assert<Same<Item<typeof previewAssignments>, C.PreviewRow>>,
   Assert<Same<Item<typeof examAvailability>, C.AvailabilityRow>>,
   Assert<Same<Item<typeof studentExams>, C.StudentExamRow>>,
+  Assert<Same<Item<typeof staffMaterials>, C.CategoryMaterials>>,
+  Assert<Same<Out<typeof createCategoryMaterial>, C.Material>>,
+  Assert<Same<Item<typeof studentMaterials>, C.StudentMaterialSection>>,
   Assert<Same<Wire<Page<C.Exam>>, C.Page<C.Exam>>>,
   Assert<Same<Out<typeof adminStats>, C.AdminStats>>,
   Assert<Same<Out<typeof listAudit>, C.Page<C.AuditEntry>>>,

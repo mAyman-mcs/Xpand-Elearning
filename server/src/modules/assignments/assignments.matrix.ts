@@ -114,6 +114,11 @@ export const assignmentsRows: MatrixRow[] = [
     expect: statuses(403, { student: 200 }),
   },
   {
+    route: "GET /api/student/materials",
+    request: () => ({ path: "/api/student/materials" }),
+    expect: statuses(403, { student: 200 }),
+  },
+  {
     route: "GET /api/assignments/tag-bundles",
     request: () => ({ path: "/api/assignments/tag-bundles" }),
     // Open to staff; the list holds only bundles the caller may manage.

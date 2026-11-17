@@ -64,6 +64,12 @@ export interface UserDetail extends SessionUser {
   createdAt: string;
 }
 
+/** A row of GET /api/users. */
+export interface UserListRow extends UserDetail {
+  /** Different exams the student submitted, within the caller's reach; null for staff. */
+  examsTaken: number | null;
+}
+
 export interface Group {
   id: string;
   name: string;
@@ -533,6 +539,23 @@ export interface Material {
   position: number;
 }
 
+/** GET /api/catalog/materials: one category's links, for the staff Materials page. */
+export interface CategoryMaterials {
+  category: { id: string; name: string };
+  /** EXAM_EDIT on the category: may add, edit and remove its links. */
+  canEdit: boolean;
+  materials: Material[];
+}
+
+/** GET /api/student/materials: one category of the student's exams. */
+export interface StudentMaterialSection {
+  category: { id: string; name: string };
+  /** Links for every exam of the category. */
+  materials: { title: string; url: string }[];
+  /** Exams of the category with links of their own. */
+  exams: { id: string; code: string; title: string; materials: { title: string; url: string }[] }[];
+}
+
 // ─────────────────────────────── Grading (staff only) ───────────────────────────────
 
 /** One finished attempt of a MANUAL_APPROVAL exam in the grading queue. */
@@ -614,7 +637,16 @@ export interface SubmissionRow {
   attemptNo: number;
   /** The student's latest attempt on this exam (only that one can get another attempt). */
   isLatest: boolean;
-  exam: { id: string; code: string; title: string; scoringMode: ScoringMode };
+  exam: {
+    id: string;
+    code: string;
+    title: string;
+    scoringMode: ScoringMode;
+    /** Percent of the maximum score needed to pass. */
+    passMark: number;
+    /** Staff show this exam's results to students. */
+    resultsReleased: boolean;
+  };
   student: PersonRef;
   status: AttemptStatus;
   submittedAt: string | null;

@@ -105,7 +105,7 @@ test.describe("navigation by role", () => {
       await page.goto("/admin");
       await expect(page.getByRole("heading", { name: "No access" })).toBeVisible();
       const nav = page.getByRole("navigation", { name: "Main" });
-      await expect(nav.getByRole("link")).toHaveText(["My exams"]);
+      await expect(nav.getByRole("link")).toHaveText(["My exams", "Materials"]);
     });
   });
 });

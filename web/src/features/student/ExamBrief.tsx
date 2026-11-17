@@ -185,9 +185,13 @@ export function ExamBrief() {
             <Button disabled={!agreed} busy={start.isPending} onClick={() => start.mutate()}>
               {resuming ? "Resume exam" : "Start exam"}
             </Button>
-            {exam.materials.length > 0 && (
-              <span className="text-xs text-slate-600">Study materials are on your exams page.</span>
-            )}
+            <span className="text-xs text-slate-600">
+              Study material for this topic is on the{" "}
+              <Link to="/student/materials" className="font-semibold text-brand-700 hover:underline">
+                Materials page
+              </Link>
+              .
+            </span>
           </div>
           {fullscreenRefused && (
             <p role="alert" className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">

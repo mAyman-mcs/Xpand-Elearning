@@ -2,6 +2,7 @@ import type { MyPermissions, Role } from "@contracts";
 import { useEffect, useState } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
+  BookOpen,
   ChevronDown,
   ClipboardList,
   FileText,
@@ -49,6 +50,8 @@ const NAV: NavItem[] = [
   { to: "/admin/groups", label: "Groups", icon: UsersRound, show: admin },
   { to: "/admin/catalog", label: "Categories & tags", icon: Tags, show: admin },
   { to: "/exams", label: "Exams", icon: FileText, show: staff },
+  // Training links per category (docs/FIXES_PLAN.md fix 2).
+  { to: "/materials", label: "Materials", icon: BookOpen, show: staff },
   {
     to: "/students",
     label: "Students",
@@ -58,6 +61,7 @@ const NAV: NavItem[] = [
   // Instructors with AUDIT_VIEW get a scoped audit view in phase B9 (NEXT_PLAN E18).
   { to: "/admin/audit", label: "Audit log", icon: ScrollText, show: admin },
   { to: "/student", label: "My exams", icon: ClipboardList, end: true, show: (role) => role === "STUDENT" },
+  { to: "/student/materials", label: "Materials", icon: BookOpen, show: (role) => role === "STUDENT" },
 ];
 
 export function Layout() {

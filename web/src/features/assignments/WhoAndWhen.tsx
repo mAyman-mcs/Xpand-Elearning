@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useLocation } from "react-router";
+import { Link, useLocation } from "react-router";
 import { useExam } from "../exams/ExamLayout";
 import { ExamAssignments } from "./ExamAssignments";
 import { ExamAvailability } from "./ExamAvailability";
@@ -11,7 +11,7 @@ import { ExamOverrides } from "./ExamOverrides";
  * assigned to and on what schedule, then the open/close overrides on top of the schedule.
  */
 export function WhoAndWhen() {
-  const { allowed } = useExam();
+  const { exam, allowed } = useExam();
   const manage = allowed("EXAM_ASSIGN") || allowed("EXAM_SCHEDULE");
   const { hash } = useLocation();
 
@@ -22,6 +22,16 @@ export function WhoAndWhen() {
 
   return (
     <div className="space-y-6">
+      {exam.status === "DRAFT" && (
+        <p role="note" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          This exam is a draft. Students won't see it, even when it is assigned, until you publish it.{" "}
+          {allowed("EXAM_EDIT") && (
+            <Link to={`/exams/${exam.id}`} className="font-semibold underline">
+              Publish it on Settings
+            </Link>
+          )}
+        </p>
+      )}
       <section id="availability" className="scroll-mt-4">
         <ExamAvailability />
       </section>

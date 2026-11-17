@@ -47,6 +47,9 @@ import type {
   SubmissionRow,
   Tag,
   UserDetail,
+  UserListRow,
+  CategoryMaterials,
+  StudentMaterialSection,
   UserLookup,
 } from "@contracts";
 import { http } from "./client";
@@ -151,6 +154,8 @@ export interface GradeInput {
 
 export interface SubmissionFilter {
   examId?: string;
+  /** One student's exam history. */
+  userId?: string;
   show?: "all" | "awaiting-grading";
   q?: string;
 }
@@ -206,7 +211,7 @@ export const api = {
   },
   users: {
     list: (filter: UserListFilter, cursor?: string) =>
-      http.get<Page<UserDetail>>("/users", { ...filter, cursor, limit: 50 }),
+      http.get<Page<UserListRow>>("/users", { ...filter, cursor, limit: 50 }),
     get: (id: string) => http.get<UserDetail>(`/users/${id}`),
     create: (input: UserInput) => http.post<{ user: UserDetail; temporaryPassword: string }>("/users", input),
     update: (id: string, patch: UserPatch) => http.patch<UserDetail>(`/users/${id}`, patch),
@@ -287,6 +292,10 @@ export const api = {
     update: (id: string, patch: { title?: string; url?: string }) =>
       http.patch<Material>(`/catalog/materials/${id}`, patch),
     remove: (id: string) => http.del(`/catalog/materials/${id}`),
+    /** Every category the caller reaches, with its links (the staff Materials page). */
+    byCategory: () => http.get<CategoryMaterials[]>("/catalog/materials"),
+    createForCategory: (categoryId: string, input: { title: string; url: string }) =>
+      http.post<Material>(`/catalog/categories/${categoryId}/materials`, input),
   },
   assignments: {
     list: (examId: string) => http.get<Assignment[]>("/assignments", { examId }),
@@ -319,6 +328,7 @@ export const api = {
   student: {
     exams: () => http.get<StudentExamRow[]>("/student/exams"),
     exam: (id: string) => http.get<StudentExamBrief>(`/student/exams/${id}`),
+    materials: () => http.get<StudentMaterialSection[]>("/student/materials"),
   },
   attempts: {
     start: (examId: string) => http.post<StudentAttempt>("/attempts", { examId }),

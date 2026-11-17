@@ -10,6 +10,7 @@ import { nonBlank, queryBoolean, uuid, uuidList } from "../../core/schemas.js";
 import { Role, type Prisma } from "../../generated/prisma/client.js";
 import { hashPassword } from "../auth/password.js";
 import { revokeAllSessions } from "../auth/session.js";
+import { examsTakenBy } from "../submissions/service.js";
 import { reachOf, studentWhere } from "../rbac/scope.js";
 
 export const userListQuery = z.object({
@@ -107,7 +108,7 @@ export async function listUsers(
   ctx: Ctx,
   filter: z.infer<typeof userListQuery>,
   page: PageQuery,
-): Promise<Page<UserDto>> {
+): Promise<Page<UserDto & { examsTaken: number | null }>> {
   const where: Prisma.UserWhereInput = {
     AND: [
       visibleUsers(ctx),
@@ -130,7 +131,15 @@ export async function listUsers(
     orderBy: [{ fullName: "asc" }, { id: "asc" }],
     ...pageArgs(page),
   });
-  return toPage(rows, page, userDto);
+  const taken = await examsTakenBy(
+    ctx,
+    rows.filter((u) => u.role === "STUDENT").map((u) => u.id),
+  );
+  return toPage(rows, page, (u) => ({
+    ...userDto(u),
+    /** Different exams submitted, within the caller's reach; null for staff. */
+    examsTaken: u.role === "STUDENT" ? (taken.get(u.id) ?? 0) : null,
+  }));
 }
 
 export async function getUser(ctx: Ctx, userId: string): Promise<UserDto> {

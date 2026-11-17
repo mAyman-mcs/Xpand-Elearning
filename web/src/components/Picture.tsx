@@ -74,7 +74,7 @@ const ACCEPT = "image/png,image/jpeg,image/webp";
 const MAX_BYTES = 2 * 1024 * 1024;
 
 /**
- * Upload or replace a picture, with its description (alt text, required by the server). Used for
+ * Upload or replace a picture, with an optional description (alt text). Used for
  * question, option and case pictures in the editor.
  */
 export function ImageField({
@@ -137,12 +137,10 @@ export function ImageField({
           <Picture src={uploadUrl(imageId)} alt={imageAlt ?? null} className={compact ? "max-h-24" : "max-h-40"} />
           <div className="min-w-48 flex-1">
             <TextInput
-              label="Describe the picture (alt text)"
-              required
+              label="Describe the picture (optional)"
               maxLength={300}
               value={imageAlt ?? ""}
-              hint="Read aloud to students using a screen reader. Describe it neutrally: don't give away the answer."
-              error={imageAlt?.trim() ? undefined : "Required"}
+              hint="Recommended: read aloud to students using a screen reader. Don't give away the answer."
               onChange={(e) => onChange({ imageId, imageAlt: e.target.value || null })}
             />
           </div>
